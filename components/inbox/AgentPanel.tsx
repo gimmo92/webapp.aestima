@@ -8,6 +8,7 @@ import { buildQuote, euro } from "@/lib/quote";
 import { buildCustomerReply, buildSupplierRequest } from "@/lib/inboxDrafts";
 import { docsForMachine } from "@/lib/archiveData";
 import { DocTypeBadge } from "@/components/archive/DocTypeBadge";
+import { QuotePreviewModal } from "./QuotePreviewModal";
 import type { AnalysisResult, MatchResult, Quote } from "@/lib/types";
 import type { PartRequest } from "@/lib/inboxTypes";
 
@@ -28,6 +29,7 @@ export function AgentPanel({ request, onApproveSend }: Props) {
   const [match, setMatch] = useState<MatchResult | null>(null);
   const [quote, setQuote] = useState<Quote | null>(null);
   const [sent, setSent] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
 
   // Testo modificabile delle bozze (lo stato di editing vive qui).
   const [replyText, setReplyText] = useState("");
@@ -38,6 +40,7 @@ export function AgentPanel({ request, onApproveSend }: Props) {
     const controller = new AbortController();
     setLoading(true);
     setSent(false);
+    setShowPreview(false);
     setAnalysis(null);
     setMatch(null);
     setQuote(null);
@@ -202,6 +205,14 @@ export function AgentPanel({ request, onApproveSend }: Props) {
               onChange={setReplyText}
               onReset={resetReply}
               readOnly={sent}
+              attachment={
+                quote && (
+                  <QuoteAttachment
+                    quote={quote}
+                    onView={() => setShowPreview(true)}
+                  />
+                )
+              }
               footer={
                 <div className="flex border-t border-border pt-3 sm:justify-end">
                   <button
@@ -233,6 +244,16 @@ export function AgentPanel({ request, onApproveSend }: Props) {
             />
           )}
         </div>
+      )}
+
+      {/* Anteprima del PDF del preventivo allegato alla mail */}
+      {showPreview && quote && (
+        <QuotePreviewModal
+          quote={quote}
+          customerName={request.company}
+          serial={match?.machine?.serial}
+          onClose={() => setShowPreview(false)}
+        />
       )}
     </div>
   );
@@ -311,6 +332,7 @@ function DraftBox({
   onChange,
   onReset,
   readOnly = false,
+  attachment,
   footer,
 }: {
   tone: "brand" | "warn";
@@ -321,6 +343,7 @@ function DraftBox({
   onChange: (v: string) => void;
   onReset: () => void;
   readOnly?: boolean;
+  attachment?: React.ReactNode;
   footer?: React.ReactNode;
 }) {
   const accent = tone === "brand" ? "#3b82f6" : "#f97316";
@@ -374,6 +397,7 @@ function DraftBox({
             </p>
           </>
         )}
+        {attachment && <div className="mt-3">{attachment}</div>}
         {footer && <div className="mt-3">{footer}</div>}
       </div>
     </div>
@@ -409,6 +433,44 @@ function AutoTextarea({
       className="w-full resize-none rounded-lg border border-border bg-base px-3 py-2.5 font-sans text-sm leading-relaxed text-ink outline-none transition-colors focus:border-brand focus:ring-2 focus:ring-brand/20"
       style={{ ["--tw-ring-color" as string]: `${accent}40` }}
     />
+  );
+}
+
+/** Chip dell'allegato PDF del preventivo con anteprima. */
+function QuoteAttachment({
+  quote,
+  onView,
+}: {
+  quote: Quote;
+  onView: () => void;
+}) {
+  return (
+    <div className="flex items-center gap-3 rounded-lg border border-border bg-surface-2/40 px-3 py-2.5">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-brand-soft text-brand">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+          <path d="M14 2v6h6" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+        </svg>
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-medium text-ink">
+          Preventivo_{quote.number}.pdf
+        </p>
+        <p className="text-[11px] text-ink-faint">
+          Allegato · PDF · {euro(quote.total)} (IVA incl.)
+        </p>
+      </div>
+      <button
+        onClick={onView}
+        className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-medium text-ink-muted transition-colors hover:border-brand/60 hover:text-ink"
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+          <circle cx="12" cy="12" r="2.6" stroke="currentColor" strokeWidth="1.7" />
+        </svg>
+        Visualizza
+      </button>
+    </div>
   );
 }
 
