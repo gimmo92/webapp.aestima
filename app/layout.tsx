@@ -12,9 +12,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "aestima — Dalla richiesta al preventivo, in un attimo",
-  description:
-    "Demo: un agente AI che trasforma una richiesta di ricambio in un preventivo pronto.",
+  title: "aestima",
+  description: "Gestione richieste ricambi, preventivi e archivio documentale after-sales.",
 };
 
 export default function RootLayout({
