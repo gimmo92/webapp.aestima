@@ -25,7 +25,7 @@ export default function RootLayout({
   return (
     <html lang="it" className={inter.variable}>
       <body className="min-h-screen antialiased">
-        {/* Stato condiviso tra inbox e pipeline (in memoria, demo). */}
+        {/* Stato condiviso tra inbox, pipeline e fornitori (in memoria, demo). */}
         <InboxProvider>{children}</InboxProvider>
       </body>
     </html>

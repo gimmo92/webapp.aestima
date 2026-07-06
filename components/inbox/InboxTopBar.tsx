@@ -11,6 +11,7 @@ const NAV = [
   { href: "/", label: "Inbox" },
   { href: "/pipeline", label: "Pipeline" },
   { href: "/archivio", label: "Archivio" },
+  { href: "/fornitori", label: "Fornitori" },
 ] as const;
 
 export function InboxTopBar() {

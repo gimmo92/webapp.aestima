@@ -5,10 +5,16 @@ import Link from "next/link";
 import { matchAnalysisToData } from "@/lib/match";
 import { mockAnalyze } from "@/lib/mockAnalyze";
 import { buildQuote, euro } from "@/lib/quote";
-import { buildCustomerReply, buildSupplierRequest } from "@/lib/inboxDrafts";
+import {
+  buildCustomerReply,
+  buildSupplierRequest,
+  buildSupplierSubject,
+} from "@/lib/inboxDrafts";
 import { docsForMachine } from "@/lib/archiveData";
 import { DocTypeBadge } from "@/components/archive/DocTypeBadge";
 import { QuotePreviewModal } from "./QuotePreviewModal";
+import { SupplierPickerModal } from "@/components/suppliers/SupplierPickerModal";
+import { useInbox } from "./InboxProvider";
 import type { AnalysisResult, MatchResult, Quote } from "@/lib/types";
 import type { PartRequest } from "@/lib/inboxTypes";
 
@@ -24,12 +30,15 @@ interface Props {
 }
 
 export function AgentPanel({ request, onApproveSend }: Props) {
+  const { createSupplierRequests } = useInbox();
   const [loading, setLoading] = useState(true);
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [match, setMatch] = useState<MatchResult | null>(null);
   const [quote, setQuote] = useState<Quote | null>(null);
   const [sent, setSent] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  const [showSupplierPicker, setShowSupplierPicker] = useState(false);
+  const [supplierSent, setSupplierSent] = useState(false);
 
   // Testo modificabile delle bozze (lo stato di editing vive qui).
   const [replyText, setReplyText] = useState("");
@@ -41,6 +50,8 @@ export function AgentPanel({ request, onApproveSend }: Props) {
     setLoading(true);
     setSent(false);
     setShowPreview(false);
+    setShowSupplierPicker(false);
+    setSupplierSent(false);
     setAnalysis(null);
     setMatch(null);
     setQuote(null);
@@ -187,10 +198,42 @@ export function AgentPanel({ request, onApproveSend }: Props) {
               tone="warn"
               icon="supplier"
               title="Bozza richiesta fornitore"
-              badge="Pezzo mancante"
+              badge={supplierSent ? "Inviata" : "Pezzo mancante"}
               value={supplierText}
               onChange={setSupplierText}
               onReset={resetSupplier}
+              readOnly={supplierSent}
+              footer={
+                <div className="flex flex-col gap-2 border-t border-border pt-3 sm:flex-row sm:items-center sm:justify-between">
+                  {supplierSent ? (
+                    <p className="flex items-center gap-1.5 text-xs text-ok">
+                      <svg width="14" height="14" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                        <path d="M4 10.5 8 14.5 16 5.5" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                      Richiesta inviata ai fornitori selezionati.{" "}
+                      <Link href="/fornitori" className="font-medium text-brand hover:underline">
+                        Vedi in Fornitori →
+                      </Link>
+                    </p>
+                  ) : (
+                    <>
+                      <p className="text-xs text-ink-faint">
+                        Il pezzo non è a magazzino: invia la richiesta ai fornitori della rubrica.
+                      </p>
+                      <button
+                        onClick={() => setShowSupplierPicker(true)}
+                        disabled={!supplierText.trim()}
+                        className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg border border-warn/50 bg-warn/10 px-4 py-2.5 text-sm font-semibold text-warn transition-colors hover:bg-warn/20 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                          <path d="M3 9h18M6 9V6a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v3m-1 0v9a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V9" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                        Seleziona fornitori e invia
+                      </button>
+                    </>
+                  )}
+                </div>
+              }
             />
           )}
 
@@ -254,6 +297,28 @@ export function AgentPanel({ request, onApproveSend }: Props) {
           serial={match?.machine?.serial}
           onClose={() => setShowPreview(false)}
           onQuoteChange={setQuote}
+        />
+      )}
+
+      {showSupplierPicker && match?.machine && match?.component && (
+        <SupplierPickerModal
+          subject={buildSupplierSubject(match.component)}
+          body={supplierText}
+          onClose={() => setShowSupplierPicker(false)}
+          onSend={(supplierIds) => {
+            createSupplierRequests({
+              partRequestId: request.id,
+              supplierIds,
+              subject: buildSupplierSubject(match.component!),
+              body: supplierText,
+              componentCode: match.component!.code,
+              componentDescription: match.component!.description,
+              machineModel: match.machine!.model,
+              machineSerial: match.machine!.serial,
+            });
+            setSupplierSent(true);
+            setShowSupplierPicker(false);
+          }}
         />
       )}
     </div>

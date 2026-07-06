@@ -42,6 +42,11 @@ ${COMPANY.name}
 ${COMPANY.email} · ${COMPANY.phone}`;
 }
 
+/** Oggetto email per la richiesta al fornitore. */
+export function buildSupplierSubject(component: BomComponent): string {
+  return `Richiesta disponibilità — ${component.code}`;
+}
+
 /** Bozza di richiesta al fornitore quando il pezzo è mancante. */
 export function buildSupplierRequest(
   machine: Machine,
