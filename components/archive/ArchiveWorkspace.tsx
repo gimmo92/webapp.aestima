@@ -113,14 +113,6 @@ export function ArchiveWorkspace() {
     [archived]
   );
 
-  const restart = () => {
-    setPhase("source");
-    setApiDone(false);
-    setResults(new Map());
-    setResolved({});
-    setQuery("");
-  };
-
   const onResolve = (fileId: string, serial: string) => {
     setResolved((prev) => ({ ...prev, [fileId]: serial }));
   };
@@ -189,18 +181,9 @@ export function ArchiveWorkspace() {
             {apiSource === "anthropic" ? "Classificato con Claude" : "Demo locale"}
           </span>
         </div>
-        <button
-          onClick={restart}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-ink-muted transition-colors hover:border-border-strong hover:text-ink"
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path d="M3 12a9 9 0 1 0 3-6.7L3 8m0-5v5h5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-          Ricomincia demo
-        </button>
       </div>
 
-      {/* Tab: Archivio organizzato | Sorgente */}
+      {/* Tab: Archivio organizzato | Sorgente | Da verificare */}
       <div className="flex min-h-0 flex-1 flex-col rounded-2xl border border-border bg-surface/30">
         <div className="flex shrink-0 gap-6 border-b border-border px-4">
           <TabBtn
