@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import { InboxProvider } from "@/components/inbox/InboxProvider";
 
 // Font Inter self-hosted da Next.js: tipografia pulita, professionale.
 const inter = Inter({
@@ -13,7 +14,7 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "aestima — Dalla richiesta al preventivo, in un attimo",
   description:
-    "Demo: un agente AI che trasforma una richiesta di ricambio in un preventivo pronto. L'approvazione finale resta al tecnico.",
+    "Demo: un agente AI che trasforma una richiesta di ricambio in un preventivo pronto.",
 };
 
 export default function RootLayout({
@@ -23,7 +24,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="it" className={inter.variable}>
-      <body className="min-h-screen antialiased">{children}</body>
+      <body className="min-h-screen antialiased">
+        {/* Stato condiviso tra inbox e pipeline (in memoria, demo). */}
+        <InboxProvider>{children}</InboxProvider>
+      </body>
     </html>
   );
 }

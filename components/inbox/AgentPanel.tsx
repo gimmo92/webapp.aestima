@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { matchAnalysisToData } from "@/lib/match";
 import { mockAnalyze } from "@/lib/mockAnalyze";
 import { buildQuote, euro } from "@/lib/quote";
@@ -10,10 +10,12 @@ import type { PartRequest } from "@/lib/inboxTypes";
 
 // Pannello "Analisi aestima": esegue l'analisi della richiesta (via API
 // Anthropic con fallback mock), identifica il ricambio e prepara le bozze.
+// Le bozze (mail al cliente e richiesta fornitore) sono MODIFICABILI
+// dall'operatore prima dell'invio.
 
 interface Props {
   request: PartRequest;
-  /** L'operatore approva e invia: rappresenta l'azione umana. */
+  /** Azione dell'operatore: approva la bozza e la invia al cliente. */
   onApproveSend: () => void;
 }
 
@@ -24,6 +26,10 @@ export function AgentPanel({ request, onApproveSend }: Props) {
   const [quote, setQuote] = useState<Quote | null>(null);
   const [sent, setSent] = useState(false);
 
+  // Testo modificabile delle bozze (lo stato di editing vive qui).
+  const [replyText, setReplyText] = useState("");
+  const [supplierText, setSupplierText] = useState("");
+
   // Ri-analizza ogni volta che cambia la richiesta selezionata.
   useEffect(() => {
     const controller = new AbortController();
@@ -32,6 +38,8 @@ export function AgentPanel({ request, onApproveSend }: Props) {
     setAnalysis(null);
     setMatch(null);
     setQuote(null);
+    setReplyText("");
+    setSupplierText("");
 
     (async () => {
       let result: AnalysisResult;
@@ -52,14 +60,38 @@ export function AgentPanel({ request, onApproveSend }: Props) {
       const m = matchAnalysisToData(result);
       setAnalysis(result);
       setMatch(m);
+
+      // Prepara le bozze iniziali (poi l'operatore può modificarle).
       if (m.machine && m.component) {
-        setQuote(buildQuote(m.machine, m.component, result));
+        const q = buildQuote(m.machine, m.component, result);
+        setQuote(q);
+        setReplyText(buildCustomerReply(request, m.machine, m.component, q));
+        setSupplierText(
+          q.availability === "da_ordinare"
+            ? buildSupplierRequest(m.machine, m.component)
+            : ""
+        );
       }
       setLoading(false);
     })();
 
     return () => controller.abort();
+    // Volutamente dipende solo da id/body: NON vogliamo ri-analizzare
+    // (né richiamare l'API) quando cambiano stato o etichette della richiesta.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [request.id, request.body]);
+
+  // Ripristina la bozza originale generata da aestima.
+  const resetReply = () => {
+    if (match?.machine && match?.component && quote) {
+      setReplyText(buildCustomerReply(request, match.machine, match.component, quote));
+    }
+  };
+  const resetSupplier = () => {
+    if (match?.machine && match?.component) {
+      setSupplierText(buildSupplierRequest(match.machine, match.component));
+    }
+  };
 
   const missingPart = match?.availability === "da_ordinare";
   const identified = Boolean(match?.machine && match?.component && quote);
@@ -138,44 +170,38 @@ export function AgentPanel({ request, onApproveSend }: Props) {
             )}
           </div>
 
-          {/* Bozza richiesta fornitore (se pezzo mancante) */}
-          {identified && missingPart && match?.machine && match?.component && (
+          {/* Bozza richiesta fornitore (se pezzo mancante) — modificabile */}
+          {identified && missingPart && (
             <DraftBox
               tone="warn"
               icon="supplier"
-              title="Bozza richiesta fornitore pronta"
+              title="Bozza richiesta fornitore"
               badge="Pezzo mancante"
-              text={buildSupplierRequest(match.machine, match.component)}
+              value={supplierText}
+              onChange={setSupplierText}
+              onReset={resetSupplier}
             />
           )}
 
-          {/* Bozza risposta cliente */}
-          {identified && match?.machine && match?.component && quote && (
+          {/* Bozza risposta cliente — modificabile */}
+          {identified && (
             <DraftBox
               tone="brand"
               icon="reply"
               title="Bozza di risposta al cliente"
               badge={sent ? "Inviata" : "Da approvare"}
-              text={buildCustomerReply(
-                request,
-                match.machine,
-                match.component,
-                quote
-              )}
+              value={replyText}
+              onChange={setReplyText}
+              onReset={resetReply}
+              readOnly={sent}
               footer={
-                <div className="flex flex-col gap-3 border-t border-border pt-3 sm:flex-row sm:items-center sm:justify-between">
-                  <p className="text-xs text-ink-faint">
-                    Nulla parte in automatico. aestima prepara,{" "}
-                    <span className="text-ink-muted">
-                      l&apos;operatore approva e invia.
-                    </span>
-                  </p>
+                <div className="flex border-t border-border pt-3 sm:justify-end">
                   <button
                     onClick={() => {
                       setSent(true);
                       onApproveSend();
                     }}
-                    disabled={sent}
+                    disabled={sent || !replyText.trim()}
                     className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-brand/20 transition-all hover:bg-brand-strong disabled:cursor-not-allowed disabled:bg-ok disabled:opacity-90"
                   >
                     {sent ? (
@@ -267,25 +293,32 @@ function SourceBadge({ source }: { source: AnalysisResult["source"] }) {
   );
 }
 
+/** Riquadro bozza con textarea modificabile (auto-resize) e ripristino. */
 function DraftBox({
   tone,
   icon,
   title,
   badge,
-  text,
+  value,
+  onChange,
+  onReset,
+  readOnly = false,
   footer,
 }: {
   tone: "brand" | "warn";
   icon: "reply" | "supplier";
   title: string;
   badge: string;
-  text: string;
+  value: string;
+  onChange: (v: string) => void;
+  onReset: () => void;
+  readOnly?: boolean;
   footer?: React.ReactNode;
 }) {
   const accent = tone === "brand" ? "#3b82f6" : "#f97316";
   return (
     <div className="overflow-hidden rounded-xl border border-border bg-base/60">
-      <div className="flex items-center justify-between border-b border-border px-4 py-2.5">
+      <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-2.5">
         <div className="flex items-center gap-2 text-sm font-semibold text-ink">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true" style={{ color: accent }}>
             {icon === "reply" ? (
@@ -296,20 +329,78 @@ function DraftBox({
           </svg>
           {title}
         </div>
-        <span
-          className="rounded-full px-2 py-0.5 text-[11px] font-semibold"
-          style={{ color: accent, backgroundColor: `${accent}1f` }}
-        >
-          {badge}
-        </span>
+        <div className="flex items-center gap-2">
+          {!readOnly && (
+            <button
+              onClick={onReset}
+              className="inline-flex items-center gap-1 text-xs text-ink-faint transition-colors hover:text-ink"
+              title="Ripristina la bozza generata da aestima"
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M3 12a9 9 0 1 0 3-6.7L3 8m0-5v5h5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              Ripristina
+            </button>
+          )}
+          <span
+            className="rounded-full px-2 py-0.5 text-[11px] font-semibold"
+            style={{ color: accent, backgroundColor: `${accent}1f` }}
+          >
+            {badge}
+          </span>
+        </div>
       </div>
       <div className="p-4">
-        <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed text-ink-muted">
-          {text}
-        </pre>
+        {readOnly ? (
+          <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed text-ink-muted">
+            {value}
+          </pre>
+        ) : (
+          <>
+            <AutoTextarea value={value} onChange={onChange} accent={accent} />
+            <p className="mt-1.5 flex items-center gap-1 text-[11px] text-ink-faint">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M4 20h4L18.5 9.5a2.1 2.1 0 0 0-3-3L5 17v3Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+              </svg>
+              Testo modificabile: puoi adattare la mail prima di inviarla.
+            </p>
+          </>
+        )}
         {footer && <div className="mt-3">{footer}</div>}
       </div>
     </div>
+  );
+}
+
+/** Textarea che si adatta in altezza al contenuto. */
+function AutoTextarea({
+  value,
+  onChange,
+  accent,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  accent: string;
+}) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [value]);
+
+  return (
+    <textarea
+      ref={ref}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      rows={6}
+      spellCheck={false}
+      className="w-full resize-none rounded-lg border border-border bg-base px-3 py-2.5 font-sans text-sm leading-relaxed text-ink outline-none transition-colors focus:border-brand focus:ring-2 focus:ring-brand/20"
+      style={{ ["--tw-ring-color" as string]: `${accent}40` }}
+    />
   );
 }
 

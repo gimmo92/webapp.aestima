@@ -2,8 +2,6 @@
 
 import { euro } from "@/lib/quote";
 import type { AnalysisResult, MatchResult } from "@/lib/types";
-import { HumanNote } from "./HumanNote";
-
 // STEP 3 — Ricambio identificato: macchina + componente + disponibilità.
 
 interface Props {
@@ -94,8 +92,6 @@ export function PartIdentified({ analysis, match, onBack, onGenerate }: Props) {
           </p>
         </div>
       </div>
-
-      <HumanNote />
 
       <div className="flex flex-col gap-3 sm:flex-row sm:justify-between">
         <button

@@ -132,8 +132,7 @@ export default function DemoPage() {
       </main>
 
       <footer className="border-t border-border py-6 text-center text-xs text-ink-faint">
-        aestima · demo commerciale — dati e azienda a scopo dimostrativo ·
-        L&apos;approvazione finale resta al tecnico
+        aestima · demo commerciale — dati e azienda a scopo dimostrativo
       </footer>
     </div>
   );

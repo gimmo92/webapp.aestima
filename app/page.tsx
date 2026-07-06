@@ -5,66 +5,31 @@ import { InboxTopBar } from "@/components/inbox/InboxTopBar";
 import { StatusSidebar } from "@/components/inbox/StatusSidebar";
 import { RequestList } from "@/components/inbox/RequestList";
 import { RequestDetail } from "@/components/inbox/RequestDetail";
-import {
-  DEFAULT_LABELS,
-  LABEL_PALETTE,
-  MOCK_REQUESTS,
-} from "@/lib/inboxData";
-import type { Label, PartRequest, RequestStatus } from "@/lib/inboxTypes";
+import { useInbox } from "@/components/inbox/InboxProvider";
+import type { PartRequest, RequestStatus } from "@/lib/inboxTypes";
 
 // =============================================================
 // SCHERMATA DI DEFAULT — Dashboard "unibox" after-sales.
-//
-// STATO: tutto in memoria con React state (nessun localStorage,
-// nessun DB). In PRODUZIONE:
-//   - le richieste arriverebbero dalla casella email reale del
-//     cliente (IMAP / API del provider di posta);
-//   - status ed etichette verrebbero persistiti su un database.
+// I dati (richieste, etichette, selezione) vivono nel context
+// condiviso InboxProvider; qui restano solo i filtri della vista.
 // =============================================================
 
 export default function Home() {
-  // Copie modificabili dei dati mock (lo stato vive qui, in memoria).
-  const [requests, setRequests] = useState<PartRequest[]>(MOCK_REQUESTS);
-  const [labels, setLabels] = useState<Label[]>(DEFAULT_LABELS);
+  const {
+    requests,
+    labels,
+    selectedId,
+    setSelectedId,
+    changeStatus,
+    toggleLabel,
+    createLabel,
+  } = useInbox();
 
-  // Filtri e selezione UI.
+  // Filtri e selezione UI (locali alla vista inbox).
   const [activeStatus, setActiveStatus] = useState<RequestStatus | "all">("all");
   const [activeLabelId, setActiveLabelId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [tab, setTab] = useState<"primarie" | "altre">("primarie");
-  const [selectedId, setSelectedId] = useState<string | null>(
-    MOCK_REQUESTS[0]?.id ?? null
-  );
-
-  // --- Mutazioni di stato (qui si collegherebbe l'API/DB in produzione) ---
-
-  const changeStatus = (id: string, status: RequestStatus) => {
-    setRequests((prev) =>
-      prev.map((r) => (r.id === id ? { ...r, status } : r))
-    );
-  };
-
-  const toggleLabel = (id: string, labelId: string) => {
-    setRequests((prev) =>
-      prev.map((r) => {
-        if (r.id !== id) return r;
-        const has = r.labelIds.includes(labelId);
-        return {
-          ...r,
-          labelIds: has
-            ? r.labelIds.filter((l) => l !== labelId)
-            : [...r.labelIds, labelId],
-        };
-      })
-    );
-  };
-
-  const createLabel = (name: string): string => {
-    const id = `label-${Date.now()}`;
-    const color = LABEL_PALETTE[labels.length % LABEL_PALETTE.length];
-    setLabels((prev) => [...prev, { id, name, color }]);
-    return id;
-  };
 
   // --- Lista filtrata (tab + stato + etichetta + ricerca) ---
 

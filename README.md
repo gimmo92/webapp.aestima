@@ -12,9 +12,10 @@ Design **dark, professionale, industriale**. Costruito con **Next.js 15 (App Rou
 | Rotta | Cosa mostra |
 | --- | --- |
 | **`/`** | **Dashboard "unibox"** (schermata di default) — inbox unificata delle richieste ricambi after-sales, con stati, etichette e analisi dell'agente per ogni email. |
+| **`/pipeline`** | **Pipeline offerte** — board Kanban delle offerte per stato, con valore per colonna, KPI (pipeline aperta, vinte, perse, conversione) e drag & drop per cambiare stato. |
 | **`/demo`** | **Demo flusso** — dalla singola richiesta al preventivo, in 4 step guidati. |
 
-Le due viste sono collegate tra loro (link in alto a destra).
+Le viste sono collegate tra loro (navigazione in alto). **Inbox e Pipeline condividono lo stesso stato** (`components/inbox/InboxProvider.tsx`): spostare un'offerta nella pipeline aggiorna lo stato anche nell'inbox, e viceversa. Lo stato vive in memoria (React Context), senza `localStorage` né DB.
 
 ---
 
@@ -130,7 +131,8 @@ vercel --prod     # deploy in produzione
 │   ├── api/analyze/route.ts     # Route server-side: Anthropic + fallback mock
 │   ├── globals.css              # Tema dark/industriale (Tailwind v4) + stili di stampa
 │   ├── layout.tsx               # Layout root, font Inter, metadata
-│   ├── page.tsx                 # Default: dashboard "unibox" (stato in memoria + 3 colonne)
+│   ├── page.tsx                 # Default: dashboard "unibox" (3 colonne)
+│   ├── pipeline/page.tsx        # Pipeline offerte: board Kanban + KPI + drag & drop
 │   └── demo/page.tsx            # Demo flusso: orchestrazione dei 4 step
 ├── components/
 │   ├── Header.tsx               # Barra superiore (demo flusso) con link alla dashboard
@@ -142,11 +144,13 @@ vercel --prod     # deploy in produzione
 │   ├── QuoteDocument.tsx        # Step 4 — preventivo su carta intestata
 │   ├── HumanNote.tsx            # Messaggio ricorrente "approva il tecnico"
 │   └── inbox/
-│       ├── InboxTopBar.tsx      # Barra superiore della dashboard
+│       ├── InboxProvider.tsx    # Context: stato condiviso inbox + pipeline
+│       ├── InboxTopBar.tsx      # Barra superiore + navigazione (Inbox/Pipeline)
 │       ├── StatusSidebar.tsx    # Colonna sx — stati, etichette, ricerca
 │       ├── RequestList.tsx      # Colonna centro — lista richieste + tab
 │       ├── RequestDetail.tsx    # Colonna dx — dettaglio, stato, etichette
-│       ├── AgentPanel.tsx       # Analisi aestima + bozze (cliente/fornitore)
+│       ├── AgentPanel.tsx       # Analisi aestima + bozze modificabili
+│       ├── PipelineBoard.tsx    # Board Kanban delle offerte (drag & drop)
 │       ├── StatusPill.tsx       # Badge/dot di stato (colori inline)
 │       └── LabelChip.tsx        # Chip etichetta custom
 ├── lib/
@@ -157,7 +161,8 @@ vercel --prod     # deploy in produzione
 │   ├── quote.ts                 # Generatore del preventivo
 │   ├── inboxTypes.ts            # Tipi dashboard (stati, etichette, richieste)
 │   ├── inboxData.ts             # Mock: stati, etichette, 8 richieste email
-│   └── inboxDrafts.ts           # Bozze risposta cliente / richiesta fornitore
+│   ├── inboxDrafts.ts           # Bozze risposta cliente / richiesta fornitore
+│   └── inboxOffers.ts           # Calcolo offerta per richiesta (pipeline)
 ├── .env.example
 ├── next.config.ts
 ├── tailwind (via @tailwindcss/postcss)

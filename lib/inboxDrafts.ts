@@ -5,8 +5,8 @@ import type { PartRequest } from "./inboxTypes";
 // =============================================================
 // GENERAZIONE BOZZE (risposta cliente + richiesta fornitore)
 // -------------------------------------------------------------
-// Le bozze sono SEMPRE in stato "da approvare": nulla parte in
-// automatico. L'operatore approva e invia.
+// Le bozze sono generate come punto di partenza: l'operatore le
+// può modificare e inviare dalla dashboard.
 // =============================================================
 
 /** Bozza di risposta al cliente con il preventivo. */

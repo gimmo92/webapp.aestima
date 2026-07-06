@@ -1,32 +1,53 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Logo } from "@/components/Logo";
 
-// Barra superiore della dashboard: logo, claim ricorrente, link alla demo flusso.
+// Barra superiore della dashboard: logo, navigazione tra le viste
+// (Inbox / Pipeline) e link alla demo flusso.
+
+const NAV = [
+  { href: "/", label: "Inbox" },
+  { href: "/pipeline", label: "Pipeline" },
+] as const;
 
 export function InboxTopBar() {
+  const pathname = usePathname();
+
   return (
     <header className="flex shrink-0 items-center justify-between border-b border-border bg-surface/70 px-5 py-3 backdrop-blur-md">
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-5">
         <Logo />
-        <span className="hidden text-sm text-ink-faint sm:inline">
-          Inbox ricambi after-sales
-        </span>
+        <nav className="flex items-center gap-1">
+          {NAV.map((item) => {
+            const active = pathname === item.href;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={[
+                  "rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
+                  active
+                    ? "bg-brand-soft text-ink"
+                    : "text-ink-muted hover:bg-surface-2/70 hover:text-ink",
+                ].join(" ")}
+              >
+                {item.label}
+              </Link>
+            );
+          })}
+        </nav>
       </div>
-      <div className="flex items-center gap-4">
-        <span className="hidden items-center gap-2 rounded-full border border-border bg-surface-2/60 px-3 py-1 text-xs text-ink-muted md:inline-flex">
-          <span className="h-1.5 w-1.5 rounded-full bg-brand" />
-          aestima prepara, l&apos;operatore approva e invia
-        </span>
-        <Link
-          href="/demo"
-          className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-base px-3 py-1.5 text-sm text-ink-muted transition-colors hover:border-brand/50 hover:text-ink"
-        >
-          Demo flusso
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </Link>
-      </div>
+      <Link
+        href="/demo"
+        className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-base px-3 py-1.5 text-sm text-ink-muted transition-colors hover:border-brand/50 hover:text-ink"
+      >
+        Demo flusso
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </Link>
     </header>
   );
 }

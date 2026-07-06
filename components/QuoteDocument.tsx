@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { Logo } from "./Logo";
-import { HumanNote } from "./HumanNote";
 import { COMPANY, euro } from "@/lib/quote";
 import type { AnalysisResult, Quote } from "@/lib/types";
 
@@ -176,15 +175,9 @@ export function QuoteDocument({ quote, analysis, onRestart, onBack }: Props) {
               Validità offerta 30 giorni · Pagamento a 30 gg data fattura ·
               Trasporto escluso · Prezzi IVA esclusa in tabella.
             </p>
-            <p className="mt-1 italic">
-              Documento generato da aestima come bozza. L&apos;approvazione
-              finale resta al tecnico.
-            </p>
           </div>
         </div>
       </article>
-
-      <HumanNote />
 
       {/* ---- Azioni (nascoste in stampa) ---- */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

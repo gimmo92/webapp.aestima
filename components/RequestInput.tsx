@@ -1,7 +1,6 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { HumanNote } from "./HumanNote";
 
 // STEP 1 — Input della richiesta cliente (testo libero + allegato simulato).
 
@@ -87,8 +86,7 @@ export function RequestInput({ value, onChange, onSubmit }: Props) {
         )}
       </div>
 
-      <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <HumanNote className="flex-1" />
+      <div className="mt-6 flex justify-end">
         <button
           onClick={onSubmit}
           disabled={!value.trim()}

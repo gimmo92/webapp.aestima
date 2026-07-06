@@ -113,11 +113,6 @@ export function StatusSidebar({
           </button>
         )}
       </nav>
-
-      <div className="border-t border-border p-3 text-[11px] leading-relaxed text-ink-faint">
-        aestima prepara,{" "}
-        <span className="text-ink-muted">l&apos;operatore approva e invia.</span>
-      </div>
     </aside>
   );
 }
