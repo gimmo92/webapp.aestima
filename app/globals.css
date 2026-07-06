@@ -1,0 +1,120 @@
+@import "tailwindcss";
+
+/* =============================================================
+   Tema aestima — dark, professionale, industriale
+   Palette scura con accenti blu. Definita via @theme (Tailwind v4).
+   ============================================================= */
+@theme {
+  /* Sfondi */
+  --color-base: #0a0e14;
+  --color-surface: #111722;
+  --color-surface-2: #161e2b;
+  --color-border: #23303f;
+  --color-border-strong: #33475c;
+
+  /* Testo */
+  --color-ink: #e8edf4;
+  --color-ink-muted: #9fb0c3;
+  --color-ink-faint: #6b7d92;
+
+  /* Accento blu (brand aestima) */
+  --color-brand: #2f81f7;
+  --color-brand-strong: #1f6feb;
+  --color-brand-soft: #16283f;
+
+  /* Semantici */
+  --color-ok: #2ea043;
+  --color-warn: #d29922;
+  --color-danger: #f85149;
+
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo,
+    Consolas, monospace;
+}
+
+html,
+body {
+  background-color: var(--color-base);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Scrollbar discreta, in tema */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border-strong) transparent;
+}
+
+/* Griglia tecnica di sfondo, sottile — richiama un ambiente industriale/CAD */
+.bg-grid {
+  background-image:
+    linear-gradient(to right, rgba(47, 129, 247, 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(47, 129, 247, 0.05) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+/* Animazioni utilizzate nell'elaborazione dell'agente */
+@keyframes pulse-ring {
+  0% {
+    transform: scale(0.9);
+    opacity: 0.7;
+  }
+  70% {
+    transform: scale(1.3);
+    opacity: 0;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-up {
+  animation: fade-up 0.45s ease-out both;
+}
+
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* =============================================================
+   Stile di stampa: "Esporta PDF" usa il dialog di stampa del
+   browser mostrando SOLO il documento del preventivo.
+   ============================================================= */
+@media print {
+  body * {
+    visibility: hidden !important;
+  }
+  #quote-printable,
+  #quote-printable * {
+    visibility: visible !important;
+  }
+  #quote-printable {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    box-shadow: none !important;
+    border: none !important;
+  }
+  @page {
+    size: A4;
+    margin: 16mm;
+  }
+}
