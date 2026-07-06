@@ -36,6 +36,33 @@ export function machineLabel(serial: string | null): string {
   return m ? `${m.model} · ${m.serial}` : serial;
 }
 
+/** Categoria/tipo macchina (famiglia) a partire dalla matricola. */
+export function machineCategory(serial: string): string {
+  const m = MACHINES.find((x) => x.serial === serial);
+  return m?.category ?? "Altro";
+}
+
+/** Etichette leggibili per estensione file. */
+export const FILE_EXT_LABELS: Record<string, string> = {
+  pdf: "PDF",
+  xlsx: "Excel",
+  jpg: "Immagine JPG",
+  png: "Immagine PNG",
+  dwg: "CAD / DWG",
+  docx: "Word",
+};
+
+/** Anno del documento (da metadati o data file). */
+export function docYear(doc: { data?: string; file: { modified: string } }): string {
+  if (doc.data) {
+    const m = doc.data.match(/\d{4}/);
+    if (m) return m[0];
+  }
+  const parts = doc.file.modified.split("/");
+  const y = parts[parts.length - 1];
+  return y && /^\d{4}$/.test(y) ? y : "Senza anno";
+}
+
 /** Elenco matricole note (per la correzione manuale in revisione). */
 export const KNOWN_MACHINES = MACHINES.map((m) => ({
   serial: m.serial,

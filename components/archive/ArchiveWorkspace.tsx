@@ -6,7 +6,7 @@ import { REVIEW_THRESHOLD, SOURCE_FILES } from "@/lib/archiveData";
 import type { ArchivedDoc, ClassifyResult, SourceFile } from "@/lib/archiveTypes";
 import { SourceBrowser } from "./SourceBrowser";
 import { ProcessingPipeline } from "./ProcessingPipeline";
-import { OrganizedArchive } from "./OrganizedArchive";
+import { OrganizedArchive, type ArchiveViewMode } from "./OrganizedArchive";
 import { ReviewQueue } from "./ReviewQueue";
 
 // Orchestratore della tab Archivio: gestisce le fasi
@@ -17,6 +17,7 @@ import { ReviewQueue } from "./ReviewQueue";
 // e persisterebbe l'archivio su un database.
 
 type Phase = "source" | "processing" | "done";
+type ArchiveTab = "organizzato" | "sorgente";
 
 /** Classificazione di fallback a partire dal ground truth mock del file. */
 function fallbackResult(f: SourceFile): ClassifyResult {
@@ -44,6 +45,8 @@ export function ArchiveWorkspace() {
   const [apiSource, setApiSource] = useState<"anthropic" | "mock">("mock");
   // Ricerca inizializzata dal parametro ?q= (link interni dall'inbox).
   const [query, setQuery] = useState(() => searchParams.get("q") ?? "");
+  const [archiveTab, setArchiveTab] = useState<ArchiveTab>("organizzato");
+  const [viewMode, setViewMode] = useState<ArchiveViewMode>("macchina");
   // Risoluzioni della coda di revisione: fileId → matricola assegnata.
   const [resolved, setResolved] = useState<Record<string, string>>({});
 
@@ -161,7 +164,7 @@ export function ArchiveWorkspace() {
     );
   }
 
-  // --- Fase ARCHIVIO ORGANIZZATO (prima → dopo) ---
+  // --- Fase ARCHIVIO ORGANIZZATO ---
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4">
       {/* Riepilogo + azioni */}
@@ -193,17 +196,38 @@ export function ArchiveWorkspace() {
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <path d="M3 12a9 9 0 1 0 3-6.7L3 8m0-5v5h5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
-          Ricomincia
+          Ricomincia demo
         </button>
       </div>
 
-      {/* Prima → dopo */}
-      <div className="grid gap-4 lg:grid-cols-2">
-        <div className="min-h-[55vh]">
-          <SourceBrowser files={SOURCE_FILES} compact />
+      {/* Tab: Archivio organizzato | Sorgente */}
+      <div className="flex min-h-0 flex-1 flex-col rounded-2xl border border-border bg-surface/30">
+        <div className="flex shrink-0 gap-6 border-b border-border px-4">
+          <TabBtn
+            active={archiveTab === "organizzato"}
+            onClick={() => setArchiveTab("organizzato")}
+            label="Archivio organizzato"
+          />
+          <TabBtn
+            active={archiveTab === "sorgente"}
+            onClick={() => setArchiveTab("sorgente")}
+            label="Sorgente"
+            sub={`${SOURCE_FILES.length} file disordinati`}
+          />
         </div>
-        <div className="min-h-[55vh]">
-          <OrganizedArchive docs={archived} query={query} onQueryChange={setQuery} />
+
+        <div className="min-h-[60vh] flex-1 p-3 lg:min-h-0">
+          {archiveTab === "organizzato" ? (
+            <OrganizedArchive
+              docs={archived}
+              query={query}
+              onQueryChange={setQuery}
+              viewMode={viewMode}
+              onViewModeChange={setViewMode}
+            />
+          ) : (
+            <SourceBrowser files={SOURCE_FILES} compact />
+          )}
         </div>
       </div>
 
@@ -212,6 +236,36 @@ export function ArchiveWorkspace() {
         <ReviewQueue items={reviewItems} onResolve={onResolve} />
       )}
     </div>
+  );
+}
+
+function TabBtn({
+  active,
+  onClick,
+  label,
+  sub,
+}: {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+  sub?: string;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={[
+        "relative py-3 text-sm font-medium transition-colors",
+        active ? "text-ink" : "text-ink-faint hover:text-ink-muted",
+      ].join(" ")}
+    >
+      {label}
+      {sub && (
+        <span className="ml-1.5 text-[11px] font-normal text-ink-faint">· {sub}</span>
+      )}
+      {active && (
+        <span className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-brand" />
+      )}
+    </button>
   );
 }
 

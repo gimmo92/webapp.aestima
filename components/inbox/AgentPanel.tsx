@@ -7,6 +7,7 @@ import { mockAnalyze } from "@/lib/mockAnalyze";
 import { buildQuote, euro } from "@/lib/quote";
 import {
   buildCustomerReply,
+  buildInfoRequestReply,
   buildSupplierRequest,
   buildSupplierSubject,
 } from "@/lib/inboxDrafts";
@@ -39,10 +40,12 @@ export function AgentPanel({ request, onApproveSend }: Props) {
   const [showPreview, setShowPreview] = useState(false);
   const [showSupplierPicker, setShowSupplierPicker] = useState(false);
   const [supplierSent, setSupplierSent] = useState(false);
+  const [infoSent, setInfoSent] = useState(false);
 
   // Testo modificabile delle bozze (lo stato di editing vive qui).
   const [replyText, setReplyText] = useState("");
   const [supplierText, setSupplierText] = useState("");
+  const [infoReplyText, setInfoReplyText] = useState("");
 
   // Ri-analizza ogni volta che cambia la richiesta selezionata.
   useEffect(() => {
@@ -52,11 +55,13 @@ export function AgentPanel({ request, onApproveSend }: Props) {
     setShowPreview(false);
     setShowSupplierPicker(false);
     setSupplierSent(false);
+    setInfoSent(false);
     setAnalysis(null);
     setMatch(null);
     setQuote(null);
     setReplyText("");
     setSupplierText("");
+    setInfoReplyText("");
 
     (async () => {
       let result: AnalysisResult;
@@ -88,6 +93,8 @@ export function AgentPanel({ request, onApproveSend }: Props) {
             ? buildSupplierRequest(m.machine, m.component)
             : ""
         );
+      } else {
+        setInfoReplyText(buildInfoRequestReply(request, result, m.machine));
       }
       setLoading(false);
     })();
@@ -109,9 +116,17 @@ export function AgentPanel({ request, onApproveSend }: Props) {
       setSupplierText(buildSupplierRequest(match.machine, match.component));
     }
   };
+  const resetInfoReply = () => {
+    if (analysis) {
+      setInfoReplyText(
+        buildInfoRequestReply(request, analysis, match?.machine ?? null)
+      );
+    }
+  };
 
   const missingPart = match?.availability === "da_ordinare";
   const identified = Boolean(match?.machine && match?.component && quote);
+  const needsMoreInfo = Boolean(analysis && !identified);
 
   return (
     <div className="mt-5">
@@ -168,24 +183,61 @@ export function AgentPanel({ request, onApproveSend }: Props) {
               </>
             ) : (
               <div className="flex items-start gap-2 text-sm text-ink-muted">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true" className="mt-0.5 shrink-0 text-warn">
-                  <path d="M12 8v5m0 3h.01M10.3 3.9 2.4 18a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true" className="mt-0.5 shrink-0 text-brand">
+                  <path d="M12 16v-4m0-4h.01M22 12c0 5.523-4.477 10-10 10S2 17.523 2 12 6.477 2 12 2s10 4.477 10 10Z" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
                 </svg>
                 <div>
-                  <p className="font-medium text-ink">
-                    Serve una verifica del tecnico
-                  </p>
+                  <p className="font-medium text-ink">Servono più informazioni</p>
                   <p className="text-xs">
-                    L&apos;agente ha letto “{analysis?.componente_identificato}”
+                    Non abbiamo ancora individuato il ricambio con certezza
                     {analysis?.numero_serie
-                      ? ` per la matricola ${analysis.numero_serie}`
-                      : " ma non ha trovato una matricola valida"}
-                    . Identifica manualmente il ricambio nella distinta.
+                      ? ` (matricola ${analysis.numero_serie})`
+                      : ""}
+                    . Abbiamo preparato una bozza per chiedere al cliente i dettagli mancanti.
                   </p>
                 </div>
               </div>
             )}
           </div>
+
+          {/* Bozza richiesta info al cliente (ricambio non identificato) */}
+          {needsMoreInfo && (
+            <DraftBox
+              tone="brand"
+              icon="reply"
+              title="Bozza di richiesta informazioni al cliente"
+              badge={infoSent ? "Inviata" : "Da approvare"}
+              value={infoReplyText}
+              onChange={setInfoReplyText}
+              onReset={resetInfoReply}
+              readOnly={infoSent}
+              footer={
+                <div className="flex border-t border-border pt-3 sm:justify-end">
+                  <button
+                    onClick={() => setInfoSent(true)}
+                    disabled={infoSent || !infoReplyText.trim()}
+                    className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-brand/20 transition-all hover:bg-brand-strong disabled:cursor-not-allowed disabled:bg-ok disabled:opacity-90"
+                  >
+                    {infoSent ? (
+                      <>
+                        <svg width="16" height="16" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                          <path d="M4 10.5 8 14.5 16 5.5" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                        Inviata al cliente
+                      </>
+                    ) : (
+                      <>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                          <path d="m4 12 15-8-6 16-3-6-6-2Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+                        </svg>
+                        Approva e invia
+                      </>
+                    )}
+                  </button>
+                </div>
+              }
+            />
+          )}
 
           {/* Documenti collegati in archivio (riferimenti cliccabili) */}
           {identified && match?.machine && (
