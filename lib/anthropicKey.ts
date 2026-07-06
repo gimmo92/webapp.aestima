@@ -1,3 +1,5 @@
+import Anthropic from "@anthropic-ai/sdk";
+
 // Lettura della API key Anthropic dalle env var, tollerante sul nome.
 // Su Vercel la chiave può essere stata salvata come ANTHROPIC_API_KEY
 // (standard) oppure con un nome più semplice come "anthropic".
@@ -12,8 +14,11 @@ const NAMED_KEY_CANDIDATES = [
 ] as const;
 
 function normalizeKey(value: string | undefined): string | undefined {
-  const trimmed = value?.trim();
-  return trimmed || undefined;
+  if (!value) return undefined;
+  const trimmed = value.trim().replace(/^["']|["']$/g, "");
+  // Rimuove caratteri non ASCII (copy/paste da dashboard, BOM, newline nascosti).
+  const cleaned = trimmed.replace(/[^\x20-\x7E]/g, "");
+  return cleaned || undefined;
 }
 
 export function getAnthropicKey(): string | undefined {
@@ -40,6 +45,16 @@ export type AnthropicCallResult =
   | { ok: true; text: string }
   | { ok: false; status?: number; message: string };
 
+function formatError(err: unknown): string {
+  if (err instanceof Anthropic.APIError) {
+    return `Anthropic ha risposto ${err.status}.`;
+  }
+  if (err instanceof Error) {
+    return err.message || "Errore sconosciuto verso Anthropic.";
+  }
+  return "Errore sconosciuto verso Anthropic.";
+}
+
 /** Chiamata condivisa all'API Messages di Anthropic (solo server-side). */
 export async function callAnthropicMessages(params: {
   system: string;
@@ -51,41 +66,40 @@ export async function callAnthropicMessages(params: {
     return { ok: false, message: "Chiave API Anthropic non configurata." };
   }
 
+  if (!apiKey.startsWith("sk-ant")) {
+    return {
+      ok: false,
+      message:
+        "Chiave API non valida: deve iniziare con sk-ant-. Controlla il valore su Vercel.",
+    };
+  }
+
   try {
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: ANTHROPIC_MODEL,
-        max_tokens: params.maxTokens ?? 1024,
-        system: params.system,
-        messages: [{ role: "user", content: params.user }],
-      }),
+    const client = new Anthropic({
+      apiKey,
+      maxRetries: 2,
     });
 
-    if (!res.ok) {
-      const detail = (await res.text()).slice(0, 240);
-      console.error("Anthropic API error:", res.status, detail);
-      return {
-        ok: false,
-        status: res.status,
-        message: `Anthropic ha risposto ${res.status}.`,
-      };
-    }
+    const message = await client.messages.create({
+      model: ANTHROPIC_MODEL,
+      max_tokens: params.maxTokens ?? 1024,
+      system: params.system,
+      messages: [{ role: "user", content: params.user }],
+    });
 
-    const data = await res.json();
-    const text: string =
-      data?.content?.map((c: { text?: string }) => c.text ?? "").join("") ?? "";
+    const text = message.content
+      .filter((block): block is Anthropic.TextBlock => block.type === "text")
+      .map((block) => block.text)
+      .join("");
+
     if (!text.trim()) {
       return { ok: false, message: "Risposta Anthropic vuota." };
     }
+
     return { ok: true, text };
   } catch (err) {
-    console.error("Anthropic fetch error:", err);
-    return { ok: false, message: "Errore di rete verso Anthropic." };
+    console.error("Anthropic API error:", err);
+    const status = err instanceof Anthropic.APIError ? err.status : undefined;
+    return { ok: false, status, message: formatError(err) };
   }
 }

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { mockAnalyze } from "@/lib/mockAnalyze";
-import { ANTHROPIC_MODEL, getAnthropicKey } from "@/lib/anthropicKey";
+import { callAnthropicMessages, getAnthropicKey } from "@/lib/anthropicKey";
 import type { AnalysisResult, Urgency } from "@/lib/types";
 
 // =============================================================
@@ -18,6 +18,7 @@ import type { AnalysisResult, Urgency } from "@/lib/types";
 // =============================================================
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 // System prompt: istruisce Claude a fare estrazione strutturata.
 const SYSTEM_PROMPT = `Sei l'agente di analisi di "aestima", un sistema che aiuta i tecnici del ricambistica industriale.
@@ -35,7 +36,6 @@ Rispondi ESCLUSIVAMENTE con un oggetto JSON valido, senza testo aggiuntivo, senz
 Schema: {"macchina": string, "numero_serie": string, "componente_identificato": string, "urgenza": "bassa"|"normale"|"alta", "note": string}`;
 
 // Modello Claude usato (configurabile via env, con default recente).
-const MODEL = ANTHROPIC_MODEL;
 
 function coerceUrgency(value: unknown): Urgency {
   return value === "alta" || value === "bassa" ? value : "normale";
@@ -87,32 +87,18 @@ export async function POST(req: Request) {
   }
 
   try {
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        max_tokens: 512,
-        system: SYSTEM_PROMPT,
-        messages: [{ role: "user", content: request }],
-      }),
+    const llm = await callAnthropicMessages({
+      system: SYSTEM_PROMPT,
+      user: request,
+      maxTokens: 512,
     });
 
-    if (!res.ok) {
-      // Errore lato Anthropic → non blocchiamo la demo, usiamo il mock.
-      console.error("Anthropic API error:", res.status, await res.text());
+    if (!llm.ok) {
+      console.error("Analyze Anthropic fallback:", llm.message);
       return NextResponse.json(mockAnalyze(request));
     }
 
-    const data = await res.json();
-    const text: string =
-      data?.content?.map((c: { text?: string }) => c.text ?? "").join("") ?? "";
-
-    const parsed = parseClaudeJson(text);
+    const parsed = parseClaudeJson(llm.text);
     if (!parsed) {
       return NextResponse.json(mockAnalyze(request));
     }

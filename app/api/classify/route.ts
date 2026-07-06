@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { SOURCE_FILES } from "@/lib/archiveData";
-import { ANTHROPIC_MODEL, getAnthropicKey } from "@/lib/anthropicKey";
+import { callAnthropicMessages, getAnthropicKey } from "@/lib/anthropicKey";
 import type { ClassifyResult, DocType } from "@/lib/archiveTypes";
 
 // =============================================================
@@ -21,6 +21,7 @@ import type { ClassifyResult, DocType } from "@/lib/archiveTypes";
 // =============================================================
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 const DOC_TYPES: DocType[] = [
   "disegno",
@@ -30,8 +31,6 @@ const DOC_TYPES: DocType[] = [
   "manuale",
   "foto",
 ];
-
-const MODEL = ANTHROPIC_MODEL;
 
 const SYSTEM_PROMPT = `Sei l'agente di organizzazione documentale di "aestima" per il settore ricambi industriali after-sales.
 Ricevi un elenco di file (nome + breve anteprima del contenuto) e devi classificare il TIPO di ciascun documento.
@@ -110,33 +109,20 @@ export async function POST(req: Request) {
       .map((f) => `id: ${f.id}\nnome: ${f.name}\nanteprima: ${f.preview}`)
       .join("\n---\n");
 
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        max_tokens: 1024,
-        system: SYSTEM_PROMPT,
-        messages: [{ role: "user", content: userContent }],
-      }),
+    const llm = await callAnthropicMessages({
+      system: SYSTEM_PROMPT,
+      user: userContent,
     });
 
-    if (!res.ok) {
-      console.error("Anthropic classify error:", res.status, await res.text());
+    if (!llm.ok) {
+      console.error("Classify Anthropic fallback:", llm.message);
       const results = files
         .map((f) => mockResult(f.id))
         .filter((r): r is ClassifyResult => r !== null);
       return NextResponse.json({ results, source: "mock" });
     }
 
-    const data = await res.json();
-    const text: string =
-      data?.content?.map((c: { text?: string }) => c.text ?? "").join("") ?? "";
-    const parsed = parseJsonArray(text);
+    const parsed = parseJsonArray(llm.text);
     const tipoById = new Map<string, string>(
       (parsed ?? []).map((p) => [String(p.id), String(p.tipo)])
     );
