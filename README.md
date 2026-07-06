@@ -5,7 +5,30 @@
 
 Design **dark, professionale, industriale**. Costruito con **Next.js 15 (App Router) + TypeScript + Tailwind CSS**, pronto per il deploy su **Vercel**.
 
-> **L'approvazione finale resta al tecnico.** Il flusso mostra sempre l'umano che approva: nessun invio automatico.
+> **L'approvazione finale resta al tecnico** / **aestima prepara, l'operatore approva e invia.** Nessun invio automatico.
+
+## Due viste della demo
+
+| Rotta | Cosa mostra |
+| --- | --- |
+| **`/`** | **Dashboard "unibox"** (schermata di default) — inbox unificata delle richieste ricambi after-sales, con stati, etichette e analisi dell'agente per ogni email. |
+| **`/demo`** | **Demo flusso** — dalla singola richiesta al preventivo, in 4 step guidati. |
+
+Le due viste sono collegate tra loro (link in alto a destra).
+
+---
+
+## Dashboard inbox (schermata di default, `/`)
+
+Layout a **tre colonne**, in stile inbox unificata (ispirato a Instantly) ma per il dominio after-sales/ricambi:
+
+- **Sinistra — Stati & labeling.** Gli 8 stati della richiesta (_Nuova, Da identificare, Identificata, Preventivo pronto, Inviata al cliente, In attesa fornitore, Chiusa/Vinta, Persa_) con contatore e colore, cliccabili per filtrare. Sotto: filtro per **etichette custom** e casella di **ricerca**.
+- **Centro — Lista richieste.** Elenco stile email (cliente, oggetto, anteprima, data, indicatore di stato, etichette) con tab **Primarie / Altre**.
+- **Destra — Dettaglio + agente.** Email originale, dropdown per **cambiare stato**, pulsanti **Sposta / Etichetta / Altro**, la sezione **"Analisi aestima"** (ricambio identificato, disponibilità, prezzo; se il pezzo manca → **bozza richiesta fornitore**) e una **bozza di risposta al cliente** in stato _da approvare_ con **"Approva e invia"** (azione dell'operatore).
+
+**Labeling** (cuore della dashboard): assegnare/cambiare stato, applicare **più etichette**, **crearne di nuove** al volo; i contatori si aggiornano in tempo reale.
+
+> **Stato in memoria (React state), niente `localStorage` né DB.** In produzione la lista si popolerebbe dalla **casella email reale** del cliente (IMAP / API del provider) e stato + etichette verrebbero **persistiti su database**. Qui è tutto mock per la demo (vedi commenti in `app/page.tsx` e `lib/inboxData.ts`).
 
 ---
 
@@ -107,22 +130,34 @@ vercel --prod     # deploy in produzione
 │   ├── api/analyze/route.ts     # Route server-side: Anthropic + fallback mock
 │   ├── globals.css              # Tema dark/industriale (Tailwind v4) + stili di stampa
 │   ├── layout.tsx               # Layout root, font Inter, metadata
-│   └── page.tsx                 # Orchestrazione del flusso a 4 step
+│   ├── page.tsx                 # Default: dashboard "unibox" (stato in memoria + 3 colonne)
+│   └── demo/page.tsx            # Demo flusso: orchestrazione dei 4 step
 ├── components/
-│   ├── Header.tsx               # Barra superiore con logo
+│   ├── Header.tsx               # Barra superiore (demo flusso) con link alla dashboard
 │   ├── Logo.tsx                 # Logo aestima placeholder (SVG)
 │   ├── Stepper.tsx              # Indicatore di avanzamento
 │   ├── RequestInput.tsx         # Step 1 — input richiesta + allegato simulato
 │   ├── ProcessingAnimation.tsx  # Step 2 — animazione agente
 │   ├── PartIdentified.tsx       # Step 3 — ricambio identificato
 │   ├── QuoteDocument.tsx        # Step 4 — preventivo su carta intestata
-│   └── HumanNote.tsx            # Messaggio ricorrente "approva il tecnico"
+│   ├── HumanNote.tsx            # Messaggio ricorrente "approva il tecnico"
+│   └── inbox/
+│       ├── InboxTopBar.tsx      # Barra superiore della dashboard
+│       ├── StatusSidebar.tsx    # Colonna sx — stati, etichette, ricerca
+│       ├── RequestList.tsx      # Colonna centro — lista richieste + tab
+│       ├── RequestDetail.tsx    # Colonna dx — dettaglio, stato, etichette
+│       ├── AgentPanel.tsx       # Analisi aestima + bozze (cliente/fornitore)
+│       ├── StatusPill.tsx       # Badge/dot di stato (colori inline)
+│       └── LabelChip.tsx        # Chip etichetta custom
 ├── lib/
-│   ├── types.ts                 # Tipi condivisi
+│   ├── types.ts                 # Tipi condivisi (flusso/preventivo)
 │   ├── mockData.ts              # Dati di esempio: macchine + distinte (BOM)
 │   ├── match.ts                 # Match analisi → dati distinta
 │   ├── mockAnalyze.ts           # Estrazione euristica locale (fallback)
-│   └── quote.ts                 # Generatore del preventivo
+│   ├── quote.ts                 # Generatore del preventivo
+│   ├── inboxTypes.ts            # Tipi dashboard (stati, etichette, richieste)
+│   ├── inboxData.ts             # Mock: stati, etichette, 8 richieste email
+│   └── inboxDrafts.ts           # Bozze risposta cliente / richiesta fornitore
 ├── .env.example
 ├── next.config.ts
 ├── tailwind (via @tailwindcss/postcss)
@@ -141,6 +176,8 @@ Tutti i dati di esempio sono in **`lib/mockData.ts`**, commentati e facili da so
 - **`COMPANY`**: i dati fittizi della carta intestata.
 
 Il matcher (`lib/match.ts`) collega il linguaggio naturale del cliente al componente giusto usando le `keywords`.
+
+Le richieste della dashboard sono in **`lib/inboxData.ts`** (8 email di esempio, gli 8 `STATUSES` con colori, e le `DEFAULT_LABELS`), anch'esse commentate e facili da sostituire. Le email referenziano le matricole di `mockData.ts` così l'agente riesce a identificarle.
 
 ---
 
