@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { REVIEW_THRESHOLD, SOURCE_FILES } from "@/lib/archiveData";
 import type { ArchivedDoc, ClassifyResult, SourceFile } from "@/lib/archiveTypes";
 import { SourceBrowser } from "./SourceBrowser";
@@ -33,11 +34,16 @@ function fallbackResult(f: SourceFile): ClassifyResult {
 }
 
 export function ArchiveWorkspace() {
-  const [phase, setPhase] = useState<Phase>("source");
-  const [apiDone, setApiDone] = useState(false);
+  const searchParams = useSearchParams();
+  // L'archivio parte già dal risultato organizzato (vista "dopo"):
+  // classificazione mock precalcolata dal ground truth dei file.
+  // "Ricomincia" riporta alla fase sorgente per mostrare l'elaborazione.
+  const [phase, setPhase] = useState<Phase>("done");
+  const [apiDone, setApiDone] = useState(true);
   const [results, setResults] = useState<Map<string, ClassifyResult>>(new Map());
   const [apiSource, setApiSource] = useState<"anthropic" | "mock">("mock");
-  const [query, setQuery] = useState("");
+  // Ricerca inizializzata dal parametro ?q= (link interni dall'inbox).
+  const [query, setQuery] = useState(() => searchParams.get("q") ?? "");
   // Risoluzioni della coda di revisione: fileId → matricola assegnata.
   const [resolved, setResolved] = useState<Record<string, string>>({});
 

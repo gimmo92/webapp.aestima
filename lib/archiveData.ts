@@ -42,6 +42,18 @@ export const KNOWN_MACHINES = MACHINES.map((m) => ({
   label: `${m.model} · ${m.serial}`,
 }));
 
+/**
+ * Documenti in archivio collegati a una macchina (per i riferimenti
+ * cliccabili mostrati nell'inbox). Include sia i file già collegati
+ * alla matricola sia quelli la cui matricola corretta è quella.
+ */
+export function docsForMachine(serial: string) {
+  return SOURCE_FILES.filter(
+    (f) =>
+      f.classification.macchinaSerial === serial || f.correctSerial === serial
+  );
+}
+
 export const SOURCE_FILES: SourceFile[] = [
   {
     id: "f01",
