@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { recomputeTotals } from "@/lib/quote";
 import { mockQuoteEdit } from "@/lib/mockQuoteEdit";
-import { ANTHROPIC_MODEL, getAnthropicKey } from "@/lib/anthropicKey";
+import { callAnthropicMessages, getAnthropicKey } from "@/lib/anthropicKey";
 import type { Quote, QuoteLine } from "@/lib/types";
 
 // =============================================================
@@ -22,8 +22,6 @@ import type { Quote, QuoteLine } from "@/lib/types";
 // =============================================================
 
 export const runtime = "nodejs";
-
-const MODEL = ANTHROPIC_MODEL;
 
 const SYSTEM_PROMPT = `Sei l'agente di "aestima" che aiuta un tecnico a modificare un PREVENTIVO di ricambi industriali.
 Ricevi il preventivo attuale in JSON e un'istruzione in italiano dell'operatore.
@@ -113,6 +111,7 @@ export async function POST(req: Request) {
     return NextResponse.json({
       quote: mockQuoteEdit(quote, instruction),
       source: "mock",
+      reason: "missing_api_key",
     });
   }
 
@@ -138,37 +137,26 @@ ${JSON.stringify(
 ISTRUZIONE DELL'OPERATORE:
 ${instruction}`;
 
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        max_tokens: 1024,
-        system: SYSTEM_PROMPT,
-        messages: [{ role: "user", content: userContent }],
-      }),
+    const llm = await callAnthropicMessages({
+      system: SYSTEM_PROMPT,
+      user: userContent,
     });
 
-    if (!res.ok) {
-      console.error("Anthropic quote-edit error:", res.status, await res.text());
+    if (!llm.ok) {
       return NextResponse.json({
         quote: mockQuoteEdit(quote, instruction),
         source: "mock",
+        reason: "api_error",
+        detail: llm.message,
       });
     }
 
-    const data = await res.json();
-    const text: string =
-      data?.content?.map((c: { text?: string }) => c.text ?? "").join("") ?? "";
-    const parsed = parseJson(text);
+    const parsed = parseJson(llm.text);
     if (!parsed) {
       return NextResponse.json({
         quote: mockQuoteEdit(quote, instruction),
         source: "mock",
+        reason: "parse_error",
       });
     }
 
@@ -197,6 +185,7 @@ ${instruction}`;
     return NextResponse.json({
       quote: mockQuoteEdit(quote, instruction),
       source: "mock",
+      reason: "api_error",
     });
   }
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { QuoteSheet } from "@/components/QuoteSheet";
 import type { Quote } from "@/lib/types";
 
@@ -27,6 +27,24 @@ const SUGGESTIONS = [
   "Togli la maggiorazione urgenza",
 ];
 
+type EditSource = "anthropic" | "mock";
+type MockReason = "missing_api_key" | "api_error" | "parse_error";
+
+function mockBadgeLabel(reason?: MockReason, detail?: string): string {
+  if (reason === "missing_api_key") {
+    return "Modifica locale — imposta ANTHROPIC_API_KEY (o anthropic) su Vercel";
+  }
+  if (reason === "api_error") {
+    return detail
+      ? `Modifica locale — Claude non disponibile (${detail})`
+      : "Modifica locale — Claude non disponibile, uso regole demo";
+  }
+  if (reason === "parse_error") {
+    return "Modifica locale — risposta Claude non valida, uso regole demo";
+  }
+  return "Modifica locale (demo)";
+}
+
 export function QuotePreviewModal({
   quote,
   customerName,
@@ -37,7 +55,16 @@ export function QuotePreviewModal({
   const [instruction, setInstruction] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [source, setSource] = useState<"anthropic" | "mock" | null>(null);
+  const [source, setSource] = useState<EditSource | null>(null);
+  const [mockReason, setMockReason] = useState<MockReason | undefined>();
+  const [mockDetail, setMockDetail] = useState<string | undefined>();
+  const [displayQuote, setDisplayQuote] = useState(quote);
+  const displayQuoteRef = useRef(quote);
+
+  useEffect(() => {
+    setDisplayQuote(quote);
+    displayQuoteRef.current = quote;
+  }, [quote]);
 
   // Chiusura con Esc + blocco dello scroll di fondo.
   useEffect(() => {
@@ -62,12 +89,22 @@ export function QuotePreviewModal({
       const res = await fetch("/api/quote-edit", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ quote, instruction: trimmed }),
+        body: JSON.stringify({
+          quote: displayQuoteRef.current,
+          instruction: trimmed,
+        }),
       });
       const data = res.ok ? await res.json() : null;
       if (data?.quote) {
-        onQuoteChange?.(data.quote as Quote);
+        const next = data.quote as Quote;
+        displayQuoteRef.current = next;
+        setDisplayQuote(next);
+        onQuoteChange?.(next);
         setSource(data.source === "anthropic" ? "anthropic" : "mock");
+        setMockReason(data.reason as MockReason | undefined);
+        setMockDetail(
+          typeof data.detail === "string" ? data.detail : undefined
+        );
         setInstruction("");
       } else {
         setError("Non sono riuscito ad applicare la modifica. Riprova.");
@@ -94,7 +131,7 @@ export function QuotePreviewModal({
             <path d="M14 2v6h6" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
           </svg>
           <span className="truncate font-medium text-ink">
-            Preventivo_{quote.number}.pdf
+            Preventivo_{displayQuote.number}.pdf
           </span>
           <span className="shrink-0 rounded-full border border-border bg-surface-2 px-2 py-0.5 text-[11px] font-semibold text-ink-muted">
             Anteprima
@@ -127,7 +164,7 @@ export function QuotePreviewModal({
         {/* Documento */}
         <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-8">
           <div className="mx-auto w-full max-w-3xl">
-            <QuoteSheet quote={quote} customerName={customerName} serial={serial} />
+            <QuoteSheet quote={displayQuote} customerName={customerName} serial={serial} />
           </div>
         </div>
 
@@ -185,7 +222,7 @@ export function QuotePreviewModal({
                 <span className="h-1.5 w-1.5 rounded-full bg-current" />
                 {source === "anthropic"
                   ? "Modificato con Claude"
-                  : "Modifica locale (demo)"}
+                  : mockBadgeLabel(mockReason, mockDetail)}
               </span>
             )}
 
