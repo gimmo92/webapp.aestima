@@ -22,12 +22,8 @@ export function RequestInput({ value, onChange, onSubmit }: Props) {
           Passo 1 — Richiesta del cliente
         </div>
         <h2 className="text-xl font-bold text-ink sm:text-2xl">
-          Incolla la richiesta così come arriva
+          Incolla la richiesta
         </h2>
-        <p className="mt-1.5 text-sm text-ink-muted">
-          Testo libero, vago, senza codici ricambio. Come una vera email o
-          messaggio da un cliente.
-        </p>
       </div>
 
       <label
