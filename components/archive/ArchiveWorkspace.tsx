@@ -17,7 +17,7 @@ import { ReviewQueue } from "./ReviewQueue";
 // e persisterebbe l'archivio su un database.
 
 type Phase = "source" | "processing" | "done";
-type ArchiveTab = "organizzato" | "sorgente";
+type ArchiveTab = "organizzato" | "sorgente" | "verificare";
 
 /** Classificazione di fallback a partire dal ground truth mock del file. */
 function fallbackResult(f: SourceFile): ClassifyResult {
@@ -214,6 +214,13 @@ export function ArchiveWorkspace() {
             label="Sorgente"
             sub={`${SOURCE_FILES.length} file disordinati`}
           />
+          <TabBtn
+            active={archiveTab === "verificare"}
+            onClick={() => setArchiveTab("verificare")}
+            label="Da verificare"
+            badge={reviewItems.length}
+            warn
+          />
         </div>
 
         <div className="min-h-[60vh] flex-1 p-3 lg:min-h-0">
@@ -225,16 +232,13 @@ export function ArchiveWorkspace() {
               viewMode={viewMode}
               onViewModeChange={setViewMode}
             />
-          ) : (
+          ) : archiveTab === "sorgente" ? (
             <SourceBrowser files={SOURCE_FILES} compact />
+          ) : (
+            <ReviewQueue items={reviewItems} onResolve={onResolve} embedded />
           )}
         </div>
       </div>
-
-      {/* Coda di revisione (in fondo) */}
-      {reviewItems.length > 0 && (
-        <ReviewQueue items={reviewItems} onResolve={onResolve} />
-      )}
     </div>
   );
 }
@@ -244,23 +248,37 @@ function TabBtn({
   onClick,
   label,
   sub,
+  badge,
+  warn,
 }: {
   active: boolean;
   onClick: () => void;
   label: string;
   sub?: string;
+  badge?: number;
+  warn?: boolean;
 }) {
   return (
     <button
       onClick={onClick}
       className={[
-        "relative py-3 text-sm font-medium transition-colors",
+        "relative flex items-center gap-1.5 py-3 text-sm font-medium transition-colors",
         active ? "text-ink" : "text-ink-faint hover:text-ink-muted",
       ].join(" ")}
     >
       {label}
       {sub && (
-        <span className="ml-1.5 text-[11px] font-normal text-ink-faint">· {sub}</span>
+        <span className="text-[11px] font-normal text-ink-faint">· {sub}</span>
+      )}
+      {badge !== undefined && badge > 0 && (
+        <span
+          className={[
+            "rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums",
+            warn ? "bg-warn/15 text-warn" : "bg-surface-2 text-ink-muted",
+          ].join(" ")}
+        >
+          {badge}
+        </span>
       )}
       {active && (
         <span className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-brand" />

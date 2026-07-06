@@ -7,42 +7,77 @@ import { FileIcon } from "./FileIcon";
 import { ConfidenceBadge } from "./ConfidenceBadge";
 
 // CODA DI REVISIONE (human-in-the-loop) — file a bassa confidenza dove
-// l'agente propone ma l'operatore conferma o corregge.
+// l'operatore conferma o corregge la classificazione proposta dall'agente.
 
 interface Props {
   items: SourceFile[];
   onResolve: (fileId: string, serial: string) => void;
+  /** Vista dentro il tab dell'archivio (senza bordo esterno). */
+  embedded?: boolean;
 }
 
-export function ReviewQueue({ items, onResolve }: Props) {
-  if (items.length === 0) return null;
-
-  return (
-    <section className="rounded-2xl border border-warn/40 bg-warn/5 p-4">
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <span className="flex h-6 w-6 items-center justify-center rounded-md bg-warn/15 text-warn">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path d="M12 8v5m0 3h.01M10.3 3.9 2.4 18a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+export function ReviewQueue({ items, onResolve, embedded }: Props) {
+  if (items.length === 0) {
+    if (!embedded) return null;
+    return (
+      <div className="flex h-full min-h-[40vh] items-center justify-center rounded-xl border border-border bg-base/40 p-8 text-center">
+        <div>
+          <span className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-ok/15 text-ok">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+              <path d="M4 10.5 8 14.5 16 5.5" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </span>
-          <h3 className="text-sm font-semibold text-ink">Da verificare</h3>
-          <span className="rounded-full bg-warn/15 px-2 py-0.5 text-[11px] font-semibold text-warn">
-            {items.length}
-          </span>
+          <p className="text-sm font-medium text-ink">Nessun file da verificare</p>
+          <p className="mt-1 text-xs text-ink-faint">
+            Tutti i documenti sono stati collegati all&apos;archivio.
+          </p>
         </div>
       </div>
+    );
+  }
+
+  const inner = (
+    <>
+      {!embedded && (
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <span className="flex h-6 w-6 items-center justify-center rounded-md bg-warn/15 text-warn">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M12 8v5m0 3h.01M10.3 3.9 2.4 18a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </span>
+            <h3 className="text-sm font-semibold text-ink">Da verificare</h3>
+            <span className="rounded-full bg-warn/15 px-2 py-0.5 text-[11px] font-semibold text-warn">
+              {items.length}
+            </span>
+          </div>
+        </div>
+      )}
 
       <div className="space-y-2">
         {items.map((f) => (
           <ReviewItem key={f.id} file={f} onResolve={onResolve} />
         ))}
       </div>
+    </>
+  );
 
-      <p className="mt-3 border-t border-warn/20 pt-2.5 text-xs text-ink-muted">
-        <span className="font-semibold text-ink">aestima propone, l&apos;operatore conferma</span>{" "}
-        i casi dubbi — e il sistema impara.
-      </p>
+  if (embedded) {
+    return (
+      <section className="flex h-full min-h-0 flex-col overflow-y-auto rounded-xl border border-border bg-base/40">
+        <div className="border-b border-border px-4 py-3">
+          <p className="text-xs text-ink-muted">
+            File a bassa confidenza: conferma o correggi la macchina assegnata dall&apos;agente.
+          </p>
+        </div>
+        <div className="flex-1 space-y-2 p-3">{inner}</div>
+      </section>
+    );
+  }
+
+  return (
+    <section className="rounded-2xl border border-warn/40 bg-warn/5 p-4">
+      {inner}
     </section>
   );
 }
@@ -89,7 +124,6 @@ function ReviewItem({
             )}
           </p>
 
-          {/* Correzione: scelta macchina */}
           {correcting ? (
             <div className="mt-2.5 flex flex-wrap items-center gap-2">
               <select
