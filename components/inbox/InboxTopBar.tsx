@@ -10,6 +10,7 @@ import { Logo } from "@/components/Logo";
 const NAV = [
   { href: "/", label: "Inbox" },
   { href: "/pipeline", label: "Pipeline" },
+  { href: "/archivio", label: "Archivio" },
 ] as const;
 
 export function InboxTopBar() {

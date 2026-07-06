@@ -13,6 +13,7 @@ Design **dark, professionale, industriale**. Costruito con **Next.js 15 (App Rou
 | --- | --- |
 | **`/`** | **Dashboard "unibox"** (schermata di default) — inbox unificata delle richieste ricambi after-sales, con stati, etichette e analisi dell'agente per ogni email. |
 | **`/pipeline`** | **Pipeline offerte** — board Kanban delle offerte per stato, con valore per colonna, KPI (pipeline aperta, vinte, perse, conversione) e drag & drop per cambiare stato. |
+| **`/archivio`** | **Archivio documentale** — agente che prende file disordinati e li trasforma in un archivio strutturato, classificato e collegato alla macchina, con coda di revisione umana. |
 | **`/demo`** | **Demo flusso** — dalla singola richiesta al preventivo, in 4 step guidati. |
 
 Le viste sono collegate tra loro (navigazione in alto). **Inbox e Pipeline condividono lo stesso stato** (`components/inbox/InboxProvider.tsx`): spostare un'offerta nella pipeline aggiorna lo stato anche nell'inbox, e viceversa. Lo stato vive in memoria (React Context), senza `localStorage` né DB.
@@ -30,6 +31,19 @@ Layout a **tre colonne**, in stile inbox unificata (ispirato a Instantly) ma per
 **Labeling** (cuore della dashboard): assegnare/cambiare stato, applicare **più etichette**, **crearne di nuove** al volo; i contatori si aggiornano in tempo reale.
 
 > **Stato in memoria (React state), niente `localStorage` né DB.** In produzione la lista si popolerebbe dalla **casella email reale** del cliente (IMAP / API del provider) e stato + etichette verrebbero **persistiti su database**. Qui è tutto mock per la demo (vedi commenti in `app/page.tsx` e `lib/inboxData.ts`).
+
+---
+
+## Archivio documentale (`/archivio`)
+
+L'agente di **organizzazione documentale** trasforma una cartella cloud disordinata in un archivio strutturato e interrogabile — mostra il **prima → dopo**:
+
+- **Sorgente** — file browser con file dai nomi caotici (`scan_0042.pdf`, `distinta_rev_finale_OK.xlsx`, `IMG_20190312.jpg`, `disegno vecchio.dwg`, …) con tipo, dimensione, data e pulsante **"Organizza con aestima"**.
+- **Elaborazione** — pipeline a 4 stadi (_Classificazione → Estrazione metadati → Collegamento → Indicizzazione_) con il tipo riconosciuto che appare accanto a ogni file. Se `ANTHROPIC_API_KEY` è impostata, il **tipo** è classificato davvero da Claude (route `POST /api/classify`); altrimenti fallback mock.
+- **Archivio organizzato** — documenti raggruppati per **Macchina** e, dentro ogni macchina, per **tipo** (disegni, distinta, manuale, offerte, foto…), con metadati estratti (codice, revisione) e **badge di confidenza**. Barra di **ricerca** per interrogare l'archivio.
+- **Coda "Da verificare"** (human-in-the-loop) — 1-2 file a bassa confidenza dove l'agente non è sicuro (es. _"Questo disegno sembra appartenere a MX-450, confermi?"_) con **Conferma / Correggi**. Messaggio: _"aestima propone, l'operatore conferma — e il sistema impara."_
+
+> **Mock, in memoria.** I file di esempio sono in `lib/archiveData.ts` (12 file, 2-3 macchine, 2 a bassa confidenza). In produzione l'agente si collegherebbe a una **cartella cloud reale** (Google Drive / SharePoint / Dropbox via API) e l'archivio sarebbe persistito su database.
 
 ---
 
@@ -128,11 +142,13 @@ vercel --prod     # deploy in produzione
 ```
 .
 ├── app/
-│   ├── api/analyze/route.ts     # Route server-side: Anthropic + fallback mock
+│   ├── api/analyze/route.ts     # Route server-side: analisi richiesta (Anthropic + mock)
+│   ├── api/classify/route.ts    # Route server-side: classifica documenti (Anthropic + mock)
 │   ├── globals.css              # Tema dark/industriale (Tailwind v4) + stili di stampa
-│   ├── layout.tsx               # Layout root, font Inter, metadata
+│   ├── layout.tsx               # Layout root, font Inter, metadata, InboxProvider
 │   ├── page.tsx                 # Default: dashboard "unibox" (3 colonne)
 │   ├── pipeline/page.tsx        # Pipeline offerte: board Kanban + KPI + drag & drop
+│   ├── archivio/page.tsx        # Archivio documentale: sorgente → organizzato
 │   └── demo/page.tsx            # Demo flusso: orchestrazione dei 4 step
 ├── components/
 │   ├── Header.tsx               # Barra superiore (demo flusso) con link alla dashboard
@@ -153,6 +169,15 @@ vercel --prod     # deploy in produzione
 │       ├── PipelineBoard.tsx    # Board Kanban delle offerte (drag & drop)
 │       ├── StatusPill.tsx       # Badge/dot di stato (colori inline)
 │       └── LabelChip.tsx        # Chip etichetta custom
+│   └── archive/                 # Componenti tab Archivio
+│       ├── ArchiveWorkspace.tsx # Orchestratore: sorgente → elaborazione → archivio
+│       ├── SourceBrowser.tsx    # File browser cartella cloud disordinata
+│       ├── ProcessingPipeline.tsx # Animazione a 4 stadi + reveal dei tipi
+│       ├── OrganizedArchive.tsx # Archivio per macchina/tipo + ricerca
+│       ├── ReviewQueue.tsx      # Coda revisione umana (conferma/correggi)
+│       ├── FileIcon.tsx         # Icona file per estensione
+│       ├── DocTypeBadge.tsx     # Badge tipo documento
+│       └── ConfidenceBadge.tsx  # Badge di confidenza
 ├── lib/
 │   ├── types.ts                 # Tipi condivisi (flusso/preventivo)
 │   ├── mockData.ts              # Dati di esempio: macchine + distinte (BOM)
@@ -162,7 +187,9 @@ vercel --prod     # deploy in produzione
 │   ├── inboxTypes.ts            # Tipi dashboard (stati, etichette, richieste)
 │   ├── inboxData.ts             # Mock: stati, etichette, 8 richieste email
 │   ├── inboxDrafts.ts           # Bozze risposta cliente / richiesta fornitore
-│   └── inboxOffers.ts           # Calcolo offerta per richiesta (pipeline)
+│   ├── inboxOffers.ts           # Calcolo offerta per richiesta (pipeline)
+│   ├── archiveTypes.ts          # Tipi archivio (DocType, file, classificazione)
+│   └── archiveData.ts           # Mock: 12 file disordinati + tipi documento
 ├── .env.example
 ├── next.config.ts
 ├── tailwind (via @tailwindcss/postcss)
