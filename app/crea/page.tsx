@@ -15,7 +15,7 @@ import type { AnalysisResult, MatchResult, Quote } from "@/lib/types";
 
 // Flusso guidato a 4 step: dalla richiesta al preventivo.
 
-export default function DemoPage() {
+export default function CreaOffertaPage() {
   const [step, setStep] = useState(1);
   const [request, setRequest] = useState(SAMPLE_REQUEST);
 

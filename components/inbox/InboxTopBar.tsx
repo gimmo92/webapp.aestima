@@ -11,7 +11,7 @@ const NAV = [
   { href: "/pipeline", label: "Pipeline" },
   { href: "/archivio", label: "Archivio" },
   { href: "/fornitori", label: "Fornitori" },
-  { href: "/demo", label: "Crea offerta" },
+  { href: "/crea", label: "Crea offerta" },
 ] as const;
 
 export function InboxTopBar() {
