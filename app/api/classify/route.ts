@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { SOURCE_FILES } from "@/lib/archiveData";
+import { ANTHROPIC_MODEL, getAnthropicKey } from "@/lib/anthropicKey";
 import type { ClassifyResult, DocType } from "@/lib/archiveTypes";
 
 // =============================================================
@@ -30,7 +31,7 @@ const DOC_TYPES: DocType[] = [
   "foto",
 ];
 
-const MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-5";
+const MODEL = ANTHROPIC_MODEL;
 
 const SYSTEM_PROMPT = `Sei l'agente di organizzazione documentale di "aestima" per il settore ricambi industriali after-sales.
 Ricevi un elenco di file (nome + breve anteprima del contenuto) e devi classificare il TIPO di ciascun documento.
@@ -94,7 +95,7 @@ export async function POST(req: Request) {
   }
 
   const files = SOURCE_FILES.filter((f) => ids.includes(f.id));
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const apiKey = getAnthropicKey();
 
   // Nessuna chiave → classificazione mock.
   if (!apiKey) {

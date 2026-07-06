@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { mockAnalyze } from "@/lib/mockAnalyze";
+import { ANTHROPIC_MODEL, getAnthropicKey } from "@/lib/anthropicKey";
 import type { AnalysisResult, Urgency } from "@/lib/types";
 
 // =============================================================
@@ -34,7 +35,7 @@ Rispondi ESCLUSIVAMENTE con un oggetto JSON valido, senza testo aggiuntivo, senz
 Schema: {"macchina": string, "numero_serie": string, "componente_identificato": string, "urgenza": "bassa"|"normale"|"alta", "note": string}`;
 
 // Modello Claude usato (configurabile via env, con default recente).
-const MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-5";
+const MODEL = ANTHROPIC_MODEL;
 
 function coerceUrgency(value: unknown): Urgency {
   return value === "alta" || value === "bassa" ? value : "normale";
@@ -76,8 +77,9 @@ export async function POST(req: Request) {
     );
   }
 
-  // API key Anthropic da impostare in env var ANTHROPIC_API_KEY su Vercel.
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  // API key Anthropic da impostare in env var su Vercel
+  // (ANTHROPIC_API_KEY oppure "anthropic").
+  const apiKey = getAnthropicKey();
 
   // Nessuna chiave → fallback mock (la demo funziona comunque).
   if (!apiKey) {

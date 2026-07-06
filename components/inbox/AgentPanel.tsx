@@ -253,6 +253,7 @@ export function AgentPanel({ request, onApproveSend }: Props) {
           customerName={request.company}
           serial={match?.machine?.serial}
           onClose={() => setShowPreview(false)}
+          onQuoteChange={setQuote}
         />
       )}
     </div>

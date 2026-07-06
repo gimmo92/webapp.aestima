@@ -32,6 +32,39 @@ function quoteNumber(): string {
   return `PREV-${year}-${seq}`;
 }
 
+const round2 = (n: number) => Math.round(n * 100) / 100;
+
+/**
+ * Ricalcola in modo deterministico i totali del preventivo a partire
+ * dalle righe e dalle percentuali (maggiorazione urgenza + IVA).
+ * Usato dopo una modifica (anche via LLM): l'LLM cambia solo i campi
+ * "editabili", i totali li ricalcoliamo noi per evitare errori aritmetici.
+ */
+export function recomputeTotals(
+  lines: QuoteLine[],
+  urgencySurchargePct: number,
+  vatPct: number
+): {
+  lines: QuoteLine[];
+  subtotal: number;
+  urgencySurcharge: number;
+  vat: number;
+  total: number;
+} {
+  const normLines = lines.map((l) => ({
+    ...l,
+    qty: Number(l.qty) || 0,
+    unitPrice: round2(Number(l.unitPrice) || 0),
+    total: round2((Number(l.qty) || 0) * (Number(l.unitPrice) || 0)),
+  }));
+  const subtotal = round2(normLines.reduce((acc, l) => acc + l.total, 0));
+  const urgencySurcharge = round2((subtotal * urgencySurchargePct) / 100);
+  const taxable = subtotal + urgencySurcharge;
+  const vat = round2((taxable * vatPct) / 100);
+  const total = round2(taxable + vat);
+  return { lines: normLines, subtotal, urgencySurcharge, vat, total };
+}
+
 export function buildQuote(
   machine: Machine,
   component: BomComponent,
