@@ -163,7 +163,7 @@ export function ArchiveWorkspace() {
 
   // --- Fase ARCHIVIO ORGANIZZATO (prima → dopo) ---
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4 p-4">
+    <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4">
       {/* Riepilogo + azioni */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm">
@@ -197,20 +197,20 @@ export function ArchiveWorkspace() {
         </button>
       </div>
 
-      {/* Coda di revisione */}
-      {reviewItems.length > 0 && (
-        <ReviewQueue items={reviewItems} onResolve={onResolve} />
-      )}
-
       {/* Prima → dopo */}
-      <div className="grid min-h-0 flex-1 gap-4 overflow-y-auto lg:grid-cols-2 lg:overflow-hidden">
-        <div className="min-h-[55vh] lg:min-h-0">
+      <div className="grid gap-4 lg:grid-cols-2">
+        <div className="min-h-[55vh]">
           <SourceBrowser files={SOURCE_FILES} compact />
         </div>
-        <div className="min-h-[55vh] lg:min-h-0">
+        <div className="min-h-[55vh]">
           <OrganizedArchive docs={archived} query={query} onQueryChange={setQuery} />
         </div>
       </div>
+
+      {/* Coda di revisione (in fondo) */}
+      {reviewItems.length > 0 && (
+        <ReviewQueue items={reviewItems} onResolve={onResolve} />
+      )}
     </div>
   );
 }
