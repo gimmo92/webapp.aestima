@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import Image from "next/image";
 import { STATUSES } from "@/lib/inboxData";
 import type { Label, PartRequest, RequestStatus } from "@/lib/inboxTypes";
 import { LabelChip } from "./LabelChip";
@@ -28,6 +29,13 @@ export function RequestDetail({
 }: Props) {
   const [menu, setMenu] = useState<OpenMenu>(null);
   const [newLabel, setNewLabel] = useState("");
+  // Lightbox per l'allegato foto (url dell'immagine ingrandita).
+  const [lightbox, setLightbox] = useState<string | null>(null);
+
+  // Chiudi il lightbox se cambia la richiesta selezionata.
+  useEffect(() => {
+    setLightbox(null);
+  }, [request?.id]);
 
   if (!request) {
     return (
@@ -245,6 +253,49 @@ export function RequestDetail({
           <p className="whitespace-pre-line text-sm leading-relaxed text-ink-muted">
             {request.body}
           </p>
+
+          {/* Allegati (es. foto del componente inviata dal cliente) */}
+          {request.attachments && request.attachments.length > 0 && (
+            <div className="mt-4 border-t border-border pt-3">
+              <div className="mb-2 flex items-center gap-1.5 text-xs text-ink-faint">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M21 12.5 12.5 21a5 5 0 0 1-7-7l8.5-8.5a3.3 3.3 0 0 1 4.7 4.7L10 18.4a1.7 1.7 0 0 1-2.4-2.4l7.8-7.8" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                {request.attachments.length}{" "}
+                {request.attachments.length === 1 ? "allegato" : "allegati"}
+              </div>
+              <div className="flex flex-wrap gap-3">
+                {request.attachments.map((att) => (
+                  <button
+                    key={att.url}
+                    onClick={() => setLightbox(att.url)}
+                    className="group w-44 overflow-hidden rounded-lg border border-border bg-base text-left transition-colors hover:border-brand/60"
+                    title="Apri l'immagine"
+                  >
+                    <span className="relative block h-28 w-full overflow-hidden bg-surface-2">
+                      <Image
+                        src={att.url}
+                        alt={att.name}
+                        fill
+                        sizes="176px"
+                        className="object-cover transition-transform duration-300 group-hover:scale-105"
+                      />
+                    </span>
+                    <span className="flex items-center gap-1.5 px-2.5 py-1.5">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true" className="shrink-0 text-brand">
+                        <rect x="3" y="4" width="18" height="16" rx="2" stroke="currentColor" strokeWidth="1.7" />
+                        <circle cx="8.5" cy="9.5" r="1.5" fill="currentColor" />
+                        <path d="m4 17 5-5 4 4 3-3 4 4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                      <span className="truncate text-xs text-ink-muted group-hover:text-ink">
+                        {att.name}
+                      </span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </article>
 
         {/* Pannello agente (analisi + bozze) */}
@@ -253,6 +304,37 @@ export function RequestDetail({
           onApproveSend={() => onChangeStatus(request.id, "inviata")}
         />
       </div>
+
+      {/* Lightbox allegato */}
+      {lightbox && (
+        <div
+          className="fixed inset-0 z-50 flex flex-col bg-black/80 backdrop-blur-sm"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) setLightbox(null);
+          }}
+        >
+          <div className="flex shrink-0 justify-end p-3">
+            <button
+              onClick={() => setLightbox(null)}
+              aria-label="Chiudi immagine"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-white/20 bg-white/10 text-white transition-colors hover:bg-white/20"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M18 6 6 18M6 6l12 12" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
+              </svg>
+            </button>
+          </div>
+          <div className="relative min-h-0 flex-1">
+            <Image
+              src={lightbox}
+              alt="Allegato richiesta"
+              fill
+              sizes="100vw"
+              className="object-contain p-4 pt-0"
+            />
+          </div>
+        </div>
+      )}
     </section>
   );
 }

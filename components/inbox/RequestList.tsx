@@ -83,6 +83,11 @@ export function RequestList({
                   <span className="min-w-0 flex-1 truncate text-sm font-semibold text-ink">
                     {r.company}
                   </span>
+                  {r.attachments && r.attachments.length > 0 && (
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-label="Allegato" role="img" className="shrink-0 text-ink-faint">
+                      <path d="M21 12.5 12.5 21a5 5 0 0 1-7-7l8.5-8.5a3.3 3.3 0 0 1 4.7 4.7L10 18.4a1.7 1.7 0 0 1-2.4-2.4l7.8-7.8" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  )}
                   <span className="shrink-0 text-[11px] text-ink-faint">
                     {r.receivedLabel}
                   </span>

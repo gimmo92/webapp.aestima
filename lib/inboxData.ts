@@ -107,6 +107,27 @@ export const MOCK_REQUESTS: PartRequest[] = [
     primary: true,
   },
   {
+    id: "req-009",
+    from: "Davide Fontana",
+    fromEmail: "d.fontana@fontanaengineering.it",
+    company: "Fontana Engineering S.r.l.",
+    subject: "Perdita d'aria cambio utensile - foto allegata",
+    body:
+      "Buongiorno,\n\nsul centro di fresatura matricola FR-3092 abbiamo una forte perdita d'aria in corrispondenza del gruppo pneumatico del cambio utensile. Il cambio non aggancia più bene l'utensile.\n\nVi allego una foto dell'impianto pneumatico interessato, così vedete di cosa si tratta. Pensiamo siano da rifare le tenute.\n\nPotete mandarci un preventivo?\n\nGrazie,\nDavide Fontana - Ufficio Tecnico",
+    receivedLabel: "09:05",
+    receivedFull: "Oggi, 09:05",
+    status: "nuova",
+    labelIds: ["urgente"],
+    primary: true,
+    attachments: [
+      {
+        name: "impianto-pneumatico.jpg",
+        url: "/richieste/impianto-pneumatico.jpg",
+        kind: "image",
+      },
+    ],
+  },
+  {
     id: "req-002",
     from: "Laura Bianchi",
     fromEmail: "ufficio.tecnico@officinebianchi.com",

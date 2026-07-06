@@ -29,6 +29,16 @@ export interface Label {
   color: string;
 }
 
+/** Allegato di una richiesta (es. foto del componente inviata dal cliente). */
+export interface RequestAttachment {
+  /** Nome file mostrato all'operatore. */
+  name: string;
+  /** URL servito da /public (es. /richieste/foto.jpg). */
+  url: string;
+  /** Tipo allegato (per ora solo immagini nella demo). */
+  kind: "image";
+}
+
 /**
  * Una richiesta ricambio in arrivo (come un'email nella inbox).
  *
@@ -57,4 +67,6 @@ export interface PartRequest {
   labelIds: string[];
   /** Tab "Primarie" (true) o "Altre" (false). */
   primary: boolean;
+  /** Allegati inviati dal cliente (es. foto del componente). */
+  attachments?: RequestAttachment[];
 }
