@@ -8,6 +8,7 @@ import { SourceBrowser } from "./SourceBrowser";
 import { ProcessingPipeline } from "./ProcessingPipeline";
 import { OrganizedArchive, type ArchiveViewMode } from "./OrganizedArchive";
 import { ReviewQueue } from "./ReviewQueue";
+import { ArchiveApiModal } from "./ArchiveApiModal";
 
 // Orchestratore della tab Archivio: gestisce le fasi
 // sorgente → elaborazione → archivio organizzato.
@@ -49,6 +50,27 @@ export function ArchiveWorkspace() {
   const [viewMode, setViewMode] = useState<ArchiveViewMode>("macchina");
   // Risoluzioni della coda di revisione: fileId → matricola assegnata.
   const [resolved, setResolved] = useState<Record<string, string>>({});
+  const [deletedIds, setDeletedIds] = useState<Set<string>>(() => new Set());
+  const [apiFile, setApiFile] = useState<SourceFile | null>(null);
+
+  const visibleFiles = useMemo(
+    () => SOURCE_FILES.filter((f) => !deletedIds.has(f.id)),
+    [deletedIds]
+  );
+
+  const deleteFile = useCallback((fileId: string) => {
+    setDeletedIds((prev) => new Set(prev).add(fileId));
+    setResolved((prev) => {
+      const next = { ...prev };
+      delete next[fileId];
+      return next;
+    });
+    setResults((prev) => {
+      const next = new Map(prev);
+      next.delete(fileId);
+      return next;
+    });
+  }, []);
 
   const handleOrganize = useCallback(async () => {
     setPhase("processing");
@@ -62,16 +84,16 @@ export function ArchiveWorkspace() {
         body: JSON.stringify({}),
       });
       const data = res.ok ? await res.json() : null;
-      const list: ClassifyResult[] = data?.results ?? SOURCE_FILES.map(fallbackResult);
+      const list: ClassifyResult[] = data?.results ?? visibleFiles.map(fallbackResult);
       setResults(new Map(list.map((r) => [r.id, r])));
       setApiSource(data?.source === "anthropic" ? "anthropic" : "mock");
     } catch {
-      setResults(new Map(SOURCE_FILES.map((f) => [f.id, fallbackResult(f)])));
+      setResults(new Map(visibleFiles.map((f) => [f.id, fallbackResult(f)])));
       setApiSource("mock");
     } finally {
       setApiDone(true);
     }
-  }, []);
+  }, [visibleFiles]);
 
   const resultFor = useCallback(
     (f: SourceFile): ClassifyResult => results.get(f.id) ?? fallbackResult(f),
@@ -83,7 +105,7 @@ export function ArchiveWorkspace() {
     const archived: ArchivedDoc[] = [];
     const reviewItems: SourceFile[] = [];
 
-    for (const f of SOURCE_FILES) {
+    for (const f of visibleFiles) {
       const r = resultFor(f);
       const toDoc = (serial: string, confidence: number): ArchivedDoc => ({
         file: f,
@@ -106,7 +128,9 @@ export function ArchiveWorkspace() {
       }
     }
     return { archived, reviewItems };
-  }, [resultFor, resolved]);
+  }, [resultFor, resolved, visibleFiles]);
+
+  const showApi = useCallback((file: SourceFile) => setApiFile(file), []);
 
   const machineCount = useMemo(
     () => new Set(archived.map((d) => d.macchinaSerial)).size,
@@ -136,7 +160,12 @@ export function ArchiveWorkspace() {
           </p>
         </div>
         <div className="min-h-0 w-full max-w-2xl flex-1">
-          <SourceBrowser files={SOURCE_FILES} onOrganize={handleOrganize} />
+          <SourceBrowser
+            files={visibleFiles}
+            onOrganize={handleOrganize}
+            onDeleteFile={deleteFile}
+            onShowApiFile={showApi}
+          />
         </div>
       </div>
     );
@@ -147,7 +176,7 @@ export function ArchiveWorkspace() {
     return (
       <div className="min-h-0 flex-1 overflow-y-auto">
         <ProcessingPipeline
-          files={SOURCE_FILES}
+          files={visibleFiles}
           apiDone={apiDone}
           onComplete={() => setPhase("done")}
           source={apiSource}
@@ -162,7 +191,7 @@ export function ArchiveWorkspace() {
       {/* Riepilogo + azioni */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm">
-          <Stat value={SOURCE_FILES.length} label="file sorgente" />
+          <Stat value={visibleFiles.length} label="file sorgente" />
           <Arrow />
           <Stat value={archived.length} label="documenti collegati" accent />
           <Stat value={machineCount} label="macchine" />
@@ -184,7 +213,7 @@ export function ArchiveWorkspace() {
             active={archiveTab === "sorgente"}
             onClick={() => setArchiveTab("sorgente")}
             label="Sorgente"
-            sub={`${SOURCE_FILES.length} file disordinati`}
+            sub={`${visibleFiles.length} file disordinati`}
           />
           <TabBtn
             active={archiveTab === "verificare"}
@@ -203,14 +232,31 @@ export function ArchiveWorkspace() {
               onQueryChange={setQuery}
               viewMode={viewMode}
               onViewModeChange={setViewMode}
+              onDeleteFile={deleteFile}
+              onShowApiFile={showApi}
             />
           ) : archiveTab === "sorgente" ? (
-            <SourceBrowser files={SOURCE_FILES} compact />
+            <SourceBrowser
+              files={visibleFiles}
+              compact
+              onDeleteFile={deleteFile}
+              onShowApiFile={showApi}
+            />
           ) : (
-            <ReviewQueue items={reviewItems} onResolve={onResolve} embedded />
+            <ReviewQueue
+              items={reviewItems}
+              onResolve={onResolve}
+              embedded
+              onDeleteFile={deleteFile}
+              onShowApiFile={showApi}
+            />
           )}
         </div>
       </div>
+
+      {apiFile && (
+        <ArchiveApiModal file={apiFile} onClose={() => setApiFile(null)} />
+      )}
     </div>
   );
 }

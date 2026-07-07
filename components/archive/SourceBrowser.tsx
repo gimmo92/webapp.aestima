@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { SourceFile } from "@/lib/archiveTypes";
 import { FileIcon } from "./FileIcon";
 import { ExcelPreviewModal } from "./ExcelPreviewModal";
+import { ArchiveFileActions } from "./ArchiveFileActions";
 
 // VISTA SORGENTE — cartella cloud disordinata (stile file browser).
 // In produzione: cartella reale via API (Drive/SharePoint/Dropbox).
@@ -14,9 +15,18 @@ interface Props {
   organizing?: boolean;
   /** Modalità compatta usata nel confronto "prima → dopo". */
   compact?: boolean;
+  onDeleteFile?: (fileId: string) => void;
+  onShowApiFile?: (file: SourceFile) => void;
 }
 
-export function SourceBrowser({ files, onOrganize, organizing, compact }: Props) {
+export function SourceBrowser({
+  files,
+  onOrganize,
+  organizing,
+  compact,
+  onDeleteFile,
+  onShowApiFile,
+}: Props) {
   const [excelPreview, setExcelPreview] = useState<{
     name: string;
     url: string;
@@ -106,6 +116,12 @@ export function SourceBrowser({ files, onOrganize, organizing, compact }: Props)
               >
                 Apri
               </button>
+            )}
+            {onDeleteFile && onShowApiFile && (
+              <ArchiveFileActions
+                onApi={() => onShowApiFile(f)}
+                onDelete={() => onDeleteFile(f.id)}
+              />
             )}
             {!compact && (
               <span className="shrink-0 rounded-full border border-dashed border-border-strong px-2 py-0.5 text-[10px] font-medium text-ink-faint">

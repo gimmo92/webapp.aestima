@@ -8,11 +8,12 @@ import {
   machineCategory,
   machineLabel,
 } from "@/lib/archiveData";
-import type { ArchivedDoc, DocType, FileExt } from "@/lib/archiveTypes";
+import type { ArchivedDoc, DocType, FileExt, SourceFile } from "@/lib/archiveTypes";
 import { FileIcon } from "./FileIcon";
 import { DocTypeBadge } from "./DocTypeBadge";
 import { ConfidenceBadge } from "./ConfidenceBadge";
 import { ExcelPreviewModal } from "./ExcelPreviewModal";
+import { ArchiveFileActions } from "./ArchiveFileActions";
 
 // VISTA ARCHIVIO ORGANIZZATO — raggruppamento configurabile:
 // per tipo macchina (default), tipo documento, tipo file o anno.
@@ -41,7 +42,11 @@ interface Props {
   onQueryChange: (q: string) => void;
   viewMode: ArchiveViewMode;
   onViewModeChange: (mode: ArchiveViewMode) => void;
+  onDeleteFile: (fileId: string) => void;
+  onShowApiFile: (file: SourceFile) => void;
 }
+
+type FileActions = Pick<Props, "onDeleteFile" | "onShowApiFile">;
 
 export function OrganizedArchive({
   docs,
@@ -49,6 +54,8 @@ export function OrganizedArchive({
   onQueryChange,
   viewMode,
   onViewModeChange,
+  onDeleteFile,
+  onShowApiFile,
 }: Props) {
   const [excelPreview, setExcelPreview] = useState<{
     name: string;
@@ -144,13 +151,33 @@ export function OrganizedArchive({
             Nessun documento corrisponde alla ricerca.
           </div>
         ) : viewMode === "macchina" ? (
-          <ByMachineView docs={filtered} onOpenExcel={openExcel} />
+          <ByMachineView
+            docs={filtered}
+            onOpenExcel={openExcel}
+            onDeleteFile={onDeleteFile}
+            onShowApiFile={onShowApiFile}
+          />
         ) : viewMode === "documento" ? (
-          <ByDocumentView docs={filtered} onOpenExcel={openExcel} />
+          <ByDocumentView
+            docs={filtered}
+            onOpenExcel={openExcel}
+            onDeleteFile={onDeleteFile}
+            onShowApiFile={onShowApiFile}
+          />
         ) : viewMode === "file" ? (
-          <ByFileView docs={filtered} onOpenExcel={openExcel} />
+          <ByFileView
+            docs={filtered}
+            onOpenExcel={openExcel}
+            onDeleteFile={onDeleteFile}
+            onShowApiFile={onShowApiFile}
+          />
         ) : (
-          <ByYearView docs={filtered} onOpenExcel={openExcel} />
+          <ByYearView
+            docs={filtered}
+            onOpenExcel={openExcel}
+            onDeleteFile={onDeleteFile}
+            onShowApiFile={onShowApiFile}
+          />
         )}
       </div>
     </section>
@@ -162,10 +189,12 @@ export function OrganizedArchive({
 function ByMachineView({
   docs,
   onOpenExcel,
+  onDeleteFile,
+  onShowApiFile,
 }: {
   docs: ArchivedDoc[];
   onOpenExcel: (doc: ArchivedDoc) => void;
-}) {
+} & FileActions) {
   const byCategory = useMemo(() => {
     const map = new Map<string, Map<string, ArchivedDoc[]>>();
     for (const d of docs) {
@@ -191,7 +220,14 @@ function ByMachineView({
           </div>
           <div className="space-y-3 p-3">
             {Array.from(machines.entries()).map(([serial, machineDocs]) => (
-              <MachineBlock key={serial} serial={serial} docs={machineDocs} onOpenExcel={onOpenExcel} />
+              <MachineBlock
+                key={serial}
+                serial={serial}
+                docs={machineDocs}
+                onOpenExcel={onOpenExcel}
+                onDeleteFile={onDeleteFile}
+                onShowApiFile={onShowApiFile}
+              />
             ))}
           </div>
         </div>
@@ -204,10 +240,12 @@ function ByMachineView({
 function ByDocumentView({
   docs,
   onOpenExcel,
+  onDeleteFile,
+  onShowApiFile,
 }: {
   docs: ArchivedDoc[];
   onOpenExcel: (doc: ArchivedDoc) => void;
-}) {
+} & FileActions) {
   const byType = useMemo(() => {
     const map = new Map<DocType, ArchivedDoc[]>();
     for (const d of docs) {
@@ -228,7 +266,15 @@ function ByDocumentView({
           </div>
           <div className="space-y-3 p-3">
             {groupByMachine(typeDocs).map(([serial, machineDocs]) => (
-              <MachineBlock key={serial} serial={serial} docs={machineDocs} showTypeGroups={false} onOpenExcel={onOpenExcel} />
+              <MachineBlock
+                key={serial}
+                serial={serial}
+                docs={machineDocs}
+                showTypeGroups={false}
+                onOpenExcel={onOpenExcel}
+                onDeleteFile={onDeleteFile}
+                onShowApiFile={onShowApiFile}
+              />
             ))}
           </div>
         </div>
@@ -241,10 +287,12 @@ function ByDocumentView({
 function ByFileView({
   docs,
   onOpenExcel,
+  onDeleteFile,
+  onShowApiFile,
 }: {
   docs: ArchivedDoc[];
   onOpenExcel: (doc: ArchivedDoc) => void;
-}) {
+} & FileActions) {
   const byExt = useMemo(() => {
     const map = new Map<string, ArchivedDoc[]>();
     for (const d of docs) {
@@ -271,7 +319,15 @@ function ByFileView({
           </div>
           <div className="space-y-1 p-3">
             {extDocs.map((d) => (
-              <DocRow key={d.file.id} doc={d} showMachine showDocType onOpenExcel={onOpenExcel} />
+              <DocRow
+                key={d.file.id}
+                doc={d}
+                showMachine
+                showDocType
+                onOpenExcel={onOpenExcel}
+                onDeleteFile={onDeleteFile}
+                onShowApiFile={onShowApiFile}
+              />
             ))}
           </div>
         </div>
@@ -284,10 +340,12 @@ function ByFileView({
 function ByYearView({
   docs,
   onOpenExcel,
+  onDeleteFile,
+  onShowApiFile,
 }: {
   docs: ArchivedDoc[];
   onOpenExcel: (doc: ArchivedDoc) => void;
-}) {
+} & FileActions) {
   const byYear = useMemo(() => {
     const map = new Map<string, ArchivedDoc[]>();
     for (const d of docs) {
@@ -310,7 +368,14 @@ function ByYearView({
           </div>
           <div className="space-y-3 p-3">
             {groupByMachine(yearDocs).map(([serial, machineDocs]) => (
-              <MachineBlock key={serial} serial={serial} docs={machineDocs} onOpenExcel={onOpenExcel} />
+              <MachineBlock
+                key={serial}
+                serial={serial}
+                docs={machineDocs}
+                onOpenExcel={onOpenExcel}
+                onDeleteFile={onDeleteFile}
+                onShowApiFile={onShowApiFile}
+              />
             ))}
           </div>
         </div>
@@ -334,12 +399,14 @@ function MachineBlock({
   docs,
   showTypeGroups = true,
   onOpenExcel,
+  onDeleteFile,
+  onShowApiFile,
 }: {
   serial: string;
   docs: ArchivedDoc[];
   showTypeGroups?: boolean;
   onOpenExcel: (doc: ArchivedDoc) => void;
-}) {
+} & FileActions) {
   const byType = TYPE_ORDER.map((tipo) => ({
     tipo,
     items: docs.filter((d) => d.tipo === tipo),
@@ -368,7 +435,14 @@ function MachineBlock({
               </div>
               <div className="space-y-1">
                 {group.items.map((d) => (
-                  <DocRow key={d.file.id} doc={d} showFileType onOpenExcel={onOpenExcel} />
+                  <DocRow
+                    key={d.file.id}
+                    doc={d}
+                    showFileType
+                    onOpenExcel={onOpenExcel}
+                    onDeleteFile={onDeleteFile}
+                    onShowApiFile={onShowApiFile}
+                  />
                 ))}
               </div>
             </div>
@@ -377,7 +451,15 @@ function MachineBlock({
       ) : (
         <div className="space-y-1 p-2">
           {docs.map((d) => (
-            <DocRow key={d.file.id} doc={d} showFileType showDocType onOpenExcel={onOpenExcel} />
+            <DocRow
+              key={d.file.id}
+              doc={d}
+              showFileType
+              showDocType
+              onOpenExcel={onOpenExcel}
+              onDeleteFile={onDeleteFile}
+              onShowApiFile={onShowApiFile}
+            />
           ))}
         </div>
       )}
@@ -391,13 +473,15 @@ function DocRow({
   showDocType,
   showFileType,
   onOpenExcel,
+  onDeleteFile,
+  onShowApiFile,
 }: {
   doc: ArchivedDoc;
   showMachine?: boolean;
   showDocType?: boolean;
   showFileType?: boolean;
   onOpenExcel: (doc: ArchivedDoc) => void;
-}) {
+} & FileActions) {
   const canPreview = doc.file.ext === "xlsx" && !!doc.file.publicUrl;
 
   return (
@@ -439,6 +523,10 @@ function DocRow({
           Apri
         </button>
       )}
+      <ArchiveFileActions
+        onApi={() => onShowApiFile(doc.file)}
+        onDelete={() => onDeleteFile(doc.file.id)}
+      />
       <ConfidenceBadge confidence={doc.confidence} />
     </div>
   );

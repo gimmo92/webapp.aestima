@@ -5,6 +5,7 @@ import { DOC_TYPES, KNOWN_MACHINES, machineLabel } from "@/lib/archiveData";
 import type { SourceFile } from "@/lib/archiveTypes";
 import { FileIcon } from "./FileIcon";
 import { ConfidenceBadge } from "./ConfidenceBadge";
+import { ArchiveFileActions } from "./ArchiveFileActions";
 
 // CODA DI REVISIONE (human-in-the-loop) — file a bassa confidenza dove
 // l'operatore conferma o corregge la classificazione proposta dall'agente.
@@ -14,9 +15,17 @@ interface Props {
   onResolve: (fileId: string, serial: string) => void;
   /** Vista dentro il tab dell'archivio (senza bordo esterno). */
   embedded?: boolean;
+  onDeleteFile?: (fileId: string) => void;
+  onShowApiFile?: (file: SourceFile) => void;
 }
 
-export function ReviewQueue({ items, onResolve, embedded }: Props) {
+export function ReviewQueue({
+  items,
+  onResolve,
+  embedded,
+  onDeleteFile,
+  onShowApiFile,
+}: Props) {
   if (items.length === 0) {
     if (!embedded) return null;
     return (
@@ -56,7 +65,13 @@ export function ReviewQueue({ items, onResolve, embedded }: Props) {
 
       <div className="space-y-2">
         {items.map((f) => (
-          <ReviewItem key={f.id} file={f} onResolve={onResolve} />
+          <ReviewItem
+            key={f.id}
+            file={f}
+            onResolve={onResolve}
+            onDeleteFile={onDeleteFile}
+            onShowApiFile={onShowApiFile}
+          />
         ))}
       </div>
     </>
@@ -85,9 +100,13 @@ export function ReviewQueue({ items, onResolve, embedded }: Props) {
 function ReviewItem({
   file,
   onResolve,
+  onDeleteFile,
+  onShowApiFile,
 }: {
   file: SourceFile;
   onResolve: (fileId: string, serial: string) => void;
+  onDeleteFile?: (fileId: string) => void;
+  onShowApiFile?: (file: SourceFile) => void;
 }) {
   const suggested = file.classification.macchinaSerial;
   const suggestedKnown = KNOWN_MACHINES.some((m) => m.serial === suggested);
@@ -175,6 +194,12 @@ function ReviewItem({
             </div>
           )}
         </div>
+        {onDeleteFile && onShowApiFile && (
+          <ArchiveFileActions
+            onApi={() => onShowApiFile(file)}
+            onDelete={() => onDeleteFile(file.id)}
+          />
+        )}
       </div>
     </div>
   );
