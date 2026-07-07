@@ -1,7 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import type { SourceFile } from "@/lib/archiveTypes";
 import { FileIcon } from "./FileIcon";
+import { ExcelPreviewModal } from "./ExcelPreviewModal";
 
 // VISTA SORGENTE — cartella cloud disordinata (stile file browser).
 // In produzione: cartella reale via API (Drive/SharePoint/Dropbox).
@@ -15,7 +17,20 @@ interface Props {
 }
 
 export function SourceBrowser({ files, onOrganize, organizing, compact }: Props) {
+  const [excelPreview, setExcelPreview] = useState<{
+    name: string;
+    url: string;
+  } | null>(null);
+
   return (
+    <>
+      {excelPreview && (
+        <ExcelPreviewModal
+          fileName={excelPreview.name}
+          url={excelPreview.url}
+          onClose={() => setExcelPreview(null)}
+        />
+      )}
     <section className="flex h-full min-h-0 flex-col rounded-2xl border border-border bg-surface/50">
       {/* Header cartella */}
       <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
@@ -52,26 +67,55 @@ export function SourceBrowser({ files, onOrganize, organizing, compact }: Props)
 
       {/* Lista file */}
       <div className="min-h-0 flex-1 overflow-y-auto p-2">
-        {files.map((f) => (
+        {files.map((f) => {
+          const canPreview = f.ext === "xlsx" && !!f.publicUrl;
+          return (
           <div
             key={f.id}
             className="flex items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-surface-2/50"
           >
             <FileIcon ext={f.ext} />
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm text-ink">{f.name}</p>
+              <button
+                type="button"
+                disabled={!canPreview}
+                onClick={() =>
+                  canPreview &&
+                  setExcelPreview({ name: f.name, url: f.publicUrl! })
+                }
+                className={[
+                  "truncate text-left text-sm",
+                  canPreview
+                    ? "text-ink hover:text-brand"
+                    : "cursor-default text-ink",
+                ].join(" ")}
+              >
+                {f.name}
+              </button>
               <p className="truncate text-[11px] text-ink-faint">
                 {f.sizeLabel} · {f.modified}
               </p>
             </div>
+            {canPreview && (
+              <button
+                type="button"
+                onClick={() =>
+                  setExcelPreview({ name: f.name, url: f.publicUrl! })
+                }
+                className="shrink-0 rounded-md border border-border bg-base px-2 py-1 text-[11px] font-medium text-ink-muted transition-colors hover:border-brand/50 hover:text-brand"
+              >
+                Apri
+              </button>
+            )}
             {!compact && (
               <span className="shrink-0 rounded-full border border-dashed border-border-strong px-2 py-0.5 text-[10px] font-medium text-ink-faint">
                 da classificare
               </span>
             )}
           </div>
-        ))}
+        );})}
       </div>
     </section>
+    </>
   );
 }

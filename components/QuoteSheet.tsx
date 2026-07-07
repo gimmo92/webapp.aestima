@@ -76,6 +76,19 @@ export function QuoteSheet({ quote, customerName, serial }: Props) {
           </div>
         </div>
 
+        {/* Oggetto dell'offerta */}
+        <div className="mb-5 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+            Oggetto dell&apos;offerta
+          </p>
+          <p className="mt-1 text-base font-semibold leading-snug text-slate-900">
+            {quote.componentTitle}
+          </p>
+          <p className="mt-1 font-mono text-xs text-slate-500">
+            Cod. {quote.componentCode}
+          </p>
+        </div>
+
         {/* Righe */}
         <table className="w-full border-collapse text-sm">
           <thead>

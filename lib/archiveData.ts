@@ -115,6 +115,7 @@ export const SOURCE_FILES: SourceFile[] = [
       data: "2026",
       confidence: 0.97,
     },
+    publicUrl: "/archivio/distinte/3381200010.xlsx",
   },
   {
     id: "f03",
@@ -237,6 +238,7 @@ export const SOURCE_FILES: SourceFile[] = [
       data: "2026",
       confidence: 0.96,
     },
+    publicUrl: "/archivio/distinte/1381400061_F.xlsx",
   },
   {
     id: "f13",
@@ -254,6 +256,7 @@ export const SOURCE_FILES: SourceFile[] = [
       data: "2026",
       confidence: 0.95,
     },
+    publicUrl: "/archivio/distinte/3051600250_134.xlsx",
   },
 
   // --- File a BASSA confidenza → coda di revisione umana ---

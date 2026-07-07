@@ -84,6 +84,10 @@ export interface Quote {
   number: string;
   date: string;
   customerName: string;
+  /** Titolo del componente/assieme identificato (es. curva rinvio). */
+  componentTitle: string;
+  /** Codice ricambio/assieme di riferimento. */
+  componentCode: string;
   lines: QuoteLine[];
   subtotal: number;
   /** Ricarico per urgenza (EUR), 0 se non applicabile. */

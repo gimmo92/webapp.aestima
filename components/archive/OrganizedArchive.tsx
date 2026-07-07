@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   DOC_TYPES,
   FILE_EXT_LABELS,
@@ -12,6 +12,7 @@ import type { ArchivedDoc, DocType, FileExt } from "@/lib/archiveTypes";
 import { FileIcon } from "./FileIcon";
 import { DocTypeBadge } from "./DocTypeBadge";
 import { ConfidenceBadge } from "./ConfidenceBadge";
+import { ExcelPreviewModal } from "./ExcelPreviewModal";
 
 // VISTA ARCHIVIO ORGANIZZATO — raggruppamento configurabile:
 // per tipo macchina (default), tipo documento, tipo file o anno.
@@ -49,6 +50,17 @@ export function OrganizedArchive({
   viewMode,
   onViewModeChange,
 }: Props) {
+  const [excelPreview, setExcelPreview] = useState<{
+    name: string;
+    url: string;
+  } | null>(null);
+
+  const openExcel = (doc: ArchivedDoc) => {
+    if (doc.file.publicUrl) {
+      setExcelPreview({ name: doc.file.name, url: doc.file.publicUrl });
+    }
+  };
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return docs;
@@ -70,6 +82,14 @@ export function OrganizedArchive({
   }, [docs, query]);
 
   return (
+    <>
+      {excelPreview && (
+        <ExcelPreviewModal
+          fileName={excelPreview.name}
+          url={excelPreview.url}
+          onClose={() => setExcelPreview(null)}
+        />
+      )}
     <section className="flex h-full min-h-0 flex-col rounded-2xl border border-border bg-surface/50">
       <div className="border-b border-border px-4 py-3">
         <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2">
@@ -124,21 +144,28 @@ export function OrganizedArchive({
             Nessun documento corrisponde alla ricerca.
           </div>
         ) : viewMode === "macchina" ? (
-          <ByMachineView docs={filtered} />
+          <ByMachineView docs={filtered} onOpenExcel={openExcel} />
         ) : viewMode === "documento" ? (
-          <ByDocumentView docs={filtered} />
+          <ByDocumentView docs={filtered} onOpenExcel={openExcel} />
         ) : viewMode === "file" ? (
-          <ByFileView docs={filtered} />
+          <ByFileView docs={filtered} onOpenExcel={openExcel} />
         ) : (
-          <ByYearView docs={filtered} />
+          <ByYearView docs={filtered} onOpenExcel={openExcel} />
         )}
       </div>
     </section>
+    </>
   );
 }
 
 /** Tipo macchina → macchina → tipo documento → file */
-function ByMachineView({ docs }: { docs: ArchivedDoc[] }) {
+function ByMachineView({
+  docs,
+  onOpenExcel,
+}: {
+  docs: ArchivedDoc[];
+  onOpenExcel: (doc: ArchivedDoc) => void;
+}) {
   const byCategory = useMemo(() => {
     const map = new Map<string, Map<string, ArchivedDoc[]>>();
     for (const d of docs) {
@@ -164,7 +191,7 @@ function ByMachineView({ docs }: { docs: ArchivedDoc[] }) {
           </div>
           <div className="space-y-3 p-3">
             {Array.from(machines.entries()).map(([serial, machineDocs]) => (
-              <MachineBlock key={serial} serial={serial} docs={machineDocs} />
+              <MachineBlock key={serial} serial={serial} docs={machineDocs} onOpenExcel={onOpenExcel} />
             ))}
           </div>
         </div>
@@ -174,7 +201,13 @@ function ByMachineView({ docs }: { docs: ArchivedDoc[] }) {
 }
 
 /** Tipo documento → macchina → file */
-function ByDocumentView({ docs }: { docs: ArchivedDoc[] }) {
+function ByDocumentView({
+  docs,
+  onOpenExcel,
+}: {
+  docs: ArchivedDoc[];
+  onOpenExcel: (doc: ArchivedDoc) => void;
+}) {
   const byType = useMemo(() => {
     const map = new Map<DocType, ArchivedDoc[]>();
     for (const d of docs) {
@@ -195,7 +228,7 @@ function ByDocumentView({ docs }: { docs: ArchivedDoc[] }) {
           </div>
           <div className="space-y-3 p-3">
             {groupByMachine(typeDocs).map(([serial, machineDocs]) => (
-              <MachineBlock key={serial} serial={serial} docs={machineDocs} showTypeGroups={false} />
+              <MachineBlock key={serial} serial={serial} docs={machineDocs} showTypeGroups={false} onOpenExcel={onOpenExcel} />
             ))}
           </div>
         </div>
@@ -205,7 +238,13 @@ function ByDocumentView({ docs }: { docs: ArchivedDoc[] }) {
 }
 
 /** Tipo file (estensione) → elenco file */
-function ByFileView({ docs }: { docs: ArchivedDoc[] }) {
+function ByFileView({
+  docs,
+  onOpenExcel,
+}: {
+  docs: ArchivedDoc[];
+  onOpenExcel: (doc: ArchivedDoc) => void;
+}) {
   const byExt = useMemo(() => {
     const map = new Map<string, ArchivedDoc[]>();
     for (const d of docs) {
@@ -232,7 +271,7 @@ function ByFileView({ docs }: { docs: ArchivedDoc[] }) {
           </div>
           <div className="space-y-1 p-3">
             {extDocs.map((d) => (
-              <DocRow key={d.file.id} doc={d} showMachine showDocType />
+              <DocRow key={d.file.id} doc={d} showMachine showDocType onOpenExcel={onOpenExcel} />
             ))}
           </div>
         </div>
@@ -242,7 +281,13 @@ function ByFileView({ docs }: { docs: ArchivedDoc[] }) {
 }
 
 /** Anno → macchina → tipo documento → file */
-function ByYearView({ docs }: { docs: ArchivedDoc[] }) {
+function ByYearView({
+  docs,
+  onOpenExcel,
+}: {
+  docs: ArchivedDoc[];
+  onOpenExcel: (doc: ArchivedDoc) => void;
+}) {
   const byYear = useMemo(() => {
     const map = new Map<string, ArchivedDoc[]>();
     for (const d of docs) {
@@ -265,7 +310,7 @@ function ByYearView({ docs }: { docs: ArchivedDoc[] }) {
           </div>
           <div className="space-y-3 p-3">
             {groupByMachine(yearDocs).map(([serial, machineDocs]) => (
-              <MachineBlock key={serial} serial={serial} docs={machineDocs} />
+              <MachineBlock key={serial} serial={serial} docs={machineDocs} onOpenExcel={onOpenExcel} />
             ))}
           </div>
         </div>
@@ -288,10 +333,12 @@ function MachineBlock({
   serial,
   docs,
   showTypeGroups = true,
+  onOpenExcel,
 }: {
   serial: string;
   docs: ArchivedDoc[];
   showTypeGroups?: boolean;
+  onOpenExcel: (doc: ArchivedDoc) => void;
 }) {
   const byType = TYPE_ORDER.map((tipo) => ({
     tipo,
@@ -321,7 +368,7 @@ function MachineBlock({
               </div>
               <div className="space-y-1">
                 {group.items.map((d) => (
-                  <DocRow key={d.file.id} doc={d} showFileType />
+                  <DocRow key={d.file.id} doc={d} showFileType onOpenExcel={onOpenExcel} />
                 ))}
               </div>
             </div>
@@ -330,7 +377,7 @@ function MachineBlock({
       ) : (
         <div className="space-y-1 p-2">
           {docs.map((d) => (
-            <DocRow key={d.file.id} doc={d} showFileType showDocType />
+            <DocRow key={d.file.id} doc={d} showFileType showDocType onOpenExcel={onOpenExcel} />
           ))}
         </div>
       )}
@@ -343,17 +390,33 @@ function DocRow({
   showMachine,
   showDocType,
   showFileType,
+  onOpenExcel,
 }: {
   doc: ArchivedDoc;
   showMachine?: boolean;
   showDocType?: boolean;
   showFileType?: boolean;
+  onOpenExcel: (doc: ArchivedDoc) => void;
 }) {
+  const canPreview = doc.file.ext === "xlsx" && !!doc.file.publicUrl;
+
   return (
     <div className="flex items-center gap-3 rounded-lg border border-border bg-surface/40 px-2.5 py-1.5">
       <FileIcon ext={doc.file.ext} />
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm text-ink">{doc.file.name}</p>
+        <button
+          type="button"
+          disabled={!canPreview}
+          onClick={() => canPreview && onOpenExcel(doc)}
+          className={[
+            "truncate text-left text-sm",
+            canPreview
+              ? "text-ink hover:text-brand"
+              : "cursor-default text-ink",
+          ].join(" ")}
+        >
+          {doc.file.name}
+        </button>
         <p className="truncate text-[11px] text-ink-faint">
           {[
             showMachine ? machineLabel(doc.macchinaSerial) : null,
@@ -367,6 +430,15 @@ function DocRow({
             .join(" · ") || "Metadati estratti"}
         </p>
       </div>
+      {canPreview && (
+        <button
+          type="button"
+          onClick={() => onOpenExcel(doc)}
+          className="shrink-0 rounded-md border border-border bg-base px-2 py-1 text-[11px] font-medium text-ink-muted transition-colors hover:border-brand/50 hover:text-brand"
+        >
+          Apri
+        </button>
+      )}
       <ConfidenceBadge confidence={doc.confidence} />
     </div>
   );

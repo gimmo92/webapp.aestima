@@ -56,6 +56,8 @@ export interface SourceFile {
    * (l'agente propone `classification.macchinaSerial`, spesso errata).
    */
   correctSerial?: string;
+  /** URL pubblico per anteprima/download (distinte Excel in /public). */
+  publicUrl?: string;
 }
 
 /**
