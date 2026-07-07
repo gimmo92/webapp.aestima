@@ -3,11 +3,17 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useInbox } from "@/components/inbox/InboxProvider";
+import {
+  buildInterventionReportPdf,
+  downloadPdfBytes,
+  interventionReportPdfFilename,
+} from "@/lib/interventionReportPdf";
 import type { InterventionReport } from "@/lib/technicianTypes";
 import {
   InterventionReportOutcomePill,
   InterventionReportTypePill,
 } from "./TechnicianBadges";
+import { InterventionReportPdfModal } from "./InterventionReportPdfModal";
 
 export function InterventionReportsTab() {
   const { interventionReports, technicians } = useInbox();
@@ -150,8 +156,30 @@ function ReportDetail({
   report: InterventionReport;
   technicianName: string;
 }) {
+  const [pdfOpen, setPdfOpen] = useState(false);
+  const [pdfBusy, setPdfBusy] = useState(false);
+
+  const downloadEditablePdf = async () => {
+    if (pdfBusy) return;
+    setPdfBusy(true);
+    try {
+      const bytes = await buildInterventionReportPdf(report, technicianName);
+      downloadPdfBytes(bytes, interventionReportPdfFilename(report));
+    } finally {
+      setPdfBusy(false);
+    }
+  };
+
   return (
     <div className="mx-auto max-w-2xl space-y-4">
+      {pdfOpen && (
+        <InterventionReportPdfModal
+          report={report}
+          technicianName={technicianName}
+          onClose={() => setPdfOpen(false)}
+        />
+      )}
+
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex flex-wrap items-center gap-2">
@@ -161,6 +189,28 @@ function ReportDetail({
           </div>
           <p className="mt-1 text-sm text-ink-muted">{report.summary}</p>
           <p className="text-xs text-ink-faint">{report.interventionDateFull}</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => setPdfOpen(true)}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-3 py-2 text-xs font-medium text-ink-muted transition-colors hover:border-brand/50 hover:text-brand"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+              <path d="M14 2v6h6" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+            </svg>
+            Anteprima PDF
+          </button>
+          <button
+            onClick={() => void downloadEditablePdf()}
+            disabled={pdfBusy}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-brand-strong disabled:opacity-60"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M12 3v12m0 0-4-4m4 4 4-4M5 17v2a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            {pdfBusy ? "Generazione…" : "PDF editabile"}
+          </button>
         </div>
       </div>
 

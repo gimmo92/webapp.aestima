@@ -100,10 +100,13 @@ body {
     visibility: hidden !important;
   }
   #quote-printable,
-  #quote-printable * {
+  #quote-printable *,
+  #report-printable,
+  #report-printable * {
     visibility: visible !important;
   }
-  #quote-printable {
+  #quote-printable,
+  #report-printable {
     position: absolute;
     left: 0;
     top: 0;
