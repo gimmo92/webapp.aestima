@@ -36,6 +36,13 @@ function extractSerial(text: string): string {
 function extractComponent(text: string): string {
   const t = text.toLowerCase();
   const candidates = [
+    "curva di rinvio",
+    "curva rinvio",
+    "assieme fune",
+    "ruota traino",
+    "ruota di traino",
+    "corona traino",
+    "perno curva",
     "componente di tenuta",
     "tenuta",
     "guarnizione",
@@ -48,6 +55,8 @@ function extractComponent(text: string): string {
     "elettromandrino",
     "filtro",
     "refrigerante",
+    "fune",
+    "cavo",
   ];
   const found = candidates.find((c) => t.includes(c));
   return found ?? "componente non specificato";

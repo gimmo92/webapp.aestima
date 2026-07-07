@@ -28,6 +28,11 @@ export interface BomComponent {
   stock: number;
   /** Tempo di approvvigionamento indicativo se non a magazzino. */
   leadTimeDays: number;
+  /**
+   * Se impostato, il preventivo espande l'intera distinta base
+   * (ricambi + ore manodopera) anziché una singola riga.
+   */
+  bomRef?: string;
 }
 
 /** Una macchina con la sua distinta base. */

@@ -27,24 +27,6 @@ const SUGGESTIONS = [
   "Togli la maggiorazione urgenza",
 ];
 
-type EditSource = "anthropic" | "mock";
-type MockReason = "missing_api_key" | "api_error" | "parse_error";
-
-function mockBadgeLabel(reason?: MockReason, detail?: string): string {
-  if (reason === "missing_api_key") {
-    return "Modifica locale — imposta ANTHROPIC_API_KEY (o anthropic) su Vercel";
-  }
-  if (reason === "api_error") {
-    return detail
-      ? `Modifica locale — Claude non disponibile (${detail})`
-      : "Modifica locale — Claude non disponibile, uso regole demo";
-  }
-  if (reason === "parse_error") {
-    return "Modifica locale — risposta Claude non valida, uso regole demo";
-  }
-  return "Modifica locale (demo)";
-}
-
 export function QuotePreviewModal({
   quote,
   customerName,
@@ -55,9 +37,6 @@ export function QuotePreviewModal({
   const [instruction, setInstruction] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [source, setSource] = useState<EditSource | null>(null);
-  const [mockReason, setMockReason] = useState<MockReason | undefined>();
-  const [mockDetail, setMockDetail] = useState<string | undefined>();
   const [displayQuote, setDisplayQuote] = useState(quote);
   const displayQuoteRef = useRef(quote);
 
@@ -100,11 +79,6 @@ export function QuotePreviewModal({
         displayQuoteRef.current = next;
         setDisplayQuote(next);
         onQuoteChange?.(next);
-        setSource(data.source === "anthropic" ? "anthropic" : "mock");
-        setMockReason(data.reason as MockReason | undefined);
-        setMockDetail(
-          typeof data.detail === "string" ? data.detail : undefined
-        );
         setInstruction("");
       } else {
         setError("Non sono riuscito ad applicare la modifica. Riprova.");
@@ -179,9 +153,6 @@ export function QuotePreviewModal({
             </span>
             <div className="min-w-0">
               <p className="text-sm font-semibold text-ink">Modifica con AI</p>
-              <p className="text-[11px] text-ink-faint">
-                Descrivi la modifica, ci pensa l&apos;agente
-              </p>
             </div>
           </div>
 
@@ -209,22 +180,6 @@ export function QuotePreviewModal({
                 ))}
               </div>
             </div>
-
-            {source && !busy && (
-              <span
-                className={[
-                  "inline-flex w-fit items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-semibold",
-                  source === "anthropic"
-                    ? "bg-brand/15 text-brand"
-                    : "border border-border bg-surface-2 text-ink-muted",
-                ].join(" ")}
-              >
-                <span className="h-1.5 w-1.5 rounded-full bg-current" />
-                {source === "anthropic"
-                  ? "Modificato con Claude"
-                  : mockBadgeLabel(mockReason, mockDetail)}
-              </span>
-            )}
 
             {error && <p className="text-xs text-warn">{error}</p>}
           </div>

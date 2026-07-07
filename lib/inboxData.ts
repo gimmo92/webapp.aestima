@@ -87,7 +87,7 @@ export const LABEL_PALETTE = [
 
 // -------------------------------------------------------------
 // Le richieste referenziano le matricole presenti in lib/mockData.ts
-// (MX-4521, TC-7788, FR-3092) così l'agente riesce a identificarle.
+// (IDC-114-084, MX-4521, TC-7788, FR-3092) così l'agente riesce a identificarle.
 // I testi sono volutamente vaghi, senza codici ricambio.
 // -------------------------------------------------------------
 
@@ -97,9 +97,9 @@ export const MOCK_REQUESTS: PartRequest[] = [
     from: "Marco Rossi",
     fromEmail: "m.rossi@rossimeccanica.it",
     company: "Rossi Meccanica S.r.l.",
-    subject: "URGENTE - perdita sulla rettificatrice",
+    subject: "URGENTE — curva rinvio impianto IDC 114",
     body:
-      "Buongiorno,\n\nsi è rotto il componente di tenuta sulla macchina che abbiamo comprato nel 2019, numero di serie MX-4521. Perde olio e siamo fermi.\n\nCi serve un preventivo il prima possibile, la produzione è bloccata.\n\nGrazie,\nMarco Rossi",
+      "Buongiorno,\n\nsull'impianto IDC 114 TCZ matricola IDC-114-084 la curva di rinvio 90° ha gioco eccessivo e perdiamo tensione sul cavo. Ci serve un preventivo per la curva rinvio completa montata, con tutti i componenti della distinta (perno, interno, cuscinetti, viteria) compreso il montaggio in officina.\n\nLa macchina è ferma, serve il prima possibile.\n\nGrazie,\nMarco Rossi",
     receivedLabel: "09:12",
     receivedFull: "Oggi, 09:12",
     status: "nuova",
@@ -146,9 +146,9 @@ export const MOCK_REQUESTS: PartRequest[] = [
     from: "Giuseppe Verdi",
     fromEmail: "g.verdi@gammasrl.it",
     company: "Gamma S.r.l.",
-    subject: "Cinghia rettificatrice da sostituire",
+    subject: "Ruota traino IDC 114 — usura corona",
     body:
-      "Buongiorno,\n\nabbiamo bisogno di sostituire la cinghia di trasmissione del mandrino sulla rettificatrice matricola MX-4521. Fa un rumore strano e slitta.\n\nFatemi sapere tempi e costi.\n\nGrazie",
+      "Buongiorno,\n\nsull'impianto IDC matricola IDC-114-084 la ruota di traino ha la corona usurata e i contenimenti danneggiati. Ci serve un preventivo per la ruota traino completa secondo distinta 1381400061_F, comprensiva di carpenteria e montaggio.\n\nFatemi sapere tempi e costi.\n\nGrazie",
     receivedLabel: "ieri",
     receivedFull: "Ieri, 16:30",
     status: "attesa_fornitore",
@@ -188,13 +188,27 @@ export const MOCK_REQUESTS: PartRequest[] = [
     from: "Francesca Galli",
     fromEmail: "acquisti@zetaprecision.it",
     company: "Zeta Precision S.r.l.",
-    subject: "Cuscinetto mandrino rettificatrice",
+    subject: "Assieme fune IDC 114 — sostituzione completa",
     body:
-      "Gentili,\n\nci occorre il cuscinetto del mandrino per la rettificatrice matricola MX-4521. Si sente del gioco sull'albero.\n\nRestiamo in attesa di offerta.\n\nFrancesca Galli - Ufficio Acquisti",
+      "Gentili,\n\nci occorre l'assieme fune completo per l'impianto IDC 114 TCZ matricola IDC-114-084 (distinta 3051600250_134): cavo acciaio zincato D.6, giunti, semidisco olefinica e montaggio.\n\nRestiamo in attesa di offerta.\n\nFrancesca Galli - Ufficio Acquisti",
     receivedLabel: "lun",
     receivedFull: "Lunedì, 10:08",
     status: "inviata",
     labelIds: ["cliente_chiave"],
+    primary: true,
+  },
+  {
+    id: "req-017",
+    from: "Paolo Martini",
+    fromEmail: "p.martini@liftcare.it",
+    company: "LiftCare Service S.r.l.",
+    subject: "Perno curva rinvio IDC-114-084",
+    body:
+      "Buongiorno,\n\nsull'impianto IDC matricola IDC-114-084 ci serve solo il perno curva (cod. 1291200130) della distinta rinvio, zincato a freddo. Non ci serve l'intera curva montata.\n\nPotete inviarci preventivo per 1 pezzo?\n\nGrazie,\nPaolo Martini",
+    receivedLabel: "08:30",
+    receivedFull: "Oggi, 08:30",
+    status: "identificata",
+    labelIds: [],
     primary: true,
   },
   {

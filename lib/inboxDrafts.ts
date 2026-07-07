@@ -22,6 +22,29 @@ export function buildCustomerReply(
       ? "Il ricambio è disponibile a magazzino e pronto per la spedizione."
       : `Il ricambio è in fase di approvvigionamento: consegna stimata in ${quote.leadTimeDays} giorni lavorativi.`;
 
+  if (component.bomRef) {
+    const laborLine = quote.lines.find((l) => l.code.startsWith("MO-"));
+    const partsCount = quote.lines.filter((l) => !l.code.startsWith("MO-")).length;
+    return `Gentile ${firstName},
+
+grazie per la Sua richiesta. Abbiamo identificato l'assieme per ${machine.model} (matricola ${machine.serial}) consultando la distinta base ${component.code}:
+
+• ${component.description}
+  Righe distinta: ${partsCount} ricambi${laborLine ? ` + ${laborLine.qty} h montaggio` : ""}
+  Rif. archivio: ${component.bomRef}
+
+${dispo}
+
+Totale offerta (IVA incl.): ${euro(quote.total)} — rif. ${quote.number}.
+Trova in allegato il preventivo dettagliato con tutti i componenti e le ore uomo. L'offerta è valida 30 giorni.
+
+Restiamo a disposizione per procedere con l'ordine.
+
+Cordiali saluti,
+${COMPANY.name}
+${COMPANY.email} · ${COMPANY.phone}`;
+  }
+
   return `Gentile ${firstName},
 
 grazie per la Sua richiesta. Abbiamo identificato il ricambio per ${machine.model} (matricola ${machine.serial}):

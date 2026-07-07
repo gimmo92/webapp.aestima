@@ -1,4 +1,5 @@
 import { COMPANY } from "./mockData";
+import { quoteLinesFromBom } from "./bomCatalog";
 import type {
   AnalysisResult,
   BomComponent,
@@ -70,13 +71,42 @@ export function buildQuote(
   component: BomComponent,
   analysis: AnalysisResult
 ): Quote {
+  const machineLabel = `${machine.model} (matr. ${machine.serial})`;
+  const isUrgent = analysis.urgenza === "alta";
+  const urgencySurchargePct = isUrgent ? URGENCY_SURCHARGE_PCT : 0;
+
+  if (component.bomRef) {
+    const lines = quoteLinesFromBom(component.bomRef, machineLabel);
+    const totals = recomputeTotals(lines, urgencySurchargePct, VAT_PCT);
+    const availability = component.stock > 0 ? "disponibile" : "da_ordinare";
+
+    return {
+      number: quoteNumber(),
+      date: new Date().toLocaleDateString("it-IT", {
+        day: "2-digit",
+        month: "long",
+        year: "numeric",
+      }),
+      customerName: "Cliente (da confermare)",
+      urgencySurchargePct,
+      vatPct: VAT_PCT,
+      availability,
+      leadTimeDays: component.leadTimeDays,
+      notes:
+        availability === "disponibile"
+          ? "Assieme disponibile a magazzino, pronto per la spedizione."
+          : `Assieme da produrre/approvvigionare secondo distinta ${component.bomRef}: consegna stimata in ${component.leadTimeDays} giorni lavorativi. Include ricambi e ore manodopera montaggio.`,
+      ...totals,
+    };
+  }
+
   const qty = 1;
   const lineTotal = component.listPrice * qty;
 
   const lines: QuoteLine[] = [
     {
       code: component.code,
-      description: `${component.description} — ${machine.model} (matr. ${machine.serial})`,
+      description: `${component.description} — ${machineLabel}`,
       qty,
       unitPrice: component.listPrice,
       total: lineTotal,
@@ -84,15 +114,10 @@ export function buildQuote(
   ];
 
   const subtotal = lines.reduce((acc, l) => acc + l.total, 0);
-
-  const isUrgent = analysis.urgenza === "alta";
-  const urgencySurchargePct = isUrgent ? URGENCY_SURCHARGE_PCT : 0;
   const urgencySurcharge = (subtotal * urgencySurchargePct) / 100;
-
   const taxable = subtotal + urgencySurcharge;
   const vat = (taxable * VAT_PCT) / 100;
   const total = taxable + vat;
-
   const availability = component.stock > 0 ? "disponibile" : "da_ordinare";
 
   return {
