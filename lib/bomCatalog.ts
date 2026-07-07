@@ -25,6 +25,17 @@ export interface BomDefinition {
   rows: BomRow[];
 }
 
+/** Prezzo unitario ricambio (undefined = non a listino). */
+export function getPartUnitPrice(code: string): number | undefined {
+  return UNIT_PRICES[code];
+}
+
+/** True se il codice ricambio non ha prezzo valido in anagrafica. */
+export function isPartPriceMissing(code: string): boolean {
+  const price = UNIT_PRICES[code];
+  return price === undefined || price <= 0;
+}
+
 /** Prezzi unitari demo per codici ricambio (EUR). */
 const UNIT_PRICES: Record<string, number> = {
   "1291200010_GR": 185,
@@ -46,7 +57,6 @@ const UNIT_PRICES: Record<string, number> = {
   "1011600080": 22,
   "1051600230": 45,
   UNI7437D019FE: 0.8,
-  "1051600190": 1.5,
 };
 
 export const BOM_CATALOG: Record<string, BomDefinition> = {

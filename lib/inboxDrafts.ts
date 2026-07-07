@@ -129,3 +129,62 @@ Preghiamo di indicare prezzo, disponibilità e lead time.
 Cordiali saluti,
 Ufficio Acquisti · ${COMPANY.name}`;
 }
+
+/** Oggetto per richiesta disponibilità tecnico di campo. */
+export function buildTechnicianSubject(
+  request: PartRequest,
+  componentCode?: string
+): string {
+  if (componentCode) return `Disponibilità intervento — ${componentCode}`;
+  const short = request.subject.slice(0, 60);
+  return `Disponibilità intervento — ${short}`;
+}
+
+/** Bozza messaggio al tecnico per verificare disponibilità intervento. */
+export function buildTechnicianAvailabilityRequest(
+  request: PartRequest,
+  opts: {
+    machineModel?: string;
+    machineSerial?: string;
+    componentCode?: string;
+    componentDescription?: string;
+    urgency?: string;
+  } = {}
+): string {
+  const lines: string[] = [
+    `Ciao,`,
+    ``,
+    `puoi confermare la tua disponibilità per un possibile intervento?`,
+    ``,
+    `Cliente: ${request.company}`,
+    `Richiesta: ${request.subject}`,
+  ];
+
+  if (opts.machineModel || opts.machineSerial) {
+    lines.push(
+      `Macchina: ${opts.machineModel ?? "—"}${opts.machineSerial ? ` (matr. ${opts.machineSerial})` : ""}`
+    );
+  }
+  if (opts.componentDescription || opts.componentCode) {
+    lines.push(
+      `Componente: ${opts.componentDescription ?? "—"}${opts.componentCode ? ` · cod. ${opts.componentCode}` : ""}`
+    );
+  }
+  if (opts.urgency && opts.urgency !== "normale") {
+    lines.push(`Urgenza: ${opts.urgency === "alta" ? "ALTA — macchina ferma" : opts.urgency}`);
+  }
+
+  lines.push(
+    ``,
+    `Estratto richiesta cliente:`,
+    `"${request.body.trim().slice(0, 280)}${request.body.length > 280 ? "…" : ""}"`,
+    ``,
+    `Fammi sapere se sei disponibile e in quali giorni/orari.`,
+    ``,
+    `Grazie,`,
+    `${COMPANY.name}`,
+    `${COMPANY.email}`
+  );
+
+  return lines.join("\n");
+}

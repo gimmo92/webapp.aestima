@@ -5,11 +5,13 @@ import { useSearchParams } from "next/navigation";
 import { REVIEW_THRESHOLD, SOURCE_FILES } from "@/lib/archiveData";
 import type { ArchivedDoc, ClassifyResult, SourceFile } from "@/lib/archiveTypes";
 import { filesToSourceFiles, revokeSourceFileUrl } from "@/lib/uploadSourceFile";
+import { computeArchiveGaps } from "@/lib/archiveGaps";
 import { SourceBrowser } from "./SourceBrowser";
 import { ProcessingPipeline } from "./ProcessingPipeline";
 import { OrganizedArchive, type ArchiveViewMode } from "./OrganizedArchive";
 import { ReviewQueue } from "./ReviewQueue";
 import { ArchiveApiModal } from "./ArchiveApiModal";
+import { ArchiveGapsSidebar } from "./ArchiveGapsSidebar";
 
 // Orchestratore della tab Archivio: gestisce le fasi
 // sorgente → elaborazione → archivio organizzato.
@@ -153,6 +155,16 @@ export function ArchiveWorkspace() {
     [archived]
   );
 
+  const gapReport = useMemo(
+    () => computeArchiveGaps(archived, visibleFiles),
+    [archived, visibleFiles]
+  );
+
+  const focusGap = useCallback((q: string) => {
+    setArchiveTab("organizzato");
+    setQuery(q);
+  }, []);
+
   const onResolve = (fileId: string, serial: string) => {
     setResolved((prev) => ({ ...prev, [fileId]: serial }));
   };
@@ -204,7 +216,8 @@ export function ArchiveWorkspace() {
 
   // --- Fase ARCHIVIO ORGANIZZATO ---
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4">
+    <div className="flex min-h-0 flex-1 gap-4 overflow-hidden p-4 lg:flex-row">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-y-auto">
       {/* Riepilogo + azioni */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm">
@@ -275,6 +288,9 @@ export function ArchiveWorkspace() {
       {apiFile && (
         <ArchiveApiModal file={apiFile} onClose={() => setApiFile(null)} />
       )}
+      </div>
+
+      <ArchiveGapsSidebar report={gapReport} onSearch={focusGap} />
     </div>
   );
 }

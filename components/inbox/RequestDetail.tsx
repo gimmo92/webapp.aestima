@@ -1,12 +1,21 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { STATUSES } from "@/lib/inboxData";
+import {
+  buildTechnicianAvailabilityRequest,
+  buildTechnicianSubject,
+} from "@/lib/inboxDrafts";
 import type { Label, PartRequest, RequestStatus } from "@/lib/inboxTypes";
 import { LabelChip } from "./LabelChip";
 import { StatusPill } from "./StatusPill";
 import { AgentPanel } from "./AgentPanel";
+import { useInbox } from "./InboxProvider";
+import { TechnicianPickerModal } from "@/components/technicians/TechnicianPickerModal";
+import { TechnicianAssignmentStatusPill } from "@/components/technicians/TechnicianBadges";
+import { TechnicianContactButtons } from "@/components/technicians/TechnicianContactButtons";
 
 // COLONNA DESTRA — dettaglio richiesta + pannello agente aestima.
 
@@ -27,10 +36,39 @@ export function RequestDetail({
   onToggleLabel,
   onCreateLabel,
 }: Props) {
+  const {
+    technicians,
+    createTechnicianAssignment,
+    getTechnicianAssignmentForRequest,
+    updateTechnicianAssignmentStatus,
+  } = useInbox();
   const [menu, setMenu] = useState<OpenMenu>(null);
   const [newLabel, setNewLabel] = useState("");
+  const [showTechnicianPicker, setShowTechnicianPicker] = useState(false);
   // Lightbox per l'allegato foto (url dell'immagine ingrandita).
   const [lightbox, setLightbox] = useState<string | null>(null);
+
+  const assignment = useMemo(
+    () => (request ? getTechnicianAssignmentForRequest(request.id) : undefined),
+    [request, getTechnicianAssignmentForRequest]
+  );
+  const assignedTech = useMemo(
+    () => technicians.find((t) => t.id === assignment?.technicianId),
+    [technicians, assignment?.technicianId]
+  );
+
+  const technicianSubject = request
+    ? buildTechnicianSubject(request, assignment?.componentCode)
+    : "";
+  const technicianBody = request
+    ? (assignment?.body ??
+      buildTechnicianAvailabilityRequest(request, {
+        machineModel: assignment?.machineModel,
+        machineSerial: assignment?.machineSerial,
+        componentCode: assignment?.componentCode,
+        componentDescription: assignment?.componentDescription,
+      }))
+    : "";
 
   // Chiudi il lightbox se cambia la richiesta selezionata.
   useEffect(() => {
@@ -202,6 +240,19 @@ export function RequestDetail({
             )}
           </div>
 
+          <ActionButton
+            label="Tecnico"
+            onClick={() => setShowTechnicianPicker(true)}
+            icon={
+              <path
+                d="M12 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM6 20v-1a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v1"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+              />
+            }
+          />
+
           {/* Menu "Altro" (azioni dimostrative) */}
           <div className="relative z-20">
             <ActionButton
@@ -218,12 +269,44 @@ export function RequestDetail({
             {menu === "more" && (
               <div className="absolute left-0 top-full z-30 mt-1 w-48 rounded-xl border border-border bg-surface p-1.5 shadow-2xl shadow-black/50 text-sm text-ink-muted">
                 <div className="cursor-default rounded-lg px-2 py-1.5 hover:bg-surface-2">Segna come letta</div>
-                <div className="cursor-default rounded-lg px-2 py-1.5 hover:bg-surface-2">Assegna a collega</div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowTechnicianPicker(true);
+                    setMenu(null);
+                  }}
+                  className="w-full rounded-lg px-2 py-1.5 text-left hover:bg-surface-2"
+                >
+                  Assegna a tecnico
+                </button>
                 <div className="cursor-default rounded-lg px-2 py-1.5 hover:bg-surface-2">Archivia</div>
-                <p className="px-2 pt-1 text-[10px] text-ink-faint">Azioni dimostrative</p>
               </div>
             )}
           </div>
+
+          {assignment && assignedTech && (
+            <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-base/80 px-2.5 py-1.5">
+              <TechnicianAssignmentStatusPill status={assignment.status} compact />
+              <span className="text-xs text-ink-muted">
+                <span className="font-medium text-ink">{assignedTech.name}</span>
+              </span>
+              <TechnicianContactButtons
+                technician={assignedTech}
+                subject={assignment.subject}
+                body={assignment.body}
+                compact
+                onContact={() =>
+                  updateTechnicianAssignmentStatus(assignment.id, "contattato")
+                }
+              />
+              <Link
+                href="/tecnici"
+                className="text-[11px] font-medium text-brand hover:underline"
+              >
+                Vedi in Tecnici
+              </Link>
+            </div>
+          )}
 
           {appliedLabels.length > 0 && (
             <div className="ml-1 flex flex-wrap items-center gap-1">
@@ -334,6 +417,33 @@ export function RequestDetail({
             />
           </div>
         </div>
+      )}
+
+      {showTechnicianPicker && request && (
+        <TechnicianPickerModal
+          request={request}
+          subject={technicianSubject}
+          body={technicianBody}
+          machineModel={assignment?.machineModel}
+          machineSerial={assignment?.machineSerial}
+          componentCode={assignment?.componentCode}
+          componentDescription={assignment?.componentDescription}
+          onClose={() => setShowTechnicianPicker(false)}
+          onAssign={(technicianId, contacted) => {
+            createTechnicianAssignment({
+              partRequestId: request.id,
+              technicianId,
+              subject: technicianSubject,
+              body: technicianBody,
+              machineModel: assignment?.machineModel,
+              machineSerial: assignment?.machineSerial,
+              componentCode: assignment?.componentCode,
+              componentDescription: assignment?.componentDescription,
+              contacted,
+            });
+            setShowTechnicianPicker(false);
+          }}
+        />
       )}
     </section>
   );

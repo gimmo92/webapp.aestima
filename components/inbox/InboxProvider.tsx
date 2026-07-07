@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useState, useCallback } from "react";
 import {
   DEFAULT_LABELS,
   LABEL_PALETTE,
@@ -19,6 +19,18 @@ import type {
   SupplierRequest,
   SupplierRequestStatus,
 } from "@/lib/supplierTypes";
+import {
+  MOCK_TECHNICIANS,
+  MOCK_TECHNICIAN_ASSIGNMENTS,
+  newTechnicianAssignmentId,
+  newTechnicianId,
+} from "@/lib/technicianData";
+import type {
+  Technician,
+  TechnicianAssignment,
+  TechnicianAssignmentStatus,
+  TechnicianInput,
+} from "@/lib/technicianTypes";
 
 // =============================================================
 // Stato condiviso della dashboard (inbox, pipeline, fornitori).
@@ -38,6 +50,18 @@ export interface CreateSupplierRequestInput {
   machineSerial: string;
 }
 
+export interface CreateTechnicianAssignmentInput {
+  partRequestId: string;
+  technicianId: string;
+  subject: string;
+  body: string;
+  machineModel?: string;
+  machineSerial?: string;
+  componentCode?: string;
+  componentDescription?: string;
+  contacted?: boolean;
+}
+
 interface InboxContextValue {
   requests: PartRequest[];
   labels: Label[];
@@ -55,6 +79,18 @@ interface InboxContextValue {
     id: string,
     status: SupplierRequestStatus
   ) => void;
+  technicians: Technician[];
+  technicianAssignments: TechnicianAssignment[];
+  addTechnician: (input: TechnicianInput) => string;
+  addTechnicians: (inputs: TechnicianInput[]) => number;
+  createTechnicianAssignment: (input: CreateTechnicianAssignmentInput) => void;
+  updateTechnicianAssignmentStatus: (
+    id: string,
+    status: TechnicianAssignmentStatus
+  ) => void;
+  getTechnicianAssignmentForRequest: (
+    partRequestId: string
+  ) => TechnicianAssignment | undefined;
 }
 
 const InboxContext = createContext<InboxContextValue | null>(null);
@@ -79,6 +115,10 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
   const [supplierRequests, setSupplierRequests] = useState<SupplierRequest[]>(
     MOCK_SUPPLIER_REQUESTS
   );
+  const [technicians, setTechnicians] = useState<Technician[]>(MOCK_TECHNICIANS);
+  const [technicianAssignments, setTechnicianAssignments] = useState<
+    TechnicianAssignment[]
+  >(MOCK_TECHNICIAN_ASSIGNMENTS);
 
   const changeStatus = (id: string, status: RequestStatus) => {
     setRequests((prev) => prev.map((r) => (r.id === id ? { ...r, status } : r)));
@@ -156,6 +196,60 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
     );
   };
 
+  const addTechnician = (input: TechnicianInput): string => {
+    const id = newTechnicianId();
+    setTechnicians((prev) => [...prev, { ...input, id }]);
+    return id;
+  };
+
+  const addTechnicians = (inputs: TechnicianInput[]): number => {
+    if (inputs.length === 0) return 0;
+    const base = Date.now();
+    const added = inputs.map((input, i) => ({
+      ...input,
+      id: `tech-${base}-${i}`,
+    }));
+    setTechnicians((prev) => [...prev, ...added]);
+    return added.length;
+  };
+
+  const createTechnicianAssignment = (input: CreateTechnicianAssignmentInput) => {
+    const { sentLabel, sentFull } = nowLabels();
+    setTechnicianAssignments((prev) => {
+      const without = prev.filter((a) => a.partRequestId !== input.partRequestId);
+      const row: TechnicianAssignment = {
+        id: newTechnicianAssignmentId(),
+        partRequestId: input.partRequestId,
+        technicianId: input.technicianId,
+        status: input.contacted ? "contattato" : "bozza",
+        subject: input.subject,
+        body: input.body,
+        machineModel: input.machineModel,
+        machineSerial: input.machineSerial,
+        componentCode: input.componentCode,
+        componentDescription: input.componentDescription,
+        assignedLabel: sentLabel,
+        assignedFull: sentFull,
+      };
+      return [row, ...without];
+    });
+  };
+
+  const updateTechnicianAssignmentStatus = (
+    id: string,
+    status: TechnicianAssignmentStatus
+  ) => {
+    setTechnicianAssignments((prev) =>
+      prev.map((a) => (a.id === id ? { ...a, status } : a))
+    );
+  };
+
+  const getTechnicianAssignmentForRequest = useCallback(
+    (partRequestId: string) =>
+      technicianAssignments.find((a) => a.partRequestId === partRequestId),
+    [technicianAssignments]
+  );
+
   return (
     <InboxContext.Provider
       value={{
@@ -172,6 +266,13 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
         addSuppliers,
         createSupplierRequests,
         updateSupplierRequestStatus,
+        technicians,
+        technicianAssignments,
+        addTechnician,
+        addTechnicians,
+        createTechnicianAssignment,
+        updateTechnicianAssignmentStatus,
+        getTechnicianAssignmentForRequest,
       }}
     >
       {children}

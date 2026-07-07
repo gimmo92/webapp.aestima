@@ -10,11 +10,15 @@ import {
   buildInfoRequestReply,
   buildSupplierRequest,
   buildSupplierSubject,
+  buildTechnicianAvailabilityRequest,
+  buildTechnicianSubject,
 } from "@/lib/inboxDrafts";
 import { docsForMachine } from "@/lib/archiveData";
+import { capabilitiesForMachineCategory } from "@/lib/technicianData";
 import { DocTypeBadge } from "@/components/archive/DocTypeBadge";
 import { QuotePreviewModal } from "./QuotePreviewModal";
 import { SupplierPickerModal } from "@/components/suppliers/SupplierPickerModal";
+import { TechnicianPickerModal } from "@/components/technicians/TechnicianPickerModal";
 import { useInbox } from "./InboxProvider";
 import type { AnalysisResult, MatchResult, Quote } from "@/lib/types";
 import type { PartRequest } from "@/lib/inboxTypes";
@@ -31,7 +35,11 @@ interface Props {
 }
 
 export function AgentPanel({ request, onApproveSend }: Props) {
-  const { createSupplierRequests } = useInbox();
+  const {
+    createSupplierRequests,
+    createTechnicianAssignment,
+    getTechnicianAssignmentForRequest,
+  } = useInbox();
   const [loading, setLoading] = useState(true);
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [match, setMatch] = useState<MatchResult | null>(null);
@@ -39,12 +47,15 @@ export function AgentPanel({ request, onApproveSend }: Props) {
   const [sent, setSent] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [showSupplierPicker, setShowSupplierPicker] = useState(false);
+  const [showTechnicianPicker, setShowTechnicianPicker] = useState(false);
   const [supplierSent, setSupplierSent] = useState(false);
+  const [technicianAssigned, setTechnicianAssigned] = useState(false);
   const [infoSent, setInfoSent] = useState(false);
 
   // Testo modificabile delle bozze (lo stato di editing vive qui).
   const [replyText, setReplyText] = useState("");
   const [supplierText, setSupplierText] = useState("");
+  const [technicianText, setTechnicianText] = useState("");
   const [infoReplyText, setInfoReplyText] = useState("");
 
   // Ri-analizza ogni volta che cambia la richiesta selezionata.
@@ -54,14 +65,20 @@ export function AgentPanel({ request, onApproveSend }: Props) {
     setSent(false);
     setShowPreview(false);
     setShowSupplierPicker(false);
+    setShowTechnicianPicker(false);
     setSupplierSent(false);
+    setTechnicianAssigned(false);
     setInfoSent(false);
     setAnalysis(null);
     setMatch(null);
     setQuote(null);
     setReplyText("");
     setSupplierText("");
+    setTechnicianText("");
     setInfoReplyText("");
+
+    const existingAssignment = getTechnicianAssignmentForRequest(request.id);
+    setTechnicianAssigned(!!existingAssignment);
 
     (async () => {
       let result: AnalysisResult;
@@ -93,8 +110,24 @@ export function AgentPanel({ request, onApproveSend }: Props) {
             ? buildSupplierRequest(m.machine, m.component)
             : ""
         );
+        setTechnicianText(
+          buildTechnicianAvailabilityRequest(request, {
+            machineModel: m.machine.model,
+            machineSerial: m.machine.serial,
+            componentCode: m.component.code,
+            componentDescription: m.component.description,
+            urgency: result.urgenza,
+          })
+        );
       } else {
         setInfoReplyText(buildInfoRequestReply(request, result, m.machine));
+        setTechnicianText(
+          buildTechnicianAvailabilityRequest(request, {
+            machineModel: m.machine?.model,
+            machineSerial: m.machine?.serial ?? result.numero_serie ?? undefined,
+            urgency: result.urgenza,
+          })
+        );
       }
       setLoading(false);
     })();
@@ -116,6 +149,17 @@ export function AgentPanel({ request, onApproveSend }: Props) {
       setSupplierText(buildSupplierRequest(match.machine, match.component));
     }
   };
+  const resetTechnician = () => {
+    setTechnicianText(
+      buildTechnicianAvailabilityRequest(request, {
+        machineModel: match?.machine?.model,
+        machineSerial: match?.machine?.serial ?? analysis?.numero_serie ?? undefined,
+        componentCode: match?.component?.code,
+        componentDescription: match?.component?.description,
+        urgency: analysis?.urgenza,
+      })
+    );
+  };
   const resetInfoReply = () => {
     if (analysis) {
       setInfoReplyText(
@@ -127,6 +171,13 @@ export function AgentPanel({ request, onApproveSend }: Props) {
   const missingPart = match?.availability === "da_ordinare";
   const identified = Boolean(match?.machine && match?.component && quote);
   const needsMoreInfo = Boolean(analysis && !identified);
+  const suggestedCapabilities = match?.machine
+    ? capabilitiesForMachineCategory(match.machine.category)
+    : [];
+  const technicianSubject = buildTechnicianSubject(
+    request,
+    match?.component?.code
+  );
 
   return (
     <div className="mt-5">
@@ -242,6 +293,51 @@ export function AgentPanel({ request, onApproveSend }: Props) {
           {/* Documenti collegati in archivio (riferimenti cliccabili) */}
           {identified && match?.machine && (
             <ArchiveLinks serial={match.machine.serial} />
+          )}
+
+          {/* Assegna intervento tecnico */}
+          {!loading && (
+            <DraftBox
+              tone="brand"
+              icon="technician"
+              title="Assegna intervento a tecnico"
+              badge={technicianAssigned ? "Assegnato" : "Disponibilità"}
+              value={technicianText}
+              onChange={setTechnicianText}
+              onReset={resetTechnician}
+              readOnly={technicianAssigned}
+              footer={
+                <div className="flex flex-col gap-2 border-t border-border pt-3 sm:flex-row sm:items-center sm:justify-between">
+                  {technicianAssigned ? (
+                    <p className="flex items-center gap-1.5 text-xs text-ok">
+                      <svg width="14" height="14" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                        <path d="M4 10.5 8 14.5 16 5.5" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                      Tecnico assegnato.{" "}
+                      <Link href="/tecnici" className="font-medium text-brand hover:underline">
+                        Vedi in Tecnici →
+                      </Link>
+                    </p>
+                  ) : (
+                    <>
+                      <p className="text-xs text-ink-faint">
+                        Contatta il tecnico via WhatsApp o email con messaggio precompilato.
+                      </p>
+                      <button
+                        onClick={() => setShowTechnicianPicker(true)}
+                        disabled={!technicianText.trim()}
+                        className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg border border-brand/40 bg-brand-soft px-4 py-2.5 text-sm font-semibold text-brand transition-colors hover:bg-brand/20 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                          <path d="M12 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM6 20v-1a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v1" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+                        </svg>
+                        Seleziona tecnico
+                      </button>
+                    </>
+                  )}
+                </div>
+              }
+            />
           )}
 
           {/* Bozza richiesta fornitore (se pezzo mancante) — modificabile */}
@@ -373,6 +469,35 @@ export function AgentPanel({ request, onApproveSend }: Props) {
           }}
         />
       )}
+
+      {showTechnicianPicker && (
+        <TechnicianPickerModal
+          request={request}
+          subject={technicianSubject}
+          body={technicianText}
+          suggestedCapabilityIds={suggestedCapabilities}
+          machineModel={match?.machine?.model}
+          machineSerial={match?.machine?.serial ?? analysis?.numero_serie ?? undefined}
+          componentCode={match?.component?.code}
+          componentDescription={match?.component?.description}
+          onClose={() => setShowTechnicianPicker(false)}
+          onAssign={(technicianId, contacted) => {
+            createTechnicianAssignment({
+              partRequestId: request.id,
+              technicianId,
+              subject: technicianSubject,
+              body: technicianText,
+              machineModel: match?.machine?.model,
+              machineSerial: match?.machine?.serial ?? analysis?.numero_serie ?? undefined,
+              componentCode: match?.component?.code,
+              componentDescription: match?.component?.description,
+              contacted,
+            });
+            setTechnicianAssigned(true);
+            setShowTechnicianPicker(false);
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -454,7 +579,7 @@ function DraftBox({
   footer,
 }: {
   tone: "brand" | "warn";
-  icon: "reply" | "supplier";
+  icon: "reply" | "supplier" | "technician";
   title: string;
   badge: string;
   value: string;
@@ -472,8 +597,10 @@ function DraftBox({
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true" style={{ color: accent }}>
             {icon === "reply" ? (
               <path d="M9 14 4 9l5-5M4 9h10a6 6 0 0 1 6 6v3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-            ) : (
+            ) : icon === "supplier" ? (
               <path d="M3 9h18M6 9V6a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v3m-1 0v9a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V9" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+            ) : (
+              <path d="M12 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM6 20v-1a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v1" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
             )}
           </svg>
           {title}
