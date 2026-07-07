@@ -35,6 +35,27 @@ export function ArchiveApiModal({ file, onClose }: Props) {
     let cancelled = false;
     setLoading(true);
     setError(null);
+
+    if (file.uploaded) {
+      const local = {
+        id: file.id,
+        name: file.name,
+        ext: file.ext,
+        sizeLabel: file.sizeLabel,
+        modified: file.modified,
+        preview: file.preview,
+        downloadUrl: file.publicUrl ?? null,
+        classification: file.classification,
+        uploaded: true,
+        note: "File in sessione locale; non ancora sincronizzato sul server.",
+      };
+      setPayload(JSON.stringify(local, null, 2));
+      setLoading(false);
+      return () => {
+        cancelled = true;
+      };
+    }
+
     fetch(url)
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
       .then((data) => {
@@ -49,7 +70,7 @@ export function ArchiveApiModal({ file, onClose }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [url]);
+  }, [url, file]);
 
   const copy = async (text: string, kind: "url" | "curl") => {
     try {

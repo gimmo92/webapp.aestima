@@ -5,6 +5,7 @@ import type { SourceFile } from "@/lib/archiveTypes";
 import { FileIcon } from "./FileIcon";
 import { ExcelPreviewModal } from "./ExcelPreviewModal";
 import { ArchiveFileActions } from "./ArchiveFileActions";
+import { SourceUploadZone } from "./SourceUploadZone";
 
 // VISTA SORGENTE — cartella cloud disordinata (stile file browser).
 // In produzione: cartella reale via API (Drive/SharePoint/Dropbox).
@@ -17,6 +18,7 @@ interface Props {
   compact?: boolean;
   onDeleteFile?: (fileId: string) => void;
   onShowApiFile?: (file: SourceFile) => void;
+  onUploadFiles?: (files: File[]) => void;
 }
 
 export function SourceBrowser({
@@ -26,6 +28,7 @@ export function SourceBrowser({
   compact,
   onDeleteFile,
   onShowApiFile,
+  onUploadFiles,
 }: Props) {
   const [excelPreview, setExcelPreview] = useState<{
     name: string;
@@ -75,9 +78,16 @@ export function SourceBrowser({
         )}
       </div>
 
+      {onUploadFiles && <SourceUploadZone onUpload={onUploadFiles} />}
+
       {/* Lista file */}
       <div className="min-h-0 flex-1 overflow-y-auto p-2">
-        {files.map((f) => {
+        {files.length === 0 ? (
+          <p className="px-2 py-8 text-center text-sm text-ink-faint">
+            Nessun file in sorgente. Carica documenti per iniziare.
+          </p>
+        ) : (
+          files.map((f) => {
           const canPreview = f.ext === "xlsx" && !!f.publicUrl;
           return (
           <div
@@ -104,6 +114,7 @@ export function SourceBrowser({
               </button>
               <p className="truncate text-[11px] text-ink-faint">
                 {f.sizeLabel} · {f.modified}
+                {f.uploaded ? " · caricato ora" : ""}
               </p>
             </div>
             {canPreview && (
@@ -123,13 +134,20 @@ export function SourceBrowser({
                 onDelete={() => onDeleteFile(f.id)}
               />
             )}
-            {!compact && (
+            {!compact && !f.uploaded && (
               <span className="shrink-0 rounded-full border border-dashed border-border-strong px-2 py-0.5 text-[10px] font-medium text-ink-faint">
                 da classificare
               </span>
             )}
+            {!compact && f.uploaded && (
+              <span className="shrink-0 rounded-full border border-brand/30 bg-brand-soft px-2 py-0.5 text-[10px] font-medium text-brand">
+                nuovo
+              </span>
+            )}
           </div>
-        );})}
+          );
+          })
+        )}
       </div>
     </section>
     </>

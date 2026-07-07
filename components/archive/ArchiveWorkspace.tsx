@@ -4,6 +4,7 @@ import { useCallback, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { REVIEW_THRESHOLD, SOURCE_FILES } from "@/lib/archiveData";
 import type { ArchivedDoc, ClassifyResult, SourceFile } from "@/lib/archiveTypes";
+import { filesToSourceFiles, revokeSourceFileUrl } from "@/lib/uploadSourceFile";
 import { SourceBrowser } from "./SourceBrowser";
 import { ProcessingPipeline } from "./ProcessingPipeline";
 import { OrganizedArchive, type ArchiveViewMode } from "./OrganizedArchive";
@@ -51,14 +52,29 @@ export function ArchiveWorkspace() {
   // Risoluzioni della coda di revisione: fileId → matricola assegnata.
   const [resolved, setResolved] = useState<Record<string, string>>({});
   const [deletedIds, setDeletedIds] = useState<Set<string>>(() => new Set());
+  const [uploadedFiles, setUploadedFiles] = useState<SourceFile[]>([]);
   const [apiFile, setApiFile] = useState<SourceFile | null>(null);
 
   const visibleFiles = useMemo(
-    () => SOURCE_FILES.filter((f) => !deletedIds.has(f.id)),
-    [deletedIds]
+    () => [
+      ...SOURCE_FILES.filter((f) => !deletedIds.has(f.id)),
+      ...uploadedFiles.filter((f) => !deletedIds.has(f.id)),
+    ],
+    [deletedIds, uploadedFiles]
   );
 
+  const uploadFiles = useCallback((files: File[]) => {
+    const added = filesToSourceFiles(files);
+    if (added.length === 0) return;
+    setUploadedFiles((prev) => [...prev, ...added]);
+  }, []);
+
   const deleteFile = useCallback((fileId: string) => {
+    setUploadedFiles((prev) => {
+      const target = prev.find((f) => f.id === fileId);
+      if (target) revokeSourceFileUrl(target);
+      return prev.filter((f) => f.id !== fileId);
+    });
     setDeletedIds((prev) => new Set(prev).add(fileId));
     setResolved((prev) => {
       const next = { ...prev };
@@ -165,6 +181,7 @@ export function ArchiveWorkspace() {
             onOrganize={handleOrganize}
             onDeleteFile={deleteFile}
             onShowApiFile={showApi}
+            onUploadFiles={uploadFiles}
           />
         </div>
       </div>
@@ -241,6 +258,7 @@ export function ArchiveWorkspace() {
               compact
               onDeleteFile={deleteFile}
               onShowApiFile={showApi}
+              onUploadFiles={uploadFiles}
             />
           ) : (
             <ReviewQueue

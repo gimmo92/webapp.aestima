@@ -58,6 +58,8 @@ export interface SourceFile {
   correctSerial?: string;
   /** URL pubblico per anteprima/download (distinte Excel in /public). */
   publicUrl?: string;
+  /** File aggiunto dall'operatore via upload (solo sessione corrente). */
+  uploaded?: boolean;
 }
 
 /**
