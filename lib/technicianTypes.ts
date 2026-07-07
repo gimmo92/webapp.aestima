@@ -54,3 +54,52 @@ export interface TechnicianAssignment {
 }
 
 export type TechnicianInput = Omit<Technician, "id">;
+
+/** Tipologia di intervento sul campo. */
+export type InterventionReportType =
+  | "manutenzione"
+  | "riparazione"
+  | "sostituzione"
+  | "verifica"
+  | "installazione";
+
+/** Esito del rapporto intervento. */
+export type InterventionReportOutcome =
+  | "completato"
+  | "parziale"
+  | "followup";
+
+export interface InterventionReportTypeConfig {
+  id: InterventionReportType;
+  label: string;
+  color: string;
+}
+
+export interface InterventionReportOutcomeConfig {
+  id: InterventionReportOutcome;
+  label: string;
+  color: string;
+}
+
+/** Rapporto di intervento tecnico su una macchina. */
+export interface InterventionReport {
+  id: string;
+  reportNumber: string;
+  machineSerial: string;
+  machineModel: string;
+  technicianId: string;
+  interventionDate: string;
+  interventionDateFull: string;
+  type: InterventionReportType;
+  outcome: InterventionReportOutcome;
+  /** Ore uomo impiegate. */
+  hours: number;
+  /** Sintesi una riga per la lista. */
+  summary: string;
+  /** Descrizione lavori eseguiti. */
+  workPerformed: string;
+  partsUsed?: string[];
+  customerCompany?: string;
+  /** Collegamento opzionale all'assegnazione inbox. */
+  assignmentId?: string;
+}

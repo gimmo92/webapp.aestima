@@ -1,7 +1,11 @@
 "use client";
 
-import { CAPABILITY_BY_ID } from "@/lib/technicianData";
-import type { TechnicianAssignmentStatus } from "@/lib/technicianTypes";
+import { CAPABILITY_BY_ID, REPORT_OUTCOME_BY_ID, REPORT_TYPE_BY_ID } from "@/lib/technicianData";
+import type {
+  InterventionReportOutcome,
+  InterventionReportType,
+  TechnicianAssignmentStatus,
+} from "@/lib/technicianTypes";
 import { TECHNICIAN_STATUS_BY_ID } from "@/lib/technicianData";
 
 export function TechnicianAssignmentStatusPill({
@@ -14,6 +18,56 @@ export function TechnicianAssignmentStatusPill({
   const cfg = TECHNICIAN_STATUS_BY_ID[status];
   const color = cfg?.color ?? "#9fb0c3";
   const label = cfg?.label ?? status;
+
+  return (
+    <span
+      className={[
+        "inline-flex items-center gap-1 rounded-full font-semibold",
+        compact ? "px-1.5 py-0.5 text-[10px]" : "px-2 py-0.5 text-[11px]",
+      ].join(" ")}
+      style={{ color, backgroundColor: `${color}1a` }}
+    >
+      <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: color }} />
+      {label}
+    </span>
+  );
+}
+
+export function InterventionReportTypePill({
+  type,
+  compact,
+}: {
+  type: InterventionReportType;
+  compact?: boolean;
+}) {
+  const cfg = REPORT_TYPE_BY_ID[type];
+  const color = cfg?.color ?? "#9fb0c3";
+  const label = cfg?.label ?? type;
+
+  return (
+    <span
+      className={[
+        "inline-flex items-center gap-1 rounded-full font-semibold",
+        compact ? "px-1.5 py-0.5 text-[10px]" : "px-2 py-0.5 text-[11px]",
+      ].join(" ")}
+      style={{ color, backgroundColor: `${color}1a` }}
+    >
+      <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: color }} />
+      {label}
+    </span>
+  );
+}
+
+export function InterventionReportOutcomePill({
+  outcome,
+  compact,
+}: {
+  outcome: InterventionReportOutcome;
+  compact?: boolean;
+}) {
+  const cfg = REPORT_OUTCOME_BY_ID[outcome];
+  const color = cfg?.color ?? "#9fb0c3";
+  const label = cfg?.label ?? outcome;
 
   return (
     <span

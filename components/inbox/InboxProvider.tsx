@@ -22,10 +22,12 @@ import type {
 import {
   MOCK_TECHNICIANS,
   MOCK_TECHNICIAN_ASSIGNMENTS,
+  MOCK_INTERVENTION_REPORTS,
   newTechnicianAssignmentId,
   newTechnicianId,
 } from "@/lib/technicianData";
 import type {
+  InterventionReport,
   Technician,
   TechnicianAssignment,
   TechnicianAssignmentStatus,
@@ -91,6 +93,7 @@ interface InboxContextValue {
   getTechnicianAssignmentForRequest: (
     partRequestId: string
   ) => TechnicianAssignment | undefined;
+  interventionReports: InterventionReport[];
 }
 
 const InboxContext = createContext<InboxContextValue | null>(null);
@@ -119,6 +122,9 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
   const [technicianAssignments, setTechnicianAssignments] = useState<
     TechnicianAssignment[]
   >(MOCK_TECHNICIAN_ASSIGNMENTS);
+  const [interventionReports] = useState<InterventionReport[]>(
+    MOCK_INTERVENTION_REPORTS
+  );
 
   const changeStatus = (id: string, status: RequestStatus) => {
     setRequests((prev) => prev.map((r) => (r.id === id ? { ...r, status } : r)));
@@ -273,6 +279,7 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
         createTechnicianAssignment,
         updateTechnicianAssignmentStatus,
         getTechnicianAssignmentForRequest,
+        interventionReports,
       }}
     >
       {children}

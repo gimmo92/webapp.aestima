@@ -3,10 +3,12 @@
 import { useState } from "react";
 import { TechnicianAssignmentsTab } from "./TechnicianAssignmentsTab";
 import { TechnicianDirectoryTab } from "./TechnicianDirectoryTab";
+import { InterventionReportsTab } from "./InterventionReportsTab";
 
-type Tab = "interventi" | "anagrafica";
+type Tab = "rapporti" | "interventi" | "anagrafica";
 
 const TABS: { id: Tab; label: string }[] = [
+  { id: "rapporti", label: "Rapporti interventi" },
   { id: "interventi", label: "Interventi assegnati" },
   { id: "anagrafica", label: "Tecnici per capacità" },
 ];
@@ -36,7 +38,9 @@ export function TechniciansWorkspace() {
         </div>
       </div>
 
-      {tab === "interventi" ? (
+      {tab === "rapporti" ? (
+        <InterventionReportsTab />
+      ) : tab === "interventi" ? (
         <TechnicianAssignmentsTab />
       ) : (
         <TechnicianDirectoryTab />
