@@ -158,13 +158,14 @@ function ReportDetail({
 }) {
   const [pdfOpen, setPdfOpen] = useState(false);
   const [pdfBusy, setPdfBusy] = useState(false);
+  const pdfFilename = interventionReportPdfFilename(report);
 
   const downloadEditablePdf = async () => {
     if (pdfBusy) return;
     setPdfBusy(true);
     try {
       const bytes = await buildInterventionReportPdf(report, technicianName);
-      downloadPdfBytes(bytes, interventionReportPdfFilename(report));
+      downloadPdfBytes(bytes, pdfFilename);
     } finally {
       setPdfBusy(false);
     }
@@ -180,39 +181,23 @@ function ReportDetail({
         />
       )}
 
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-lg font-bold text-ink">{report.reportNumber}</h2>
-            <InterventionReportTypePill type={report.type} />
-            <InterventionReportOutcomePill outcome={report.outcome} />
-          </div>
-          <p className="mt-1 text-sm text-ink-muted">{report.summary}</p>
-          <p className="text-xs text-ink-faint">{report.interventionDateFull}</p>
+      <div>
+        <div className="flex flex-wrap items-center gap-2">
+          <h2 className="text-lg font-bold text-ink">{report.reportNumber}</h2>
+          <InterventionReportTypePill type={report.type} />
+          <InterventionReportOutcomePill outcome={report.outcome} />
         </div>
-        <div className="flex flex-wrap gap-2">
-          <button
-            onClick={() => setPdfOpen(true)}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-3 py-2 text-xs font-medium text-ink-muted transition-colors hover:border-brand/50 hover:text-brand"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
-              <path d="M14 2v6h6" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
-            </svg>
-            Anteprima PDF
-          </button>
-          <button
-            onClick={() => void downloadEditablePdf()}
-            disabled={pdfBusy}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-brand-strong disabled:opacity-60"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path d="M12 3v12m0 0-4-4m4 4 4-4M5 17v2a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            {pdfBusy ? "Generazione…" : "PDF editabile"}
-          </button>
-        </div>
+        <p className="mt-1 text-sm text-ink-muted">{report.summary}</p>
+        <p className="text-xs text-ink-faint">{report.interventionDateFull}</p>
       </div>
+
+      <ReportPdfActions
+        filename={pdfFilename}
+        pdfBusy={pdfBusy}
+        onPreview={() => setPdfOpen(true)}
+        onDownload={() => void downloadEditablePdf()}
+        prominent
+      />
 
       <div className="grid gap-3 rounded-xl border border-border bg-base/60 p-4 sm:grid-cols-2">
         <Field label="Macchina">
@@ -256,6 +241,12 @@ function ReportDetail({
       )}
 
       <div className="flex flex-wrap gap-3">
+        <ReportPdfActions
+          filename={pdfFilename}
+          pdfBusy={pdfBusy}
+          onPreview={() => setPdfOpen(true)}
+          onDownload={() => void downloadEditablePdf()}
+        />
         <Link
           href={`/archivio?q=${encodeURIComponent(report.machineSerial)}`}
           className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-3 py-2 text-xs font-medium text-ink-muted transition-colors hover:border-brand/50 hover:text-brand"
@@ -267,6 +258,91 @@ function ReportDetail({
         </Link>
       </div>
     </div>
+  );
+}
+
+function ReportPdfActions({
+  filename,
+  pdfBusy,
+  onPreview,
+  onDownload,
+  prominent,
+}: {
+  filename: string;
+  pdfBusy: boolean;
+  onPreview: () => void;
+  onDownload: () => void;
+  prominent?: boolean;
+}) {
+  if (prominent) {
+    return (
+      <div className="rounded-xl border border-brand/35 bg-brand-soft/50 p-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-brand">
+              Documento PDF
+            </p>
+            <p className="truncate font-mono text-sm text-ink">{filename}</p>
+            <p className="text-xs text-ink-faint">
+              Anteprima, stampa o scarica il rapporto con campi compilabili
+            </p>
+          </div>
+          <div className="flex shrink-0 flex-wrap gap-2">
+            <PdfPreviewButton onClick={onPreview} />
+            <PdfDownloadButton busy={pdfBusy} onClick={onDownload} />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <PdfPreviewButton onClick={onPreview} />
+      <PdfDownloadButton busy={pdfBusy} onClick={onDownload} />
+    </>
+  );
+}
+
+function PdfPreviewButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-3 py-2 text-xs font-medium text-ink-muted transition-colors hover:border-brand/50 hover:text-brand"
+    >
+      <PdfIcon />
+      Anteprima PDF
+    </button>
+  );
+}
+
+function PdfDownloadButton({ busy, onClick }: { busy: boolean; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={busy}
+      className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-brand-strong disabled:opacity-60"
+    >
+      <DownloadIcon />
+      {busy ? "Generazione…" : "Scarica PDF editabile"}
+    </button>
+  );
+}
+
+function PdfIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+      <path d="M14 2v6h6" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function DownloadIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M12 3v12m0 0-4-4m4 4 4-4M5 17v2a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
   );
 }
 
