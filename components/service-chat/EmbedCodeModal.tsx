@@ -9,11 +9,13 @@ import {
 } from "@/lib/embedSnippets";
 
 interface Props {
-  mode: EmbedMode;
   onClose: () => void;
 }
 
-export function EmbedCodeModal({ mode, onClose }: Props) {
+const MODES: EmbedMode[] = ["bubble", "wide"];
+
+export function EmbedCodeModal({ onClose }: Props) {
+  const [mode, setMode] = useState<EmbedMode>("bubble");
   const [copied, setCopied] = useState(false);
   const [mounted, setMounted] = useState(false);
   const baseUrl = useMemo(() => {
@@ -63,14 +65,9 @@ export function EmbedCodeModal({ mode, onClose }: Props) {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-border px-5 py-4">
-          <div>
-            <h2 id="embed-code-modal-title" className="text-lg font-bold text-ink">
-              Codice embed — {EMBED_MODE_LABELS[mode]}
-            </h2>
-            <p className="mt-0.5 text-xs text-ink-faint">
-              Incolla nel sito cliente · sostituisci il dominio in produzione
-            </p>
-          </div>
+          <h2 id="embed-code-modal-title" className="text-lg font-bold text-ink">
+            Codice embed
+          </h2>
           <button
             onClick={onClose}
             className="rounded-lg p-1.5 text-ink-faint transition-colors hover:bg-surface-2 hover:text-ink"
@@ -88,8 +85,31 @@ export function EmbedCodeModal({ mode, onClose }: Props) {
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto p-5">
-          <div className="mb-3 flex items-center justify-between gap-2">
-            <p className="text-sm font-medium text-ink-muted">Snippet HTML</p>
+          <div className="mb-4 flex rounded-lg border border-border bg-base p-1">
+            {MODES.map((m) => {
+              const active = mode === m;
+              return (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => {
+                    setMode(m);
+                    setCopied(false);
+                  }}
+                  className={[
+                    "flex-1 rounded-md px-3 py-2 text-xs font-medium transition-colors",
+                    active
+                      ? "bg-surface text-ink shadow-sm"
+                      : "text-ink-muted hover:text-ink",
+                  ].join(" ")}
+                >
+                  {EMBED_MODE_LABELS[m]}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="mb-3 flex items-center justify-end">
             <button
               onClick={() => void copySnippet()}
               className="rounded-lg border border-border bg-base px-3 py-1.5 text-xs font-medium text-ink-muted transition-colors hover:border-brand/40 hover:text-brand"
@@ -100,38 +120,6 @@ export function EmbedCodeModal({ mode, onClose }: Props) {
           <pre className="overflow-x-auto rounded-xl border border-border bg-base p-4 text-xs leading-relaxed text-ink-muted">
             {snippet}
           </pre>
-
-          <div className="mt-4 rounded-xl border border-border bg-base/60 p-4 text-xs text-ink-muted">
-            <p className="mb-2 font-semibold text-ink">Attributi principali</p>
-            <ul className="space-y-1">
-              <li>
-                <code className="text-brand">data-mode</code> —{" "}
-                <code>bubble</code> | <code>wide</code>
-              </li>
-              <li>
-                <code className="text-brand">data-base-url</code> — URL deploy
-                aestima ({baseUrl})
-              </li>
-              {mode === "wide" && (
-                <>
-                  <li>
-                    <code className="text-brand">data-container</code> — id del
-                    div contenitore
-                  </li>
-                  <li>
-                    <code className="text-brand">data-height</code> — altezza in
-                    px (default 640)
-                  </li>
-                </>
-              )}
-              {mode === "bubble" && (
-                <li>
-                  <code className="text-brand">data-position</code> —{" "}
-                  bottom-right | bottom-left
-                </li>
-              )}
-            </ul>
-          </div>
         </div>
       </div>
     </div>,

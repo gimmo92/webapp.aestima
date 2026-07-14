@@ -2,58 +2,30 @@
 
 import { useState } from "react";
 import { EmbedCodeModal } from "./EmbedCodeModal";
-import type { EmbedMode } from "@/lib/embedSnippets";
 
 export function EmbedCodeButtons() {
-  const [openMode, setOpenMode] = useState<EmbedMode | null>(null);
+  const [open, setOpen] = useState(false);
 
   return (
     <>
       <button
         type="button"
-        onClick={() => setOpenMode("bubble")}
+        onClick={() => setOpen(true)}
         className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-border bg-surface px-3 py-2 text-xs font-medium text-ink-muted transition-colors hover:border-brand/40 hover:text-brand"
-        title="Codice embed bolla floating"
+        title="Codice embed per sito cliente"
       >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.8" />
           <path
-            d="M8 12h8M12 8v8"
+            d="M16 18v-1a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v1M8 10a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm12 8v-1a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"
             stroke="currentColor"
             strokeWidth="1.8"
             strokeLinecap="round"
+            strokeLinejoin="round"
           />
         </svg>
-        Embed bolla
+        Embed
       </button>
-      <button
-        type="button"
-        onClick={() => setOpenMode("wide")}
-        className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-border bg-surface px-3 py-2 text-xs font-medium text-ink-muted transition-colors hover:border-brand/40 hover:text-brand"
-        title="Codice embed chatbox larga"
-      >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <rect
-            x="3"
-            y="5"
-            width="18"
-            height="14"
-            rx="2"
-            stroke="currentColor"
-            strokeWidth="1.8"
-          />
-          <path
-            d="M7 9h10M7 13h6"
-            stroke="currentColor"
-            strokeWidth="1.8"
-            strokeLinecap="round"
-          />
-        </svg>
-        Embed chatbox
-      </button>
-      {openMode && (
-        <EmbedCodeModal mode={openMode} onClose={() => setOpenMode(null)} />
-      )}
+      {open && <EmbedCodeModal onClose={() => setOpen(false)} />}
     </>
   );
 }
