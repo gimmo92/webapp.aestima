@@ -23,11 +23,18 @@ export interface ServiceTicket {
   summary: string;
 }
 
+/** Opzione quick-reply: label in UI, value inviato come messaggio utente. */
+export interface QuickReplyOption {
+  label: string;
+  value: string;
+}
+
 /** Risposta strutturata dell'API /api/service-chat. */
 export interface ServiceChatResponse {
   message: string;
   spareParts?: SparePartProposal[];
   ticket?: ServiceTicket;
+  quickReplies?: QuickReplyOption[];
   source: "anthropic" | "fallback";
 }
 
@@ -38,5 +45,6 @@ export interface DisplayMessage {
   content: string;
   spareParts?: SparePartProposal[];
   ticket?: ServiceTicket;
+  quickReplies?: QuickReplyOption[];
   isError?: boolean;
 }

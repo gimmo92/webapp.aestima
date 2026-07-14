@@ -1,27 +1,40 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { QuickReplyBubbles } from "./QuickReplyBubbles";
 import { SparePartCardList } from "./SparePartCard";
 import { TicketBanner } from "./TicketBanner";
+import {
+  inferQuickReplies,
+  WELCOME_QUICK_REPLIES,
+} from "@/lib/serviceChatQuickReplies";
 import type { DisplayMessage } from "@/lib/serviceChatTypes";
 
 // =============================================================
 // Chat assistenza service — UI principale
 // Stato conversazione in React state (no localStorage).
-// Ottimizzata per desktop / proiettore in presentazione.
+// Quick-reply bubbles guidate + input libero in parallelo.
 // =============================================================
 
 const WELCOME: DisplayMessage = {
   id: "welcome",
   role: "assistant",
   content:
-    "Buongiorno, sono l'assistente service di aestima. Posso aiutarti a identificare ricambi nella distinta della tua macchina o a trovare soluzioni a malfunzionamenti già risolti in passato.\n\nPer iniziare, indicami il modello o la matricola della macchina e descrivi cosa ti serve.",
+    "Buongiorno, sono l'assistente service di aestima. Posso aiutarti a identificare ricambi nella distinta della tua macchina o a trovare soluzioni a malfunzionamenti già risolti in passato.\n\nScegli un'opzione qui sotto oppure scrivi liberamente nel campo in basso.",
+  quickReplies: WELCOME_QUICK_REPLIES,
 };
 
 let msgCounter = 0;
 function nextId() {
   msgCounter += 1;
   return `msg-${Date.now()}-${msgCounter}`;
+}
+
+/** Rimuove le bubble da tutti i messaggi (step concluso). */
+function stripQuickReplies(msgs: DisplayMessage[]): DisplayMessage[] {
+  return msgs.map((m) =>
+    m.quickReplies ? { ...m, quickReplies: undefined } : m
+  );
 }
 
 export function ServiceChatWorkspace() {
@@ -38,76 +51,92 @@ export function ServiceChatWorkspace() {
     el.scrollTop = el.scrollHeight;
   }, [messages, loading]);
 
-  const sendMessage = useCallback(async () => {
-    const text = input.trim();
-    if (!text || loading) return;
+  const submitText = useCallback(
+    async (text: string) => {
+      const trimmed = text.trim();
+      if (!trimmed || loading) return;
 
-    const userMsg: DisplayMessage = {
-      id: nextId(),
-      role: "user",
-      content: text,
-    };
+      const userMsg: DisplayMessage = {
+        id: nextId(),
+        role: "user",
+        content: trimmed,
+      };
 
-    const history = [...messages, userMsg];
-    setMessages(history);
-    setInput("");
-    setLoading(true);
+      // Bubble dello step corrente spariscono appena l'utente risponde.
+      const cleared = stripQuickReplies(messages);
+      const history = [...cleared, userMsg];
+      setMessages(history);
+      setInput("");
+      setLoading(true);
 
-    // Cronologia per l'API (solo role + content, senza welcome id).
-    const apiMessages = history.map((m) => ({
-      role: m.role,
-      content: m.content,
-    }));
+      const apiMessages = history.map((m) => ({
+        role: m.role,
+        content: m.content,
+      }));
 
-    try {
-      const res = await fetch("/api/service-chat", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ messages: apiMessages }),
-      });
+      try {
+        const res = await fetch("/api/service-chat", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ messages: apiMessages }),
+        });
 
-      const data = await res.json();
+        const data = await res.json();
 
-      if (!res.ok) {
+        if (!res.ok) {
+          const errMsg: DisplayMessage = {
+            id: nextId(),
+            role: "assistant",
+            content:
+              data?.error ??
+              "Al momento non riesco a rispondere. Riprova tra qualche istante.",
+            isError: true,
+          };
+          setMessages((prev) => [...prev, errMsg]);
+          return;
+        }
+
+        const quickReplies =
+          data.quickReplies ??
+          inferQuickReplies(history, data.message, {
+            hasTicket: Boolean(data.ticket),
+            hasSpareParts: Boolean(data.spareParts?.length),
+          });
+
+        const assistantMsg: DisplayMessage = {
+          id: nextId(),
+          role: "assistant",
+          content: data.message,
+          spareParts: data.spareParts,
+          ticket: data.ticket,
+          quickReplies,
+        };
+        setMessages((prev) => [...prev, assistantMsg]);
+      } catch {
         const errMsg: DisplayMessage = {
           id: nextId(),
           role: "assistant",
           content:
-            data?.error ??
-            "Al momento non riesco a rispondere. Riprova tra qualche istante.",
+            "Connessione non disponibile. Verifica la rete e riprova.",
           isError: true,
         };
         setMessages((prev) => [...prev, errMsg]);
-        return;
+      } finally {
+        setLoading(false);
+        inputRef.current?.focus();
       }
+    },
+    [loading, messages]
+  );
 
-      const assistantMsg: DisplayMessage = {
-        id: nextId(),
-        role: "assistant",
-        content: data.message,
-        spareParts: data.spareParts,
-        ticket: data.ticket,
-      };
-      setMessages((prev) => [...prev, assistantMsg]);
-    } catch {
-      const errMsg: DisplayMessage = {
-        id: nextId(),
-        role: "assistant",
-        content:
-          "Connessione non disponibile. Verifica la rete e riprova.",
-        isError: true,
-      };
-      setMessages((prev) => [...prev, errMsg]);
-    } finally {
-      setLoading(false);
-      inputRef.current?.focus();
-    }
-  }, [input, loading, messages]);
+  const sendMessage = useCallback(() => {
+    void submitText(input);
+  }, [input, submitText]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      void sendMessage();
+      sendMessage();
     }
   };
 
@@ -116,6 +145,18 @@ export function ServiceChatWorkspace() {
     setInput("");
     inputRef.current?.focus();
   };
+
+  // Bubble attive solo sull'ultimo messaggio agente, se non stiamo caricando.
+  const lastAssistantIdx = (() => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].role === "assistant") return i;
+    }
+    return -1;
+  })();
+  const activeQuickReplies =
+    !loading && lastAssistantIdx >= 0
+      ? messages[lastAssistantIdx].quickReplies
+      : undefined;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -180,8 +221,16 @@ export function ServiceChatWorkspace() {
         className="min-h-0 flex-1 overflow-y-auto bg-grid px-4 py-6 sm:px-6"
       >
         <div className="mx-auto max-w-4xl space-y-5">
-          {messages.map((msg) => (
-            <MessageBubble key={msg.id} message={msg} />
+          {messages.map((msg, idx) => (
+            <MessageBubble
+              key={msg.id}
+              message={msg}
+              quickReplies={
+                idx === lastAssistantIdx ? activeQuickReplies : undefined
+              }
+              onQuickReply={(value) => void submitText(value)}
+              quickRepliesDisabled={loading}
+            />
           ))}
           {loading && <TypingIndicator />}
         </div>
@@ -202,7 +251,7 @@ export function ServiceChatWorkspace() {
               className="min-h-[52px] flex-1 resize-none rounded-xl border border-border bg-base px-4 py-3 text-[15px] leading-relaxed text-ink outline-none transition-colors placeholder:text-ink-faint focus:border-brand focus:ring-2 focus:ring-brand/20 disabled:opacity-60"
             />
             <button
-              onClick={() => void sendMessage()}
+              onClick={sendMessage}
               disabled={loading || !input.trim()}
               className="inline-flex shrink-0 items-center justify-center gap-2 self-end rounded-xl bg-brand px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-brand/20 transition-all hover:bg-brand-strong disabled:cursor-not-allowed disabled:opacity-40"
             >
@@ -237,7 +286,17 @@ export function ServiceChatWorkspace() {
   );
 }
 
-function MessageBubble({ message }: { message: DisplayMessage }) {
+function MessageBubble({
+  message,
+  quickReplies,
+  onQuickReply,
+  quickRepliesDisabled,
+}: {
+  message: DisplayMessage;
+  quickReplies?: DisplayMessage["quickReplies"];
+  onQuickReply: (value: string) => void;
+  quickRepliesDisabled?: boolean;
+}) {
   const isUser = message.role === "user";
 
   return (
@@ -270,6 +329,13 @@ function MessageBubble({ message }: { message: DisplayMessage }) {
         )}
         {!isUser && message.ticket && (
           <TicketBanner ticket={message.ticket} />
+        )}
+        {!isUser && quickReplies && quickReplies.length > 0 && (
+          <QuickReplyBubbles
+            options={quickReplies}
+            onSelect={onQuickReply}
+            disabled={quickRepliesDisabled}
+          />
         )}
       </div>
     </div>

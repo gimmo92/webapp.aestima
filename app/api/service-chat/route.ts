@@ -4,6 +4,7 @@ import {
   getAnthropicKey,
 } from "@/lib/anthropicKey";
 import { buildServiceContext } from "@/lib/serviceChatData";
+import { normalizeApiQuickReplies } from "@/lib/serviceChatQuickReplies";
 import type {
   ChatMessage,
   ServiceChatResponse,
@@ -49,14 +50,19 @@ Rispondi ESCLUSIVAMENTE con un oggetto JSON valido (senza markdown, senza backti
 {
   "message": "testo conversazionale per l'utente in italiano",
   "spareParts": null oppure [{"code":"...","description":"...","price":123.45,"availability":"disponibile"|"da_ordinare","leadTimeDays":0}],
-  "ticket": null oppure {"summary":"breve descrizione del problema da escalare"}
+  "ticket": null oppure {"summary":"breve descrizione del problema da escalare"},
+  "quickReplies": null oppure [{"label":"testo breve bubble","value":"testo inviato se l'utente clicca"}]
 }
 
 Regole JSON:
 - "message" è sempre obbligatorio.
 - "spareParts": includi SOLO ricambi effettivamente trovati in distinta. availability "disponibile" se stock > 0, altrimenti "da_ordinare" con leadTimeDays.
 - "ticket": imposta SOLO quando non trovi la risposta nei dati e proponi escalation a tecnico umano. NON generare un id ticket (lo assegna il server).
-- Se stai solo raccogendo informazioni (es. chiedi matricola), spareParts e ticket restano null.
+- "quickReplies": proponi 2-5 opzioni cliccabili quando chiedi all'utente di scegliere o precisare qualcosa. Usa label brevi (max ~40 caratteri) e value = frase completa inviata al click. Esempi:
+  - Chiedi la macchina → quickReplies con le matricole presenti nei dati (IDC-114-084, IDC-114-112, MX-4521).
+  - Chiedi sintomi per troubleshooting → quickReplies con sintomi dalla KB (rumore curva rinvio, perdita olio mandrino, errore E-47, ecc.).
+  - Non usare quickReplies se hai già dato una soluzione definitiva (ricambio trovato, ticket aperto, o risposta conclusiva).
+- Se stai solo raccogliendo informazioni (es. chiedi matricola), spareParts e ticket restano null.
 
 ## DATI DI CONTESTO (unica fonte di verità)
 ${SERVICE_CONTEXT}`;
@@ -65,6 +71,7 @@ interface ParsedAgentPayload {
   message?: string;
   spareParts?: SparePartProposal[] | null;
   ticket?: { summary?: string } | null;
+  quickReplies?: unknown;
 }
 
 function parseAgentJson(text: string): ParsedAgentPayload | null {
@@ -198,6 +205,7 @@ export async function POST(req: Request) {
       message: parsed.message.trim(),
       spareParts: normalizeSpareParts(parsed.spareParts),
       ticket: buildTicket(parsed.ticket),
+      quickReplies: normalizeApiQuickReplies(parsed.quickReplies),
       source: "anthropic",
     };
 
