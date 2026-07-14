@@ -364,6 +364,10 @@ export function ServiceChatWorkspace({
             isError: true,
           };
           setMessages((prev) => [...prev, errMsg]);
+          appendConversationMessage(convId, {
+            role: "assistant",
+            content: errMsg.content,
+          });
           return;
         }
 
@@ -414,6 +418,10 @@ export function ServiceChatWorkspace({
           isError: true,
         };
         setMessages((prev) => [...prev, errMsg]);
+        appendConversationMessage(convId, {
+          role: "assistant",
+          content: errMsg.content,
+        });
       } finally {
         setLoading(false);
         setKbSearching(false);

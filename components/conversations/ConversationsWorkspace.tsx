@@ -26,9 +26,29 @@ export function ConversationsWorkspace() {
 
   const [filter, setFilter] = useState<ConversationFilter>("non_assegnate");
   const [query, setQuery] = useState("");
-  const [selectedId, setSelectedId] = useState<string | null>(
-    conversations[0]?.id ?? null
-  );
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const knownIdsRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    const currentIds = conversations.map((c) => c.id);
+    const newId = currentIds.find((id) => !knownIdsRef.current.has(id));
+    knownIdsRef.current = new Set(currentIds);
+
+    if (newId) {
+      const created = conversations.find((c) => c.id === newId);
+      if (created?.status === "aperto" && created.assignee === "ai") {
+        setFilter("non_assegnate");
+        setSelectedId(newId);
+        return;
+      }
+    }
+
+    if (selectedId && conversations.some((c) => c.id === selectedId)) return;
+    const firstOpenAi = conversations.find(
+      (c) => c.status === "aperto" && c.assignee === "ai"
+    );
+    setSelectedId(firstOpenAi?.id ?? conversations[0]?.id ?? null);
+  }, [conversations, selectedId]);
 
   const counts = useMemo(
     () => ({

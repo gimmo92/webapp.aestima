@@ -1,6 +1,13 @@
 "use client";
 
-import { createContext, useContext, useState, useCallback } from "react";
+import {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  useEffect,
+  useRef,
+} from "react";
 import {
   DEFAULT_LABELS,
   LABEL_PALETTE,
@@ -38,10 +45,13 @@ import {
   newKnowledgeId,
 } from "@/lib/knowledgeData";
 import type { KnowledgeEntry } from "@/lib/knowledgeTypes";
+import { newConversationId } from "@/lib/conversationData";
 import {
-  MOCK_CONVERSATIONS,
-  newConversationId,
-} from "@/lib/conversationData";
+  CONVERSATIONS_STORAGE_KEY,
+  defaultConversations,
+  loadStoredConversations,
+  saveStoredConversations,
+} from "@/lib/conversationStorage";
 import type {
   AppendConversationMessageInput,
   ConversationRecord,
@@ -196,9 +206,36 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
   );
   const [tickets, setTickets] = useState<ServiceTicketRecord[]>(MOCK_TICKETS);
   const [conversations, setConversations] =
-    useState<ConversationRecord[]>(MOCK_CONVERSATIONS);
+    useState<ConversationRecord[]>(defaultConversations);
+  const conversationsHydratedRef = useRef(false);
   const [knowledgeBase, setKnowledgeBase] =
     useState<KnowledgeEntry[]>(MOCK_KNOWLEDGE_ENTRIES);
+
+  useEffect(() => {
+    const stored = loadStoredConversations();
+    if (stored) setConversations(stored);
+    conversationsHydratedRef.current = true;
+  }, []);
+
+  useEffect(() => {
+    if (!conversationsHydratedRef.current) return;
+    saveStoredConversations(conversations);
+  }, [conversations]);
+
+  useEffect(() => {
+    const onStorage = (event: StorageEvent) => {
+      if (event.key !== CONVERSATIONS_STORAGE_KEY || !event.newValue) return;
+      try {
+        const parsed: unknown = JSON.parse(event.newValue);
+        if (!Array.isArray(parsed)) return;
+        setConversations(parsed as ConversationRecord[]);
+      } catch {
+        // Ignora payload corrotto da altre tab.
+      }
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
 
   const changeStatus = (id: string, status: RequestStatus) => {
     setRequests((prev) => prev.map((r) => (r.id === id ? { ...r, status } : r)));
