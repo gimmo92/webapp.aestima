@@ -55,7 +55,19 @@ function collectAttachmentUrls(msgs: DisplayMessage[]): ChatAttachment[] {
   return all;
 }
 
-export function ServiceChatWorkspace() {
+export function ServiceChatWorkspace({
+  embed = false,
+  hideReset = false,
+  hideHeader = false,
+}: {
+  /** Layout compatto per iframe / widget embed. */
+  embed?: boolean;
+  /** Nasconde il pulsante reset (es. pannello bolla con chiusura esterna). */
+  hideReset?: boolean;
+  /** Nasconde l'header interno (iframe bolla con barra esterna). */
+  hideHeader?: boolean;
+} = {}) {
+  const showHeader = !hideHeader;
   const { createTicket } = useInbox();
   const [messages, setMessages] = useState<DisplayMessage[]>([WELCOME]);
   const [input, setInput] = useState("");
@@ -265,14 +277,30 @@ export function ServiceChatWorkspace() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="border-b border-border bg-surface/70 px-6 py-5 backdrop-blur-md">
-        <div className="mx-auto flex max-w-4xl items-start justify-between gap-4">
+      {showHeader && (
+      <div
+        className={[
+          "border-b border-border bg-surface/70 backdrop-blur-md",
+          embed ? "px-4 py-3" : "px-6 py-5",
+        ].join(" ")}
+      >
+        <div
+          className={[
+            "flex items-start justify-between gap-4",
+            embed ? "w-full" : "mx-auto max-w-4xl",
+          ].join(" ")}
+        >
           <div>
-            <div className="mb-1 flex items-center gap-2">
-              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-soft">
+            <div className="mb-0.5 flex items-center gap-2">
+              <span
+                className={[
+                  "flex items-center justify-center rounded-lg bg-brand-soft",
+                  embed ? "h-7 w-7" : "h-8 w-8",
+                ].join(" ")}
+              >
                 <svg
-                  width="18"
-                  height="18"
+                  width={embed ? 16 : 18}
+                  height={embed ? 16 : 18}
                   viewBox="0 0 24 24"
                   fill="none"
                   aria-hidden="true"
@@ -286,44 +314,57 @@ export function ServiceChatWorkspace() {
                   />
                 </svg>
               </span>
-              <h1 className="text-xl font-bold text-ink sm:text-2xl">
-                Assistenza service AI
+              <h1
+                className={[
+                  "font-bold text-ink",
+                  embed ? "text-base" : "text-xl sm:text-2xl",
+                ].join(" ")}
+              >
+                Assistenza service
               </h1>
             </div>
-            <p className="text-sm text-ink-muted">
-              Ricambi, troubleshooting, allegati e ticket — guidato da Claude
-            </p>
+            {!embed && (
+              <p className="text-sm text-ink-muted">
+                Ricambi, troubleshooting, allegati e ticket — guidato da Claude
+              </p>
+            )}
           </div>
-          <button
-            onClick={resetChat}
-            disabled={loading}
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-border bg-surface px-3 py-2 text-xs font-medium text-ink-muted transition-colors hover:border-border-strong hover:text-ink disabled:opacity-50"
-          >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              aria-hidden="true"
+          {!hideReset && (
+            <button
+              onClick={resetChat}
+              disabled={loading}
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-border bg-surface px-3 py-2 text-xs font-medium text-ink-muted transition-colors hover:border-border-strong hover:text-ink disabled:opacity-50"
             >
-              <path
-                d="M3 12a9 9 0 1 0 3-6.7L3 8m0-5v5h5"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-            Nuova conversazione
-          </button>
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                aria-hidden="true"
+              >
+                <path
+                  d="M3 12a9 9 0 1 0 3-6.7L3 8m0-5v5h5"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              Nuova conversazione
+            </button>
+          )}
         </div>
       </div>
+      )}
 
       <div
         ref={scrollRef}
-        className="min-h-0 flex-1 overflow-y-auto bg-grid px-4 py-6 sm:px-6"
+        className={[
+          "min-h-0 flex-1 overflow-y-auto bg-grid py-4 sm:py-6",
+          embed ? "px-3 sm:px-4" : "px-4 py-6 sm:px-6",
+        ].join(" ")}
       >
-        <div className="mx-auto max-w-4xl space-y-5">
+        <div className={embed ? "space-y-4" : "mx-auto max-w-4xl space-y-5"}>
           {messages.map((msg, idx) => (
             <MessageBubble
               key={msg.id}
@@ -339,8 +380,13 @@ export function ServiceChatWorkspace() {
         </div>
       </div>
 
-      <div className="border-t border-border bg-surface/90 px-4 py-4 backdrop-blur-md sm:px-6">
-        <div className="mx-auto max-w-4xl">
+      <div
+        className={[
+          "border-t border-border bg-surface/90 backdrop-blur-md",
+          embed ? "px-3 py-3" : "px-4 py-4 sm:px-6",
+        ].join(" ")}
+      >
+        <div className={embed ? "w-full" : "mx-auto max-w-4xl"}>
           <input
             ref={fileRef}
             type="file"
