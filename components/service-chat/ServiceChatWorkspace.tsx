@@ -59,6 +59,10 @@ export function ServiceChatWorkspace({
   embed = false,
   hideReset = false,
   hideHeader = false,
+  channel = embed ? "embed" : "assistenza",
+  customerName = embed ? "Visitatore widget" : "Visitatore assistenza",
+  customerEmail,
+  initialConversationId,
 }: {
   /** Layout compatto per iframe / widget embed. */
   embed?: boolean;
@@ -66,9 +70,25 @@ export function ServiceChatWorkspace({
   hideReset?: boolean;
   /** Nasconde l'header interno (iframe bolla con barra esterna). */
   hideHeader?: boolean;
+  /** Canale di origine per l'inbox conversazioni. */
+  channel?: "embed" | "assistenza" | "live_chat";
+  /** Nome cliente mostrato nell'inbox operatore. */
+  customerName?: string;
+  customerEmail?: string;
+  /** Riprende una conversazione esistente (es. embed con ?conv=). */
+  initialConversationId?: string;
 } = {}) {
   const showHeader = !hideHeader;
-  const { createTicket } = useInbox();
+  const {
+    createTicket,
+    createConversation,
+    appendConversationMessage,
+    getConversationById,
+    updateConversation,
+  } = useInbox();
+  const [conversationId, setConversationId] = useState<string | null>(
+    initialConversationId ?? null
+  );
   const [messages, setMessages] = useState<DisplayMessage[]>([WELCOME]);
   const [input, setInput] = useState("");
   const [pendingAttachments, setPendingAttachments] = useState<ChatAttachment[]>(
@@ -79,6 +99,91 @@ export function ServiceChatWorkspace({
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const storedConversation = conversationId
+    ? getConversationById(conversationId)
+    : undefined;
+  const operatorActive = storedConversation?.assignee === "operatore";
+  const conversationResolved = storedConversation?.status === "risolto";
+
+  const ensureConversation = useCallback(() => {
+    if (conversationId) return conversationId;
+    const welcomeMsg = {
+      id: "welcome",
+      role: "assistant" as const,
+      content: WELCOME.content,
+      timestampLabel: new Date().toLocaleTimeString("it-IT", {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+    };
+    const id = createConversation({
+      customerName,
+      customerEmail,
+      channel,
+      initialMessages: [welcomeMsg],
+    });
+    setConversationId(id);
+    return id;
+  }, [
+    conversationId,
+    createConversation,
+    customerName,
+    customerEmail,
+    channel,
+  ]);
+
+  const syncFromStored = useCallback(
+    (conv: NonNullable<ReturnType<typeof getConversationById>>) => {
+      const mapped: DisplayMessage[] = conv.messages.map((m) => ({
+        id: m.id,
+        role: m.role === "agent" ? "assistant" : m.role,
+        content: m.content,
+        spareParts: m.spareParts,
+        ticket: m.ticket,
+        isOperatorReply: m.role === "agent",
+      }));
+      setMessages(mapped.length > 0 ? mapped : [WELCOME]);
+    },
+    []
+  );
+
+  const syncedAgentCountRef = useRef(0);
+
+  useEffect(() => {
+    if (!initialConversationId) return;
+    const conv = getConversationById(initialConversationId);
+    if (conv) {
+      syncFromStored(conv);
+      syncedAgentCountRef.current = conv.messages.filter(
+        (m) => m.role === "agent"
+      ).length;
+    }
+    // Solo al mount con conversazione esistente.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (!storedConversation) return;
+    const agentMessages = storedConversation.messages.filter(
+      (m) => m.role === "agent"
+    );
+    if (agentMessages.length <= syncedAgentCountRef.current) return;
+
+    syncedAgentCountRef.current = agentMessages.length;
+    setMessages((prev) => {
+      const existingIds = new Set(prev.map((m) => m.id));
+      const additions = agentMessages
+        .filter((m) => !existingIds.has(m.id))
+        .map((m) => ({
+          id: m.id,
+          role: "assistant" as const,
+          content: m.content,
+          isOperatorReply: true,
+        }));
+      return additions.length > 0 ? [...prev, ...additions] : prev;
+    });
+  }, [storedConversation]);
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -157,6 +262,37 @@ export function ServiceChatWorkspace({
       setInput("");
       setPendingAttachments([]);
       setAttachError(null);
+
+      const convId = ensureConversation();
+      appendConversationMessage(convId, {
+        role: "user",
+        content,
+      });
+      updateConversation(convId, { visitorOnline: true });
+
+      const conv = getConversationById(convId);
+      if (conv?.assignee === "operatore") {
+        const waitMsg: DisplayMessage = {
+          id: nextId(),
+          role: "assistant",
+          content:
+            "Il tuo messaggio è stato inoltrato all'operatore. Riceverai una risposta a breve.",
+        };
+        setMessages((prev) => [...prev, waitMsg]);
+        return;
+      }
+
+      if (conv?.status === "risolto") {
+        const closedMsg: DisplayMessage = {
+          id: nextId(),
+          role: "assistant",
+          content:
+            "Questa conversazione è stata chiusa. Avvia una nuova conversazione per ulteriore assistenza.",
+        };
+        setMessages((prev) => [...prev, closedMsg]);
+        return;
+      }
+
       setLoading(true);
 
       const apiMessages = history.map((m) => ({
@@ -204,6 +340,13 @@ export function ServiceChatWorkspace({
         };
         setMessages((prev) => [...prev, assistantMsg]);
 
+        appendConversationMessage(convId, {
+          role: "assistant",
+          content: data.message,
+          spareParts: data.spareParts,
+          ticket: data.ticket,
+        });
+
         if (data.ticket) {
           const ctx = inferTicketContextFromChat(apiMessages);
           createTicket({
@@ -230,7 +373,7 @@ export function ServiceChatWorkspace({
         inputRef.current?.focus();
       }
     },
-    [loading, messages, createTicket]
+    [loading, messages, createTicket, ensureConversation, appendConversationMessage, getConversationById, updateConversation]
   );
 
   const submitText = useCallback(
@@ -255,6 +398,7 @@ export function ServiceChatWorkspace({
     revokeAttachmentUrls(collectAttachmentUrls(messages));
     revokeAttachmentUrls(pendingAttachments);
     setMessages([WELCOME]);
+    setConversationId(null);
     setInput("");
     setPendingAttachments([]);
     setAttachError(null);
@@ -262,7 +406,9 @@ export function ServiceChatWorkspace({
   };
 
   const canSend =
-    !loading && (input.trim().length > 0 || pendingAttachments.length > 0);
+    !loading &&
+    !conversationResolved &&
+    (input.trim().length > 0 || pendingAttachments.length > 0);
 
   const lastAssistantIdx = (() => {
     for (let i = messages.length - 1; i >= 0; i--) {
@@ -470,6 +616,11 @@ export function ServiceChatWorkspace({
               Invia
             </button>
           </div>
+          {operatorActive && !conversationResolved && (
+            <p className="mt-2 text-center text-xs text-ok">
+              Un operatore sta gestendo questa conversazione.
+            </p>
+          )}
           <p className="mt-3 text-center text-xs text-ink-faint">
             Foto (JPG, PNG) analizzate dall&apos;AI · Documenti PDF/Office
             inoltrati al tecnico · Max {MAX_ATTACHMENTS_PER_MESSAGE} allegati
@@ -512,7 +663,13 @@ function MessageBubble({
       >
         {!isUser && (
           <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-brand">
-            Assistente aestima
+            {message.content.includes("operatore sta gestendo") ||
+            message.content.includes("inoltrato all'operatore") ||
+            message.content.includes("conversazione è stata chiusa")
+              ? "Sistema"
+              : message.isOperatorReply
+                ? "Operatore"
+                : "Assistente aestima"}
           </p>
         )}
         {message.content && (

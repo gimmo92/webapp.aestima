@@ -34,6 +34,16 @@ import type {
   TechnicianInput,
 } from "@/lib/technicianTypes";
 import {
+  MOCK_CONVERSATIONS,
+  newConversationId,
+} from "@/lib/conversationData";
+import type {
+  AppendConversationMessageInput,
+  ConversationRecord,
+  CreateConversationInput,
+  UpdateConversationInput,
+} from "@/lib/conversationTypes";
+import {
   MOCK_TICKETS,
   newTicketId,
 } from "@/lib/ticketData";
@@ -107,6 +117,16 @@ interface InboxContextValue {
   createTicket: (input: CreateTicketInput) => string;
   updateTicket: (id: string, input: UpdateTicketInput) => void;
   getTicketById: (id: string) => ServiceTicketRecord | undefined;
+  conversations: ConversationRecord[];
+  createConversation: (input: CreateConversationInput) => string;
+  updateConversation: (id: string, input: UpdateConversationInput) => void;
+  appendConversationMessage: (
+    id: string,
+    input: AppendConversationMessageInput
+  ) => void;
+  takeOverConversation: (id: string, operatorId: string) => void;
+  resolveConversation: (id: string) => void;
+  getConversationById: (id: string) => ConversationRecord | undefined;
 }
 
 const InboxContext = createContext<InboxContextValue | null>(null);
@@ -139,6 +159,8 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
     MOCK_INTERVENTION_REPORTS
   );
   const [tickets, setTickets] = useState<ServiceTicketRecord[]>(MOCK_TICKETS);
+  const [conversations, setConversations] =
+    useState<ConversationRecord[]>(MOCK_CONVERSATIONS);
 
   const changeStatus = (id: string, status: RequestStatus) => {
     setRequests((prev) => prev.map((r) => (r.id === id ? { ...r, status } : r)));
@@ -326,6 +348,107 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
     [tickets]
   );
 
+  const createConversation = useCallback((input: CreateConversationInput): string => {
+    const { sentLabel, sentFull } = nowLabels();
+    const id = newConversationId();
+    const initial = input.initialMessages ?? [];
+    const last = initial[initial.length - 1];
+    const row: ConversationRecord = {
+      id,
+      customerName: input.customerName,
+      customerEmail: input.customerEmail,
+      status: "aperto",
+      assignee: "ai",
+      channel: input.channel,
+      lastMessagePreview: last?.content.slice(0, 80) ?? "Nuova conversazione",
+      lastMessageLabel: last?.timestampLabel ?? sentLabel,
+      createdFull: sentFull,
+      updatedFull: sentFull,
+      messages: initial,
+      machineModel: input.machineModel,
+      machineSerial: input.machineSerial,
+      visitorOnline: true,
+    };
+    setConversations((prev) => [row, ...prev]);
+    return id;
+  }, []);
+
+  const updateConversation = useCallback(
+    (id: string, input: UpdateConversationInput) => {
+      const { sentLabel, sentFull } = nowLabels();
+      setConversations((prev) =>
+        prev.map((c) => {
+          if (c.id !== id) return c;
+          const next: ConversationRecord = {
+            ...c,
+            updatedFull: sentFull,
+            lastMessageLabel: sentLabel,
+          };
+          if (input.status !== undefined) next.status = input.status;
+          if (input.assignee !== undefined) next.assignee = input.assignee;
+          if (input.assignedOperatorId !== undefined) {
+            next.assignedOperatorId =
+              input.assignedOperatorId ?? undefined;
+          }
+          if (input.customerName !== undefined)
+            next.customerName = input.customerName;
+          if (input.machineModel !== undefined)
+            next.machineModel = input.machineModel;
+          if (input.machineSerial !== undefined)
+            next.machineSerial = input.machineSerial;
+          if (input.ticketId !== undefined) next.ticketId = input.ticketId;
+          if (input.visitorOnline !== undefined)
+            next.visitorOnline = input.visitorOnline;
+          return next;
+        })
+      );
+    },
+    []
+  );
+
+  const appendConversationMessage = useCallback(
+    (id: string, input: AppendConversationMessageInput) => {
+      const { sentLabel, sentFull } = nowLabels();
+      setConversations((prev) =>
+        prev.map((c) => {
+          if (c.id !== id) return c;
+          const message = {
+            id: `msg-${Date.now()}-${c.messages.length}`,
+            role: input.role,
+            content: input.content,
+            timestampLabel: sentLabel,
+            spareParts: input.spareParts,
+            ticket: input.ticket,
+          };
+          return {
+            ...c,
+            messages: [...c.messages, message],
+            lastMessagePreview: input.content.slice(0, 80),
+            lastMessageLabel: sentLabel,
+            updatedFull: sentFull,
+          };
+        })
+      );
+    },
+    []
+  );
+
+  const takeOverConversation = useCallback((id: string, operatorId: string) => {
+    updateConversation(id, {
+      assignee: "operatore",
+      assignedOperatorId: operatorId,
+    });
+  }, [updateConversation]);
+
+  const resolveConversation = useCallback((id: string) => {
+    updateConversation(id, { status: "risolto", visitorOnline: false });
+  }, [updateConversation]);
+
+  const getConversationById = useCallback(
+    (id: string) => conversations.find((c) => c.id === id),
+    [conversations]
+  );
+
   return (
     <InboxContext.Provider
       value={{
@@ -354,6 +477,13 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
         createTicket,
         updateTicket,
         getTicketById,
+        conversations,
+        createConversation,
+        updateConversation,
+        appendConversationMessage,
+        takeOverConversation,
+        resolveConversation,
+        getConversationById,
       }}
     >
       {children}

@@ -52,4 +52,6 @@ export interface DisplayMessage {
   quickReplies?: QuickReplyOption[];
   attachments?: ChatAttachment[];
   isError?: boolean;
+  /** Risposta inviata da un operatore umano (inbox conversazioni). */
+  isOperatorReply?: boolean;
 }

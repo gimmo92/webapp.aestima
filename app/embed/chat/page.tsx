@@ -7,6 +7,8 @@ import { ServiceChatWorkspace } from "@/components/service-chat/ServiceChatWorks
 function EmbedChatInner() {
   const params = useSearchParams();
   const minimalChrome = params.get("chrome") === "0";
+  const conversationId = params.get("conv") ?? undefined;
+  const customerName = params.get("name") ?? "Visitatore widget";
 
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-base">
@@ -14,6 +16,9 @@ function EmbedChatInner() {
         embed
         hideReset={minimalChrome}
         hideHeader={minimalChrome}
+        channel="embed"
+        customerName={customerName}
+        initialConversationId={conversationId}
       />
     </div>
   );
