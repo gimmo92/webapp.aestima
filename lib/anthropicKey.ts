@@ -55,6 +55,67 @@ function formatError(err: unknown): string {
   return "Errore sconosciuto verso Anthropic.";
 }
 
+export type AnthropicChatTurn = {
+  role: "user" | "assistant";
+  content: string;
+};
+
+/** Chiamata multi-turno all'API Messages (cronologia completa, stateless). */
+export async function callAnthropicConversation(params: {
+  system: string;
+  messages: AnthropicChatTurn[];
+  maxTokens?: number;
+}): Promise<AnthropicCallResult> {
+  const apiKey = getAnthropicKey();
+  if (!apiKey) {
+    return { ok: false, message: "Chiave API Anthropic non configurata." };
+  }
+
+  if (!apiKey.startsWith("sk-ant")) {
+    return {
+      ok: false,
+      message:
+        "Chiave API non valida: deve iniziare con sk-ant-. Controlla il valore su Vercel.",
+    };
+  }
+
+  if (params.messages.length === 0) {
+    return { ok: false, message: "Cronologia conversazione vuota." };
+  }
+
+  try {
+    const client = new Anthropic({
+      apiKey,
+      maxRetries: 2,
+    });
+
+    const message = await client.messages.create({
+      model: ANTHROPIC_MODEL,
+      max_tokens: params.maxTokens ?? 1536,
+      system: params.system,
+      messages: params.messages.map((m) => ({
+        role: m.role,
+        content: m.content,
+      })),
+    });
+
+    const text = message.content
+      .filter((block): block is Anthropic.TextBlock => block.type === "text")
+      .map((block) => block.text)
+      .join("");
+
+    if (!text.trim()) {
+      return { ok: false, message: "Risposta Anthropic vuota." };
+    }
+
+    return { ok: true, text };
+  } catch (err) {
+    console.error("Anthropic API error:", err);
+    const status = err instanceof Anthropic.APIError ? err.status : undefined;
+    return { ok: false, status, message: formatError(err) };
+  }
+}
+
 /** Chiamata condivisa all'API Messages di Anthropic (solo server-side). */
 export async function callAnthropicMessages(params: {
   system: string;

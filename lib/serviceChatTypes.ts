@@ -1,0 +1,42 @@
+// Tipi condivisi tra API e UI della chat di assistenza service.
+
+export type ChatRole = "user" | "assistant";
+
+/** Messaggio nella cronologia conversazione (stateless lato API). */
+export interface ChatMessage {
+  role: ChatRole;
+  content: string;
+}
+
+/** Ricambio proposto dall'agente (solo se trovato in distinta). */
+export interface SparePartProposal {
+  code: string;
+  description: string;
+  price: number;
+  availability: "disponibile" | "da_ordinare";
+  leadTimeDays?: number;
+}
+
+/** Ticket aperto quando l'agente non trova la risposta nei dati. */
+export interface ServiceTicket {
+  id: string;
+  summary: string;
+}
+
+/** Risposta strutturata dell'API /api/service-chat. */
+export interface ServiceChatResponse {
+  message: string;
+  spareParts?: SparePartProposal[];
+  ticket?: ServiceTicket;
+  source: "anthropic" | "fallback";
+}
+
+/** Messaggio visualizzato nella UI (include metadati strutturati). */
+export interface DisplayMessage {
+  id: string;
+  role: ChatRole;
+  content: string;
+  spareParts?: SparePartProposal[];
+  ticket?: ServiceTicket;
+  isError?: boolean;
+}
