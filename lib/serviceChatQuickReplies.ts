@@ -1,4 +1,9 @@
 import { SERVICE_MACHINES } from "./serviceChatData";
+import {
+  machineIdentifiedInHistory,
+  userHistoryText,
+  isMachineIdentificationOnly,
+} from "./knowledgeSearch";
 import type { CreateTicketInput } from "./ticketTypes";
 import type { QuickReplyOption } from "./serviceChatTypes";
 
@@ -55,24 +60,6 @@ export function symptomQuickReplies(): QuickReplyOption[] {
         "Vibrazione anomala mandrino a 3000 rpm, pezzo non rettificato entro tolleranza.",
     },
   ];
-}
-
-function userHistoryText(messages: { role: string; content: string }[]): string {
-  return messages
-    .filter((m) => m.role === "user")
-    .map((m) => m.content.toLowerCase())
-    .join(" ");
-}
-
-function machineIdentifiedInHistory(
-  messages: { role: string; content: string }[]
-): boolean {
-  const haystack = userHistoryText(messages);
-  return SERVICE_MACHINES.some(
-    (m) =>
-      haystack.includes(m.serial.toLowerCase()) ||
-      haystack.includes(m.model.toLowerCase())
-  );
 }
 
 function normalizeQuickReply(raw: unknown): QuickReplyOption | null {
@@ -133,7 +120,16 @@ export function inferQuickReplies(
     return machineQuickReplies();
   }
 
-  if (asksSymptom || (malfunctionIntent && machineKnown)) {
+  const lastUser = users[users.length - 1];
+  if (
+    machineKnown &&
+    lastUser &&
+    isMachineIdentificationOnly(lastUser.content)
+  ) {
+    return symptomQuickReplies();
+  }
+
+  if (asksSymptom || (malfunctionIntent && machineKnown && lastUser && !isMachineIdentificationOnly(lastUser.content))) {
     return symptomQuickReplies();
   }
 

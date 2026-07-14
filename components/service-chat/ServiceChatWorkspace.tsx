@@ -23,7 +23,7 @@ import {
   WELCOME_QUICK_REPLIES,
 } from "@/lib/serviceChatQuickReplies";
 import type { DisplayMessage } from "@/lib/serviceChatTypes";
-import { isTroubleshootingQuery } from "@/lib/knowledgeSearch";
+import { isReadyForKbSearch } from "@/lib/knowledgeSearch";
 
 // =============================================================
 // Chat assistenza service — UI principale
@@ -336,17 +336,14 @@ export function ServiceChatWorkspace({
         return;
       }
 
-      setKbSearching(
-        isTroubleshootingQuery(content) ||
-          isTroubleshootingQuery(history.map((m) => m.content).join(" "))
-      );
-      setLoading(true);
-
       const apiMessages = history.map((m) => ({
         role: m.role,
         content: m.content,
         attachments: m.attachments?.map(toAttachmentPayload),
       }));
+
+      setKbSearching(isReadyForKbSearch(apiMessages, content));
+      setLoading(true);
 
       try {
         const res = await fetch("/api/service-chat", {

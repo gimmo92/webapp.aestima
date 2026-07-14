@@ -10,7 +10,7 @@ import { formatKnowledgeForPrompt } from "@/lib/knowledgeData";
 import {
   findKbCandidates,
   formatKbCandidatesForPrompt,
-  isTroubleshootingQuery,
+  isReadyForKbSearch,
 } from "@/lib/knowledgeSearch";
 import { buildMachinesContext } from "@/lib/serviceChatData";
 import { documentAttachmentNote } from "@/lib/serviceChatAttachments";
@@ -47,13 +47,21 @@ Parli in italiano, tono professionale e chiaro, come un tecnico esperto ma acces
 1. **Identifica la macchina**: chiedi modello o matricola se mancano.
 2. **Capisci il bisogno**: distingui RICAMBIO vs MALFUNZIONAMENTO.
 3. **Ramo ricambi**: cerca il pezzo SOLO nella distinta della macchina identificata.
-4. **Ramo troubleshooting** (quando l'utente descrive un problema/malfunzionamento):
-   a) La risposta DEVE iniziare con: "Un attimo, verifico nella knowledge base se questo problema è già stato risolto in passato…"
-   b) Poi, come se stessi consultando la KB, presenta il risultato della ricerca.
-   c) Se trovi corrispondenza: spiega passo-passo come risolvere (causa + soluzione + ricambi se presenti).
-   d) Cita esplicitamente la referenza: "Scheda [ID] nel Manuale troubleshooting" (es. KB-104).
-   e) Imposta "kbMatch" con entryId e sintomo. NON aprire ticket.
-   f) Se NON trovi corrispondenza: dopo la frase iniziale, dichiara che la KB non contiene questo caso e proponi ticket.
+
+## FLUSSO TROUBLESHOOTING — ORDINE RIGIDO (non saltare passi)
+**Fase A** — Utente segnala malfunzionamento senza macchina:
+- Chiedi matricola/modello. quickReplies con le macchine disponibili.
+- NON cercare nella KB. kbMatch=null. NON proporre soluzioni.
+
+**Fase B** — Utente indica SOLO la macchina (es. "Matricola MX-4521 — Rettificatrice RX-400"):
+- Conferma brevemente la macchina identificata.
+- Chiedi esplicitamente di **descrivere il guasto**: sintomi, comportamento anomalo, messaggi di errore, quando si manifesta.
+- Proponi quickReplies con sintomi tipici. NON cercare nella KB. kbMatch=null. NON proporre soluzioni.
+
+**Fase C** — Utente descrive il guasto (macchina già nota):
+- SOLO ORA avvia la ricerca KB. La risposta DEVE iniziare con: "Un attimo, verifico nella knowledge base se questo problema è già stato risolto in passato…"
+- Se trovi corrispondenza: spiega causa + soluzione + ricambi. Cita scheda [ID] nel Manuale. Imposta kbMatch.
+- Se NON trovi: dopo la frase iniziale, dichiara che la KB non contiene il caso e proponi ticket.
 
 ## REGOLA PRIORITARIA — KNOWLEDGE BASE
 - La KB è la prima fonte per i malfunzionamenti: cerca SEMPRE prima di escalare.
@@ -333,14 +341,15 @@ export async function POST(req: Request) {
     .slice(-6)
     .map((m) => m.content)
     .join(" ");
-  const candidates = lastUser
-    ? findKbCandidates(knowledgeBase, lastUser.content, recentContext)
-    : [];
-  const kbSearchBlock = formatKbCandidatesForPrompt(candidates);
-  const troubleshootingTurn =
-    !!lastUser &&
-    (isTroubleshootingQuery(lastUser.content) ||
-      isTroubleshootingQuery(recentContext));
+  const readyForKb = lastUser
+    ? isReadyForKbSearch(messages, lastUser.content)
+    : false;
+  const candidates =
+    readyForKb && lastUser
+      ? findKbCandidates(knowledgeBase, lastUser.content, recentContext)
+      : [];
+  const kbSearchBlock = formatKbCandidatesForPrompt(candidates, readyForKb);
+  const troubleshootingTurn = readyForKb;
 
   const systemPrompt = buildSystemPrompt(knowledgeBase, kbSearchBlock);
 
@@ -374,7 +383,9 @@ export async function POST(req: Request) {
     }
 
     let kbMatch = buildKbMatch(parsed.kbMatch, knowledgeBase);
-    if (!kbMatch && candidates.length > 0 && troubleshootingTurn && !parsed.ticket) {
+    if (!readyForKb) {
+      kbMatch = undefined;
+    } else if (!kbMatch && candidates.length > 0 && !parsed.ticket) {
       const top = candidates[0];
       kbMatch = {
         entryId: top.id,

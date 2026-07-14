@@ -1,8 +1,9 @@
+import { SERVICE_MACHINES } from "./serviceChatData";
 import type { KnowledgeEntry } from "./knowledgeTypes";
 
 // Ricerca euristica nella KB lato server (in produzione: embedding / vector search).
 
-const TROUBLESHOOTING_HINTS = [
+const SYMPTOM_HINTS = [
   "malfunzionamento",
   "rumore",
   "perdita",
@@ -20,11 +21,115 @@ const TROUBLESHOOTING_HINTS = [
   "fune",
   "curva",
   "cavo",
+  "non carica",
+  "bloccato",
+  "surriscalda",
 ];
+
+/** Intent generico — non sufficiente per cercare in KB. */
+const INTENT_ONLY_PATTERNS = [
+  /^ho un malfunzionamento\.?$/i,
+  /^cerco un ricambio\.?$/i,
+  /^non trovo il codice di un pezzo\.?$/i,
+  /^altro\b/i,
+];
+
+export function userHistoryText(
+  messages: { role: string; content: string }[]
+): string {
+  return messages
+    .filter((m) => m.role === "user")
+    .map((m) => m.content.toLowerCase())
+    .join(" ");
+}
+
+export function machineIdentifiedInHistory(
+  messages: { role: string; content: string }[]
+): boolean {
+  const haystack = userHistoryText(messages);
+  return SERVICE_MACHINES.some(
+    (m) =>
+      haystack.includes(m.serial.toLowerCase()) ||
+      haystack.includes(m.model.toLowerCase())
+  );
+}
+
+/** Ultimo messaggio utente = solo matricola/modello, senza descrizione guasto. */
+export function isMachineIdentificationOnly(text: string): boolean {
+  const trimmed = text.trim();
+  if (!trimmed) return false;
+
+  const lower = trimmed.toLowerCase();
+  const hasMachine = SERVICE_MACHINES.some(
+    (m) =>
+      lower.includes(m.serial.toLowerCase()) ||
+      lower.includes(m.model.toLowerCase())
+  );
+  if (!hasMachine) return false;
+
+  if (INTENT_ONLY_PATTERNS.some((p) => p.test(trimmed))) return false;
+
+  let stripped = lower;
+  for (const m of SERVICE_MACHINES) {
+    stripped = stripped.replaceAll(m.serial.toLowerCase(), "");
+    stripped = stripped.replaceAll(m.model.toLowerCase(), "");
+  }
+  stripped = stripped
+    .replace(/matricola|impianto|fresatrice|rettificatrice|tornio/gi, "")
+    .replace(/[—–\-:,]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (stripped.length > 40) return false;
+
+  const symptomInRemainder = SYMPTOM_HINTS.some((h) => stripped.includes(h));
+  return !symptomInRemainder;
+}
+
+/** Descrizione concreta del guasto (non solo intent o matricola). */
+export function isSymptomDescription(text: string): boolean {
+  const trimmed = text.trim();
+  if (!trimmed || isMachineIdentificationOnly(trimmed)) return false;
+  if (INTENT_ONLY_PATTERNS.some((p) => p.test(trimmed))) return false;
+
+  const lower = trimmed.toLowerCase();
+  if (trimmed.length >= 55 && SYMPTOM_HINTS.some((h) => lower.includes(h))) {
+    return true;
+  }
+
+  const concretePatterns = [
+    /rumore/,
+    /perdita/,
+    /errore\s*e-?\d*/i,
+    /vibrazion/,
+    /slittament/,
+    /gocciol/,
+    /non funziona/,
+    /non carica/,
+    /fuori range/,
+    /allarme/,
+    /bloccato/,
+    /surriscald/,
+  ];
+  return concretePatterns.some((p) => p.test(lower));
+}
 
 export function isTroubleshootingQuery(text: string): boolean {
   const q = text.toLowerCase();
-  return TROUBLESHOOTING_HINTS.some((h) => q.includes(h));
+  return SYMPTOM_HINTS.some((h) => q.includes(h));
+}
+
+/**
+ * KB ricercabile solo dopo: macchina identificata + guasto descritto
+ * nell'ultimo messaggio utente.
+ */
+export function isReadyForKbSearch(
+  messages: { role: string; content: string }[],
+  lastUserText: string
+): boolean {
+  if (!machineIdentifiedInHistory(messages)) return false;
+  if (isMachineIdentificationOnly(lastUserText)) return false;
+  return isSymptomDescription(lastUserText);
 }
 
 function tokenize(text: string): string[] {
@@ -54,10 +159,12 @@ function scoreEntry(entry: KnowledgeEntry, query: string): number {
     if (corpus.includes(t)) score += 2;
   }
 
-  if (entry.machineModel.toLowerCase().includes(query.toLowerCase().slice(0, 12)))
-    score += 3;
-  if (entry.machineSerial && query.toLowerCase().includes(entry.machineSerial.toLowerCase()))
+  if (
+    entry.machineSerial &&
+    query.toLowerCase().includes(entry.machineSerial.toLowerCase())
+  ) {
     score += 5;
+  }
 
   for (const tag of entry.tags) {
     if (query.toLowerCase().includes(tag.toLowerCase())) score += 4;
@@ -73,7 +180,7 @@ export function findKbCandidates(
   recentContext = ""
 ): KnowledgeEntry[] {
   const combined = `${recentContext} ${userText}`.trim();
-  if (!isTroubleshootingQuery(combined) && knowledgeBase.length === 0) return [];
+  if (!isSymptomDescription(userText)) return [];
 
   const scored = knowledgeBase
     .map((entry) => ({ entry, score: scoreEntry(entry, combined) }))
@@ -84,14 +191,21 @@ export function findKbCandidates(
 }
 
 export function formatKbCandidatesForPrompt(
-  candidates: KnowledgeEntry[]
+  candidates: KnowledgeEntry[],
+  ready: boolean
 ): string {
+  if (!ready) {
+    return `## RICERCA KB — NON ATTIVA
+L'utente ha indicato la macchina ma NON ha ancora descritto il guasto.
+Conferma la macchina e chiedi di descrivere sintomi e comportamento anomalo.
+Proponi quickReplies con sintomi tipici. NON cercare nella KB. NON proporre soluzioni. kbMatch deve essere null.`;
+  }
   if (candidates.length === 0) {
-    return "## RICERCA AUTOMATICA KB\nNessuna corrispondenza forte rilevata nel messaggio. Cerca comunque nella KB completa; se non trovi, comunica che la ricerca non ha dato risultati e proponi ticket.";
+    return "## RICERCA AUTOMATICA KB\nNessuna corrispondenza forte. Cerca nella KB completa; se non trovi, comunica esito ricerca e proponi ticket.";
   }
   const lines = candidates.map(
     (e) =>
       `- ${e.id}: ${e.symptom.slice(0, 120)}… (frequenza ${e.frequency}×)`
   );
-  return `## RICERCA AUTOMATICA KB\nCorrispondenze probabili per il problema descritto:\n${lines.join("\n")}\nSe pertinente, usa una di queste voci, imposta kbMatch con l'id corretto e cita la referenza nel messaggio.`;
+  return `## RICERCA AUTOMATICA KB\nCorrispondenze probabili per il guasto descritto:\n${lines.join("\n")}\nUsa la voce pertinente, imposta kbMatch e cita la scheda nel Manuale.`;
 }
