@@ -5,6 +5,7 @@ import { ChatAttachmentList } from "./ChatAttachmentList";
 import { QuickReplyBubbles } from "./QuickReplyBubbles";
 import { SparePartCardList } from "./SparePartCard";
 import { TicketBanner } from "./TicketBanner";
+import { KbMatchBanner } from "./KbMatchBanner";
 import { useInbox } from "@/components/inbox/InboxProvider";
 import {
   CHAT_ATTACHMENT_ACCEPT,
@@ -85,6 +86,8 @@ export function ServiceChatWorkspace({
     appendConversationMessage,
     getConversationById,
     updateConversation,
+    knowledgeBase,
+    incrementKnowledgeFrequency,
   } = useInbox();
   const [conversationId, setConversationId] = useState<string | null>(
     initialConversationId ?? null
@@ -305,7 +308,7 @@ export function ServiceChatWorkspace({
         const res = await fetch("/api/service-chat", {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ messages: apiMessages }),
+          body: JSON.stringify({ messages: apiMessages, knowledgeBase }),
         });
 
         const data = await res.json();
@@ -336,9 +339,14 @@ export function ServiceChatWorkspace({
           content: data.message,
           spareParts: data.spareParts,
           ticket: data.ticket,
+          kbMatch: data.kbMatch,
           quickReplies,
         };
         setMessages((prev) => [...prev, assistantMsg]);
+
+        if (data.kbMatch?.entryId) {
+          incrementKnowledgeFrequency(data.kbMatch.entryId);
+        }
 
         appendConversationMessage(convId, {
           role: "assistant",
@@ -373,7 +381,7 @@ export function ServiceChatWorkspace({
         inputRef.current?.focus();
       }
     },
-    [loading, messages, createTicket, ensureConversation, appendConversationMessage, getConversationById, updateConversation]
+    [loading, messages, createTicket, ensureConversation, appendConversationMessage, getConversationById, updateConversation, knowledgeBase, incrementKnowledgeFrequency]
   );
 
   const submitText = useCallback(
@@ -688,6 +696,9 @@ function MessageBubble({
         )}
         {!isUser && message.ticket && (
           <TicketBanner ticket={message.ticket} />
+        )}
+        {!isUser && message.kbMatch && (
+          <KbMatchBanner match={message.kbMatch} />
         )}
         {!isUser && quickReplies && quickReplies.length > 0 && (
           <QuickReplyBubbles

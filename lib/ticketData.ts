@@ -93,5 +93,8 @@ export const MOCK_TICKETS: ServiceTicketRecord[] = [
     createdFull: "12 mar, 11:20",
     updatedFull: "13 mar, 09:15",
     internalNotes: "Sostituita tenuta SL-2201-VT + verifica albero OK. Chiuso.",
+    solution:
+      "Sostituita anello tenuta SL-2201-VT (Viton Ø45). Pulita sede, verificato albero mandrino senza righe. Perdita risolta.",
+    knowledgeEntryId: "KB-104",
   },
 ];

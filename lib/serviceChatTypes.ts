@@ -27,6 +27,13 @@ export interface SparePartProposal {
 /** Ticket aperto quando l'agente non trova la risposta nei dati. */
 export type ServiceTicket = ChatTicketPreview;
 
+/** Match con voce knowledge base — soluzione appresa da intervento precedente. */
+export interface KbMatchPreview {
+  entryId: string;
+  symptom: string;
+  frequency?: number;
+}
+
 /** Opzione quick-reply: label in UI, value inviato come messaggio utente. */
 export interface QuickReplyOption {
   label: string;
@@ -38,6 +45,7 @@ export interface ServiceChatResponse {
   message: string;
   spareParts?: SparePartProposal[];
   ticket?: ServiceTicket;
+  kbMatch?: KbMatchPreview;
   quickReplies?: QuickReplyOption[];
   source: "anthropic" | "fallback";
 }
@@ -49,6 +57,7 @@ export interface DisplayMessage {
   content: string;
   spareParts?: SparePartProposal[];
   ticket?: ServiceTicket;
+  kbMatch?: KbMatchPreview;
   quickReplies?: QuickReplyOption[];
   attachments?: ChatAttachment[];
   isError?: boolean;

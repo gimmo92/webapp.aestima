@@ -6,12 +6,15 @@ import {
   type AnthropicContentBlock,
   type AnthropicImageMediaType,
 } from "@/lib/anthropicKey";
-import { buildServiceContext } from "@/lib/serviceChatData";
+import { formatKnowledgeForPrompt } from "@/lib/knowledgeData";
+import { buildMachinesContext } from "@/lib/serviceChatData";
 import { documentAttachmentNote } from "@/lib/serviceChatAttachments";
 import { normalizeApiQuickReplies } from "@/lib/serviceChatQuickReplies";
+import type { KnowledgeEntry } from "@/lib/knowledgeTypes";
 import type {
   ChatAttachmentPayload,
   ChatMessage,
+  KbMatchPreview,
   ServiceChatResponse,
   ServiceTicket,
   SparePartProposal,
@@ -19,69 +22,69 @@ import type {
 
 // =============================================================
 // POST /api/service-chat
-// -------------------------------------------------------------
-// Agente di assistenza after-sales con Claude.
-// Riceve l'intera cronologia (API stateless) + dati di contesto
-// (macchine, distinte, KB troubleshooting) ad ogni richiesta.
-//
-// La chiave Anthropic resta server-side (env var "anthropic" o
-// ANTHROPIC_API_KEY). Mai esposta al client.
+// Agente assistenza after-sales — KB dinamica dal client a ogni richiesta.
 // =============================================================
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const SERVICE_CONTEXT = buildServiceContext();
+const MACHINES_CONTEXT = buildMachinesContext();
 
-const SYSTEM_PROMPT = `Sei l'agente di assistenza service after-sales di "aestima".
+function buildSystemPrompt(knowledgeBase: KnowledgeEntry[]): string {
+  const kbContext = formatKnowledgeForPrompt(knowledgeBase);
+  return `Sei l'agente di assistenza service after-sales di "aestima".
 Parli in italiano, tono professionale e chiaro, come un tecnico esperto ma accessibile.
 
 ## FLUSSO OBBLIGATORIO
-1. **Identifica la macchina**: chiedi modello o matricola se mancano. Estrai riferimenti anche da testo informale (es. "la rettifica del 2019 MX-4521"). Se più macchine condividono lo stesso modello (es. due IDC 114 TCZ con matricole diverse), chiedi di precisare la matricola o la variante.
-2. **Capisci il bisogno**: distingui se l'utente cerca un RICAMBIO o ha un MALFUNZIONAMENTO da risolvere.
-3. **Ramo ricambi**: cerca il pezzo SOLO nella distinta della macchina identificata. Proponi codice, descrizione, prezzo e disponibilità esattamente come nei dati.
-4. **Ramo troubleshooting**: interroga sui sintomi, poi cerca nella base di conoscenza casi simili già risolti. Proponi la soluzione trovata, adattando il linguaggio alla conversazione.
+1. **Identifica la macchina**: chiedi modello o matricola se mancano.
+2. **Capisci il bisogno**: distingui RICAMBIO vs MALFUNZIONAMENTO.
+3. **Ramo ricambi**: cerca il pezzo SOLO nella distinta della macchina identificata.
+4. **Ramo troubleshooting**: interroga sui sintomi, poi cerca nella BASE DI CONOSCENZA casi simili già risolti.
 
-## ALLEGATI (foto e documenti)
-- L'utente può allegare foto (targhetta, componente, danno) e documenti (PDF, schede).
-- Analizza le FOTO per estrarre matricola, modello, codici o sintomi visibili. Citalo nella risposta se li leggi.
-- Per i DOCUMENTI non visualizzabili, usa il nome file indicato e chiedi dettagli o proponi escalation.
-- Non inventare contenuti di file che non puoi vedere.
+## REGOLA PRIORITARIA — KNOWLEDGE BASE
+- Se trovi un caso simile nella KB (stesso sintomo/macchina/problema): **proponi la soluzione trovata** adattando il linguaggio.
+- **NON aprire un ticket** se la KB contiene già una soluzione applicabile.
+- Imposta "kbMatch" con l'id della voce KB usata (es. "KB-101") e un breve sintomo.
+- Menziona esplicitamente che la soluzione proviene da un intervento precedente già risolto (il sistema ha imparato).
+
+## ALLEGATI
+- Analizza le FOTO per matricola, modello, codici o sintomi visibili.
+- Per DOCUMENTI non visualizzabili usa il nome file e proponi escalation se serve.
 
 ## REGOLA CRITICA — MAI INVENTARE
-- Se il pezzo NON è in distinta, o il problema NON ha casi simili nella KB: NON inventare codici, prezzi o soluzioni.
-- Dichiara chiaramente che non hai la risposta nei dati disponibili.
-- Proponi di aprire un ticket per un tecnico umano (imposta "ticket" nella risposta JSON).
+- Se il pezzo NON è in distinta, o il problema NON ha casi simili nella KB: NON inventare.
+- Solo allora proponi ticket (imposta "ticket" nel JSON).
 
-## VINCOLI SUI DATI
-Ragiona ESCLUSIVAMENTE sui dati nel contesto qui sotto. Non usare conoscenza esterna su modelli, codici o procedure non presenti.
+## VINCOLI
+Ragiona ESCLUSIVAMENTE sui dati nel contesto. Non usare conoscenza esterna.
 
 ## FORMATO RISPOSTA
-Rispondi ESCLUSIVAMENTE con un oggetto JSON valido (senza markdown, senza backtick, senza testo fuori dal JSON):
+Rispondi ESCLUSIVAMENTE con JSON valido (senza markdown):
 {
-  "message": "testo conversazionale per l'utente in italiano",
+  "message": "testo per l'utente in italiano",
   "spareParts": null oppure [{"code":"...","description":"...","price":123.45,"availability":"disponibile"|"da_ordinare","leadTimeDays":0}],
-  "ticket": null oppure {"summary":"breve descrizione del problema da escalare"},
-  "quickReplies": null oppure [{"label":"testo breve bubble","value":"testo inviato se l'utente clicca"}]
+  "ticket": null oppure {"summary":"..."},
+  "kbMatch": null oppure {"entryId":"KB-101","symptom":"breve sintomo della voce usata"},
+  "quickReplies": null oppure [{"label":"...","value":"..."}]
 }
 
 Regole JSON:
-- "message" è sempre obbligatorio.
-- "spareParts": includi SOLO ricambi effettivamente trovati in distinta. availability "disponibile" se stock > 0, altrimenti "da_ordinare" con leadTimeDays.
-- "ticket": imposta SOLO quando non trovi la risposta nei dati e proponi escalation a tecnico umano. NON generare un id ticket (lo assegna il server).
-- "quickReplies": proponi 2-5 opzioni cliccabili quando chiedi all'utente di scegliere o precisare qualcosa. Usa label brevi (max ~40 caratteri) e value = frase completa inviata al click. Esempi:
-  - Chiedi la macchina → quickReplies con le matricole presenti nei dati (IDC-114-084, IDC-114-112, MX-4521).
-  - Chiedi sintomi per troubleshooting → quickReplies con sintomi dalla KB (rumore curva rinvio, perdita olio mandrino, errore E-47, ecc.).
-  - Non usare quickReplies se hai già dato una soluzione definitiva (ricambio trovato, ticket aperto, o risposta conclusiva).
-- Se stai solo raccogliendo informazioni (es. chiedi matricola), spareParts e ticket restano null.
+- "message" sempre obbligatorio.
+- "kbMatch": SOLO quando risolvi usando la KB — NON aprire ticket nello stesso messaggio.
+- "ticket": SOLO se KB e distinta non hanno la risposta.
+- "quickReplies": 2-5 opzioni quando chiedi scelte; sintomi dalla KB se troubleshooting.
 
 ## DATI DI CONTESTO (unica fonte di verità)
-${SERVICE_CONTEXT}`;
+${MACHINES_CONTEXT}
+
+${kbContext}`;
+}
 
 interface ParsedAgentPayload {
   message?: string;
   spareParts?: SparePartProposal[] | null;
   ticket?: { summary?: string } | null;
+  kbMatch?: { entryId?: string; symptom?: string } | null;
   quickReplies?: unknown;
 }
 
@@ -135,6 +138,22 @@ function buildTicket(raw: ParsedAgentPayload["ticket"]): ServiceTicket | undefin
   const summary = String(raw.summary ?? "").trim();
   if (!summary) return undefined;
   return { id: generateTicketId(), summary };
+}
+
+function buildKbMatch(
+  raw: ParsedAgentPayload["kbMatch"],
+  knowledgeBase: KnowledgeEntry[]
+): KbMatchPreview | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const entryId = String(raw.entryId ?? "").trim();
+  const symptom = String(raw.symptom ?? "").trim();
+  if (!entryId) return undefined;
+  const entry = knowledgeBase.find((e) => e.id === entryId);
+  return {
+    entryId,
+    symptom: symptom || entry?.symptom || "Problema risolto in precedenza",
+    frequency: entry?.frequency,
+  };
 }
 
 function coerceAttachments(raw: unknown): ChatAttachmentPayload[] | undefined {
@@ -232,11 +251,26 @@ function coerceMessages(body: unknown): ChatMessage[] | null {
   return result.length > 0 ? result : null;
 }
 
+function coerceKnowledgeBase(body: unknown): KnowledgeEntry[] {
+  if (!body || typeof body !== "object") return [];
+  const kb = (body as { knowledgeBase?: unknown }).knowledgeBase;
+  if (!Array.isArray(kb)) return [];
+  return kb.filter(
+    (e): e is KnowledgeEntry =>
+      !!e &&
+      typeof e === "object" &&
+      typeof (e as KnowledgeEntry).id === "string" &&
+      typeof (e as KnowledgeEntry).symptom === "string"
+  );
+}
+
 export async function POST(req: Request) {
   let messages: ChatMessage[] | null = null;
+  let knowledgeBase: KnowledgeEntry[] = [];
   try {
     const body = await req.json();
     messages = coerceMessages(body);
+    knowledgeBase = coerceKnowledgeBase(body);
   } catch {
     return NextResponse.json(
       { error: "Corpo della richiesta non valido." },
@@ -262,9 +296,11 @@ export async function POST(req: Request) {
     );
   }
 
+  const systemPrompt = buildSystemPrompt(knowledgeBase);
+
   try {
     const llm = await callAnthropicConversation({
-      system: SYSTEM_PROMPT,
+      system: systemPrompt,
       messages: buildAnthropicTurns(messages),
       maxTokens: 1536,
     });
@@ -291,10 +327,14 @@ export async function POST(req: Request) {
       );
     }
 
+    const kbMatch = buildKbMatch(parsed.kbMatch, knowledgeBase);
+    const ticket = kbMatch ? undefined : buildTicket(parsed.ticket);
+
     const response: ServiceChatResponse = {
       message: parsed.message.trim(),
       spareParts: normalizeSpareParts(parsed.spareParts),
-      ticket: buildTicket(parsed.ticket),
+      ticket,
+      kbMatch,
       quickReplies: normalizeApiQuickReplies(parsed.quickReplies),
       source: "anthropic",
     };

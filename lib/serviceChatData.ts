@@ -271,8 +271,8 @@ export const TROUBLESHOOTING_KB: TroubleshootingCase[] = [
   },
 ];
 
-/** Serializza i dati di contesto per il system prompt dell'agente. */
-export function buildServiceContext(): string {
+/** Serializza anagrafica macchine per il system prompt dell'agente. */
+export function buildMachinesContext(): string {
   const machinesBlock = SERVICE_MACHINES.map((m) => {
     const partsList = m.parts
       .map((p) => {
@@ -293,10 +293,15 @@ export function buildServiceContext(): string {
     ].join("\n");
   }).join("\n\n");
 
+  return `=== ANAGRAFICA MACCHINE E DISTINTE ===\n${machinesBlock}`;
+}
+
+/** @deprecated Usare buildMachinesContext + formatKnowledgeForPrompt (KB dinamica). */
+export function buildServiceContext(): string {
   const kbBlock = TROUBLESHOOTING_KB.map(
     (c) =>
       `[${c.id}] ${c.machineRef}\n  Problema: ${c.symptom}\n  Soluzione: ${c.solution}`
   ).join("\n\n");
 
-  return `=== ANAGRAFICA MACCHINE E DISTINTE ===\n${machinesBlock}\n\n=== BASE DI CONOSCENZA TROUBLESHOOTING ===\n${kbBlock}`;
+  return `${buildMachinesContext()}\n\n=== BASE DI CONOSCENZA TROUBLESHOOTING (statica legacy) ===\n${kbBlock}`;
 }

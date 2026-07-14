@@ -34,6 +34,11 @@ import type {
   TechnicianInput,
 } from "@/lib/technicianTypes";
 import {
+  MOCK_KNOWLEDGE_ENTRIES,
+  newKnowledgeId,
+} from "@/lib/knowledgeData";
+import type { KnowledgeEntry } from "@/lib/knowledgeTypes";
+import {
   MOCK_CONVERSATIONS,
   newConversationId,
 } from "@/lib/conversationData";
@@ -127,6 +132,37 @@ interface InboxContextValue {
   takeOverConversation: (id: string, operatorId: string) => void;
   resolveConversation: (id: string) => void;
   getConversationById: (id: string) => ConversationRecord | undefined;
+  knowledgeBase: KnowledgeEntry[];
+  addKnowledgeEntry: (
+    input: Omit<
+      KnowledgeEntry,
+      | "id"
+      | "frequency"
+      | "consolidated"
+      | "createdLabel"
+      | "createdFull"
+      | "updatedFull"
+    > & { frequency?: number; sourceTicketId?: string }
+  ) => string;
+  incrementKnowledgeFrequency: (id: string) => void;
+  consolidateKnowledgeEntries: (
+    entryIds: string[],
+    merged: Omit<
+      KnowledgeEntry,
+      | "id"
+      | "consolidated"
+      | "mergedFromIds"
+      | "createdLabel"
+      | "createdFull"
+      | "updatedFull"
+    >
+  ) => string;
+  removeKnowledgeEntries: (ids: string[]) => void;
+  getKnowledgeEntryById: (id: string) => KnowledgeEntry | undefined;
+  findSimilarKnowledgeEntries: (
+    machineModel: string,
+    symptom: string
+  ) => KnowledgeEntry[];
 }
 
 const InboxContext = createContext<InboxContextValue | null>(null);
@@ -161,6 +197,8 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
   const [tickets, setTickets] = useState<ServiceTicketRecord[]>(MOCK_TICKETS);
   const [conversations, setConversations] =
     useState<ConversationRecord[]>(MOCK_CONVERSATIONS);
+  const [knowledgeBase, setKnowledgeBase] =
+    useState<KnowledgeEntry[]>(MOCK_KNOWLEDGE_ENTRIES);
 
   const changeStatus = (id: string, status: RequestStatus) => {
     setRequests((prev) => prev.map((r) => (r.id === id ? { ...r, status } : r)));
@@ -331,6 +369,9 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
           next.internalNotes = input.internalNotes;
         if (input.description !== undefined)
           next.description = input.description;
+        if (input.solution !== undefined) next.solution = input.solution;
+        if (input.knowledgeEntryId !== undefined)
+          next.knowledgeEntryId = input.knowledgeEntryId;
         if (input.assignedTechnicianId !== undefined) {
           next.assignedTechnicianId =
             input.assignedTechnicianId ?? undefined;
@@ -449,6 +490,123 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
     [conversations]
   );
 
+  const addKnowledgeEntry = useCallback(
+    (
+      input: Omit<
+        KnowledgeEntry,
+        | "id"
+        | "frequency"
+        | "consolidated"
+        | "createdLabel"
+        | "createdFull"
+        | "updatedFull"
+      > & { frequency?: number; sourceTicketId?: string }
+    ): string => {
+      const { sentLabel, sentFull } = nowLabels();
+      const id = newKnowledgeId();
+      const similar = knowledgeBase.find(
+        (e) =>
+          e.machineModel === input.machineModel &&
+          e.symptom.toLowerCase().includes(
+            input.symptom.slice(0, 40).toLowerCase()
+          )
+      );
+      if (similar) {
+        setKnowledgeBase((prev) =>
+          prev.map((e) =>
+            e.id === similar.id
+              ? {
+                  ...e,
+                  frequency: e.frequency + 1,
+                  updatedFull: sentFull,
+                  solution: input.solution,
+                  probableCause: input.probableCause,
+                }
+              : e
+          )
+        );
+        return similar.id;
+      }
+      const row: KnowledgeEntry = {
+        ...input,
+        id,
+        frequency: input.frequency ?? 1,
+        consolidated: false,
+        sourceTicketId: input.sourceTicketId,
+        createdLabel: sentLabel,
+        createdFull: sentFull,
+        updatedFull: sentFull,
+      };
+      setKnowledgeBase((prev) => [row, ...prev]);
+      return id;
+    },
+    [knowledgeBase]
+  );
+
+  const incrementKnowledgeFrequency = useCallback((id: string) => {
+    const { sentFull } = nowLabels();
+    setKnowledgeBase((prev) =>
+      prev.map((e) =>
+        e.id === id ? { ...e, frequency: e.frequency + 1, updatedFull: sentFull } : e
+      )
+    );
+  }, []);
+
+  const consolidateKnowledgeEntries = useCallback(
+    (
+      entryIds: string[],
+      merged: Omit<
+        KnowledgeEntry,
+        | "id"
+        | "consolidated"
+        | "mergedFromIds"
+        | "createdLabel"
+        | "createdFull"
+        | "updatedFull"
+      >
+    ): string => {
+      const { sentLabel, sentFull } = nowLabels();
+      const id = newKnowledgeId();
+      const row: KnowledgeEntry = {
+        ...merged,
+        id,
+        consolidated: true,
+        mergedFromIds: entryIds,
+        createdLabel: sentLabel,
+        createdFull: sentFull,
+        updatedFull: sentFull,
+      };
+      setKnowledgeBase((prev) => [
+        row,
+        ...prev.filter((e) => !entryIds.includes(e.id)),
+      ]);
+      return id;
+    },
+    []
+  );
+
+  const removeKnowledgeEntries = useCallback((ids: string[]) => {
+    setKnowledgeBase((prev) => prev.filter((e) => !ids.includes(e.id)));
+  }, []);
+
+  const getKnowledgeEntryById = useCallback(
+    (id: string) => knowledgeBase.find((e) => e.id === id),
+    [knowledgeBase]
+  );
+
+  const findSimilarKnowledgeEntries = useCallback(
+    (machineModel: string, symptom: string) => {
+      const q = symptom.toLowerCase().slice(0, 30);
+      return knowledgeBase.filter(
+        (e) =>
+          e.machineModel === machineModel &&
+          (e.symptom.toLowerCase().includes(q) ||
+            q.includes(e.symptom.toLowerCase().slice(0, 20)))
+      );
+    },
+    [knowledgeBase]
+  );
+
   return (
     <InboxContext.Provider
       value={{
@@ -484,6 +642,13 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
         takeOverConversation,
         resolveConversation,
         getConversationById,
+        knowledgeBase,
+        addKnowledgeEntry,
+        incrementKnowledgeFrequency,
+        consolidateKnowledgeEntries,
+        removeKnowledgeEntries,
+        getKnowledgeEntryById,
+        findSimilarKnowledgeEntries,
       }}
     >
       {children}

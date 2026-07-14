@@ -42,6 +42,10 @@ export interface ServiceTicketRecord {
   createdFull: string;
   updatedFull: string;
   internalNotes?: string;
+  /** Soluzione scritta dal tecnico alla chiusura */
+  solution?: string;
+  /** Voce KB generata da questo ticket */
+  knowledgeEntryId?: string;
 }
 
 /** Anteprima ticket restituita dalla chat AI (subset). */
@@ -64,4 +68,6 @@ export interface UpdateTicketInput {
   assignedTechnicianId?: string | null;
   internalNotes?: string;
   description?: string;
+  solution?: string;
+  knowledgeEntryId?: string;
 }

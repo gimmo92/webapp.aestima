@@ -34,7 +34,8 @@ const OPEN_STATUSES: TicketStatus[] = [
 const CLOSED_STATUSES: TicketStatus[] = ["risolto", "chiuso"];
 
 export function TicketsWorkspace() {
-  const { tickets, technicians, createTicket, updateTicket } = useInbox();
+  const { tickets, technicians, createTicket, updateTicket, addKnowledgeEntry } =
+    useInbox();
   const [tab, setTab] = useState<Tab>("aperti");
   const [statusFilter, setStatusFilter] = useState<TicketStatus | "all">("all");
   const [selectedId, setSelectedId] = useState<string | null>(
@@ -182,6 +183,7 @@ export function TicketsWorkspace() {
               ticket={selected}
               technicians={technicians}
               onUpdate={updateTicket}
+              onLearnFromSolution={addKnowledgeEntry}
             />
           ) : (
             <div className="flex h-full items-center justify-center text-sm text-ink-faint">
@@ -255,18 +257,87 @@ function TicketDetail({
   ticket,
   technicians,
   onUpdate,
+  onLearnFromSolution,
 }: {
   ticket: ServiceTicketRecord;
   technicians: { id: string; name: string }[];
   onUpdate: (id: string, input: UpdateTicketInput) => void;
+  onLearnFromSolution: ReturnType<typeof useInbox>["addKnowledgeEntry"];
 }) {
   const [notes, setNotes] = useState(ticket.internalNotes ?? "");
+  const [solution, setSolution] = useState(ticket.solution ?? "");
+  const [learning, setLearning] = useState(false);
+  const [learnMsg, setLearnMsg] = useState<string | null>(null);
 
   useEffect(() => {
     setNotes(ticket.internalNotes ?? "");
-  }, [ticket.id, ticket.internalNotes]);
+    setSolution(ticket.solution ?? "");
+    setLearnMsg(null);
+  }, [ticket.id, ticket.internalNotes, ticket.solution]);
 
   const assigned = technicians.find((t) => t.id === ticket.assignedTechnicianId);
+  const isClosed =
+    ticket.status === "risolto" || ticket.status === "chiuso";
+
+  const closeAndLearn = async () => {
+    const sol = solution.trim();
+    if (!sol) {
+      setLearnMsg("Scrivi la soluzione del tecnico prima di chiudere.");
+      return;
+    }
+    if (ticket.knowledgeEntryId) {
+      setLearnMsg(`Già in knowledge base: ${ticket.knowledgeEntryId}`);
+      return;
+    }
+
+    setLearning(true);
+    setLearnMsg(null);
+    try {
+      const res = await fetch("/api/knowledge-extract", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          ticketId: ticket.id,
+          summary: ticket.summary,
+          description: ticket.description,
+          solution: sol,
+          machineModel: ticket.machineModel,
+          machineSerial: ticket.machineSerial,
+        }),
+      });
+      const data = await res.json();
+      const extracted = data.entry ?? data.fallback;
+      if (!extracted) {
+        setLearnMsg(data.error ?? "Estrazione non riuscita.");
+        return;
+      }
+
+      const kbId = onLearnFromSolution({
+        machineModel: extracted.machineModel,
+        machineSerial: extracted.machineSerial,
+        problemCategory: extracted.problemCategory ?? ticket.category,
+        symptom: extracted.symptom,
+        probableCause: extracted.probableCause,
+        solution: extracted.solution,
+        spareParts: extracted.spareParts ?? [],
+        tags: extracted.tags ?? [],
+        sourceTicketId: ticket.id,
+      });
+
+      onUpdate(ticket.id, {
+        status: "chiuso",
+        solution: sol,
+        knowledgeEntryId: kbId,
+      });
+      setLearnMsg(
+        `Ticket chiuso. Soluzione aggiunta alla knowledge base (${kbId}) — la chat la userà per problemi simili.`
+      );
+    } catch {
+      setLearnMsg("Errore di rete durante l'apprendimento.");
+    } finally {
+      setLearning(false);
+    }
+  };
 
   return (
     <div className="mx-auto max-w-2xl space-y-4">
@@ -326,6 +397,71 @@ function TicketDetail({
           quando l&apos;agente non ha trovato la risposta nei dati disponibili.
         </div>
       )}
+
+      {ticket.knowledgeEntryId && (
+        <div className="rounded-xl border border-ok/30 bg-ok/10 px-4 py-3 text-sm text-ink-muted">
+          Soluzione in knowledge base:{" "}
+          <Link href="/manuale" className="font-mono font-medium text-brand hover:underline">
+            {ticket.knowledgeEntryId}
+          </Link>
+          . La chat proporrà questa soluzione per problemi simili.
+        </div>
+      )}
+
+      <div className="rounded-xl border border-border bg-base/60 p-4">
+        <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
+          Soluzione tecnico
+        </p>
+        <textarea
+          value={solution}
+          onChange={(e) => setSolution(e.target.value)}
+          rows={4}
+          disabled={isClosed && !!ticket.knowledgeEntryId}
+          className="w-full resize-none rounded-lg border border-border bg-base px-3 py-2 text-sm text-ink outline-none focus:border-brand focus:ring-2 focus:ring-brand/20 disabled:opacity-60"
+          placeholder="Descrivi la soluzione applicata: diagnosi, ricambi sostituiti, procedure…"
+        />
+        {!isClosed && (
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => void closeAndLearn()}
+              disabled={learning || !solution.trim()}
+              className="inline-flex items-center gap-2 rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-brand/20 hover:bg-brand-strong disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {learning ? (
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+              ) : (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                  <path
+                    d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              )}
+              Chiudi e insegna al sistema
+            </button>
+            <button
+              onClick={() =>
+                onUpdate(ticket.id, {
+                  solution: solution.trim() || undefined,
+                })
+              }
+              className="rounded-lg border border-border bg-surface px-3 py-2 text-xs font-medium text-ink-muted hover:text-ink"
+            >
+              Salva bozza soluzione
+            </button>
+          </div>
+        )}
+        {learnMsg && <p className="mt-2 text-xs text-brand">{learnMsg}</p>}
+        <p className="mt-2 text-[11px] text-ink-faint">
+          Alla chiusura l&apos;AI estrae una scheda strutturata e la aggiunge al{" "}
+          <Link href="/manuale" className="text-brand hover:underline">
+            Manuale
+          </Link>
+          .
+        </p>
+      </div>
 
       <div className="rounded-xl border border-border bg-base/60 p-4">
         <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
