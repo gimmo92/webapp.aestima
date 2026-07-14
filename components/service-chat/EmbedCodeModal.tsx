@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   buildEmbedSnippet,
   EMBED_MODE_LABELS,
@@ -14,11 +15,28 @@ interface Props {
 
 export function EmbedCodeModal({ mode, onClose }: Props) {
   const [copied, setCopied] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const baseUrl = useMemo(() => {
     if (typeof window === "undefined") return "https://your-domain.vercel.app";
     return window.location.origin;
   }, []);
   const snippet = buildEmbedSnippet(baseUrl, mode);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
+  useEffect(() => {
+    setMounted(true);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onCloseRef.current();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      document.removeEventListener("keydown", onKey);
+    };
+  }, []);
 
   const copySnippet = async () => {
     try {
@@ -30,10 +48,15 @@ export function EmbedCodeModal({ mode, onClose }: Props) {
     }
   };
 
-  return (
+  if (!mounted) return null;
+
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
       onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="embed-code-modal-title"
     >
       <div
         className="flex max-h-[90vh] w-full max-w-2xl flex-col rounded-2xl border border-border bg-surface shadow-2xl shadow-black/40"
@@ -41,7 +64,7 @@ export function EmbedCodeModal({ mode, onClose }: Props) {
       >
         <div className="flex items-center justify-between border-b border-border px-5 py-4">
           <div>
-            <h2 className="text-lg font-bold text-ink">
+            <h2 id="embed-code-modal-title" className="text-lg font-bold text-ink">
               Codice embed — {EMBED_MODE_LABELS[mode]}
             </h2>
             <p className="mt-0.5 text-xs text-ink-faint">
@@ -111,6 +134,7 @@ export function EmbedCodeModal({ mode, onClose }: Props) {
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
