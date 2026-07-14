@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import type { ServiceTicket } from "@/lib/serviceChatTypes";
 
 /** Banner visibile quando l'agente apre un ticket per escalation umana. */
@@ -30,7 +31,13 @@ export function TicketBanner({ ticket }: { ticket: ServiceTicket }) {
           </p>
           <p className="mt-1 text-sm text-ink-muted">{ticket.summary}</p>
           <p className="mt-2 text-xs text-ink-faint">
-            Tempo medio di risposta: entro 4 ore lavorative
+            Tempo medio di risposta: entro 4 ore lavorative ·{" "}
+            <Link
+              href="/ticket"
+              className="font-medium text-brand hover:underline"
+            >
+              Vedi in Ticket →
+            </Link>
           </p>
         </div>
       </div>

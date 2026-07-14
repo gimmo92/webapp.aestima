@@ -33,6 +33,15 @@ import type {
   TechnicianAssignmentStatus,
   TechnicianInput,
 } from "@/lib/technicianTypes";
+import {
+  MOCK_TICKETS,
+  newTicketId,
+} from "@/lib/ticketData";
+import type {
+  CreateTicketInput,
+  ServiceTicketRecord,
+  UpdateTicketInput,
+} from "@/lib/ticketTypes";
 
 // =============================================================
 // Stato condiviso della dashboard (inbox, pipeline, fornitori).
@@ -94,6 +103,10 @@ interface InboxContextValue {
     partRequestId: string
   ) => TechnicianAssignment | undefined;
   interventionReports: InterventionReport[];
+  tickets: ServiceTicketRecord[];
+  createTicket: (input: CreateTicketInput) => string;
+  updateTicket: (id: string, input: UpdateTicketInput) => void;
+  getTicketById: (id: string) => ServiceTicketRecord | undefined;
 }
 
 const InboxContext = createContext<InboxContextValue | null>(null);
@@ -125,6 +138,7 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
   const [interventionReports] = useState<InterventionReport[]>(
     MOCK_INTERVENTION_REPORTS
   );
+  const [tickets, setTickets] = useState<ServiceTicketRecord[]>(MOCK_TICKETS);
 
   const changeStatus = (id: string, status: RequestStatus) => {
     setRequests((prev) => prev.map((r) => (r.id === id ? { ...r, status } : r)));
@@ -256,6 +270,62 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
     [technicianAssignments]
   );
 
+  const createTicket = useCallback((input: CreateTicketInput): string => {
+    const { sentLabel, sentFull } = nowLabels();
+    const id = input.id?.trim() || newTicketId();
+    setTickets((prev) => {
+      if (prev.some((t) => t.id === id)) return prev;
+      const row: ServiceTicketRecord = {
+        id,
+        status: "aperto",
+        priority: input.priority ?? "normale",
+        source: input.source,
+        category: input.category ?? "altro",
+        summary: input.summary.trim(),
+        description: (input.description ?? input.summary).trim(),
+        machineModel: input.machineModel,
+        machineSerial: input.machineSerial,
+        createdLabel: sentLabel,
+        createdFull: sentFull,
+        updatedFull: sentFull,
+      };
+      return [row, ...prev];
+    });
+    return id;
+  }, []);
+
+  const updateTicket = useCallback((id: string, input: UpdateTicketInput) => {
+    const { sentFull } = nowLabels();
+    setTickets((prev) =>
+      prev.map((t) => {
+        if (t.id !== id) return t;
+        const next: ServiceTicketRecord = {
+          ...t,
+          updatedFull: sentFull,
+        };
+        if (input.status !== undefined) next.status = input.status;
+        if (input.priority !== undefined) next.priority = input.priority;
+        if (input.internalNotes !== undefined)
+          next.internalNotes = input.internalNotes;
+        if (input.description !== undefined)
+          next.description = input.description;
+        if (input.assignedTechnicianId !== undefined) {
+          next.assignedTechnicianId =
+            input.assignedTechnicianId ?? undefined;
+          if (input.assignedTechnicianId && next.status === "aperto") {
+            next.status = "assegnato";
+          }
+        }
+        return next;
+      })
+    );
+  }, []);
+
+  const getTicketById = useCallback(
+    (id: string) => tickets.find((t) => t.id === id),
+    [tickets]
+  );
+
   return (
     <InboxContext.Provider
       value={{
@@ -280,6 +350,10 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
         updateTechnicianAssignmentStatus,
         getTechnicianAssignmentForRequest,
         interventionReports,
+        tickets,
+        createTicket,
+        updateTicket,
+        getTicketById,
       }}
     >
       {children}

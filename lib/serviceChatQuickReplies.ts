@@ -1,4 +1,5 @@
 import { SERVICE_MACHINES } from "./serviceChatData";
+import type { CreateTicketInput } from "./ticketTypes";
 import type { QuickReplyOption } from "./serviceChatTypes";
 
 // =============================================================
@@ -145,4 +146,41 @@ export function inferQuickReplies(
   }
 
   return undefined;
+}
+
+/** Estrae macchina e categoria dalla cronologia chat per registrare il ticket. */
+export function inferTicketContextFromChat(
+  messages: { role: string; content: string }[]
+): Pick<
+  CreateTicketInput,
+  "machineModel" | "machineSerial" | "category" | "description"
+> {
+  const userLines = messages
+    .filter((m) => m.role === "user")
+    .map((m) => m.content);
+  const haystack = userLines.join(" ").toLowerCase();
+
+  const machine = SERVICE_MACHINES.find(
+    (m) =>
+      haystack.includes(m.serial.toLowerCase()) ||
+      haystack.includes(m.model.toLowerCase())
+  );
+
+  let category: CreateTicketInput["category"] = "altro";
+  if (/malfunzion|problema|guasto|errore|sintom/.test(haystack)) {
+    category = "troubleshooting";
+  } else if (/ricamb|pezzo|codice|componente/.test(haystack)) {
+    category = "ricambio";
+  }
+
+  const description = userLines.length
+    ? `Cronologia chat:\n${userLines.map((l) => `• ${l}`).join("\n")}`
+    : "";
+
+  return {
+    machineModel: machine?.model,
+    machineSerial: machine?.serial,
+    category,
+    description,
+  };
 }

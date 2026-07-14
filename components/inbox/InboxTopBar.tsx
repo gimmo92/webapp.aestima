@@ -14,6 +14,7 @@ const NAV = [
   { href: "/fornitori", label: "Fornitori" },
   { href: "/tecnici", label: "Tecnici" },
   { href: "/assistenza", label: "Assistenza AI" },
+  { href: "/ticket", label: "Ticket" },
   { href: "/crea", label: "Crea offerta" },
 ] as const;
 

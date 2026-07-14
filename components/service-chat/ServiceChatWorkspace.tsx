@@ -1,11 +1,22 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { ChatAttachmentList } from "./ChatAttachmentList";
 import { QuickReplyBubbles } from "./QuickReplyBubbles";
 import { SparePartCardList } from "./SparePartCard";
 import { TicketBanner } from "./TicketBanner";
+import { useInbox } from "@/components/inbox/InboxProvider";
+import {
+  CHAT_ATTACHMENT_ACCEPT,
+  fileToChatAttachment,
+  MAX_ATTACHMENTS_PER_MESSAGE,
+  revokeAttachmentUrls,
+  toAttachmentPayload,
+  type ChatAttachment,
+} from "@/lib/serviceChatAttachments";
 import {
   inferQuickReplies,
+  inferTicketContextFromChat,
   WELCOME_QUICK_REPLIES,
 } from "@/lib/serviceChatQuickReplies";
 import type { DisplayMessage } from "@/lib/serviceChatTypes";
@@ -13,14 +24,14 @@ import type { DisplayMessage } from "@/lib/serviceChatTypes";
 // =============================================================
 // Chat assistenza service — UI principale
 // Stato conversazione in React state (no localStorage).
-// Quick-reply bubbles guidate + input libero in parallelo.
+// Quick-reply bubbles + allegati foto/documenti.
 // =============================================================
 
 const WELCOME: DisplayMessage = {
   id: "welcome",
   role: "assistant",
   content:
-    "Buongiorno, sono l'assistente service di aestima. Posso aiutarti a identificare ricambi nella distinta della tua macchina o a trovare soluzioni a malfunzionamenti già risolti in passato.\n\nScegli un'opzione qui sotto oppure scrivi liberamente nel campo in basso.",
+    "Buongiorno, sono l'assistente service di aestima. Posso aiutarti a identificare ricambi nella distinta della tua macchina o a trovare soluzioni a malfunzionamenti già risoliti in passato.\n\nScegli un'opzione qui sotto, allega foto o documenti, oppure scrivi liberamente.",
   quickReplies: WELCOME_QUICK_REPLIES,
 };
 
@@ -30,48 +41,116 @@ function nextId() {
   return `msg-${Date.now()}-${msgCounter}`;
 }
 
-/** Rimuove le bubble da tutti i messaggi (step concluso). */
 function stripQuickReplies(msgs: DisplayMessage[]): DisplayMessage[] {
   return msgs.map((m) =>
     m.quickReplies ? { ...m, quickReplies: undefined } : m
   );
 }
 
+function collectAttachmentUrls(msgs: DisplayMessage[]): ChatAttachment[] {
+  const all: ChatAttachment[] = [];
+  for (const m of msgs) {
+    if (m.attachments) all.push(...m.attachments);
+  }
+  return all;
+}
+
 export function ServiceChatWorkspace() {
+  const { createTicket } = useInbox();
   const [messages, setMessages] = useState<DisplayMessage[]>([WELCOME]);
   const [input, setInput] = useState("");
+  const [pendingAttachments, setPendingAttachments] = useState<ChatAttachment[]>(
+    []
+  );
+  const [attachError, setAttachError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
-  // Scroll automatico verso l'ultimo messaggio.
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
     el.scrollTop = el.scrollHeight;
-  }, [messages, loading]);
+  }, [messages, loading, pendingAttachments]);
 
-  const submitText = useCallback(
-    async (text: string) => {
+  useEffect(() => {
+    return () => {
+      revokeAttachmentUrls(collectAttachmentUrls(messages));
+      revokeAttachmentUrls(pendingAttachments);
+    };
+    // Cleanup solo allo smontaggio — i revoke su reset sono espliciti.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const removePendingAttachment = useCallback((id: string) => {
+    setPendingAttachments((prev) => {
+      const target = prev.find((a) => a.id === id);
+      if (target?.previewUrl) URL.revokeObjectURL(target.previewUrl);
+      return prev.filter((a) => a.id !== id);
+    });
+  }, []);
+
+  const handleFiles = useCallback(
+    async (files: FileList | File[]) => {
+      setAttachError(null);
+      const list = Array.from(files);
+      if (list.length === 0) return;
+
+      const slotsLeft = MAX_ATTACHMENTS_PER_MESSAGE - pendingAttachments.length;
+      if (slotsLeft <= 0) {
+        setAttachError(`Massimo ${MAX_ATTACHMENTS_PER_MESSAGE} allegati per messaggio.`);
+        return;
+      }
+
+      const toAdd = list.slice(0, slotsLeft);
+      try {
+        const converted: ChatAttachment[] = [];
+        for (const file of toAdd) {
+          converted.push(await fileToChatAttachment(file));
+        }
+        setPendingAttachments((prev) => [...prev, ...converted]);
+      } catch (err) {
+        setAttachError(
+          err instanceof Error ? err.message : "Impossibile allegare il file."
+        );
+      } finally {
+        if (fileRef.current) fileRef.current.value = "";
+      }
+    },
+    [pendingAttachments.length]
+  );
+
+  const submitMessage = useCallback(
+    async (text: string, attachments: ChatAttachment[] = []) => {
       const trimmed = text.trim();
-      if (!trimmed || loading) return;
+      if ((!trimmed && attachments.length === 0) || loading) return;
+
+      const content =
+        trimmed ||
+        (attachments.length === 1
+          ? `Allegato: ${attachments[0].name}`
+          : `Allegati inviati (${attachments.length} file)`);
 
       const userMsg: DisplayMessage = {
         id: nextId(),
         role: "user",
-        content: trimmed,
+        content,
+        attachments,
       };
 
-      // Bubble dello step corrente spariscono appena l'utente risponde.
       const cleared = stripQuickReplies(messages);
       const history = [...cleared, userMsg];
       setMessages(history);
       setInput("");
+      setPendingAttachments([]);
+      setAttachError(null);
       setLoading(true);
 
       const apiMessages = history.map((m) => ({
         role: m.role,
         content: m.content,
+        attachments: m.attachments?.map(toAttachmentPayload),
       }));
 
       try {
@@ -112,6 +191,19 @@ export function ServiceChatWorkspace() {
           quickReplies,
         };
         setMessages((prev) => [...prev, assistantMsg]);
+
+        if (data.ticket) {
+          const ctx = inferTicketContextFromChat(apiMessages);
+          createTicket({
+            id: data.ticket.id,
+            summary: data.ticket.summary,
+            description: ctx.description || data.ticket.summary,
+            source: "chat_ai",
+            category: ctx.category,
+            machineModel: ctx.machineModel,
+            machineSerial: ctx.machineSerial,
+          });
+        }
       } catch {
         const errMsg: DisplayMessage = {
           id: nextId(),
@@ -126,11 +218,18 @@ export function ServiceChatWorkspace() {
         inputRef.current?.focus();
       }
     },
-    [loading, messages]
+    [loading, messages, createTicket]
+  );
+
+  const submitText = useCallback(
+    (text: string) => {
+      void submitMessage(text, [...pendingAttachments]);
+    },
+    [submitMessage, pendingAttachments]
   );
 
   const sendMessage = useCallback(() => {
-    void submitText(input);
+    submitText(input);
   }, [input, submitText]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -141,12 +240,18 @@ export function ServiceChatWorkspace() {
   };
 
   const resetChat = () => {
+    revokeAttachmentUrls(collectAttachmentUrls(messages));
+    revokeAttachmentUrls(pendingAttachments);
     setMessages([WELCOME]);
     setInput("");
+    setPendingAttachments([]);
+    setAttachError(null);
     inputRef.current?.focus();
   };
 
-  // Bubble attive solo sull'ultimo messaggio agente, se non stiamo caricando.
+  const canSend =
+    !loading && (input.trim().length > 0 || pendingAttachments.length > 0);
+
   const lastAssistantIdx = (() => {
     for (let i = messages.length - 1; i >= 0; i--) {
       if (messages[i].role === "assistant") return i;
@@ -160,7 +265,6 @@ export function ServiceChatWorkspace() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      {/* Header sezione */}
       <div className="border-b border-border bg-surface/70 px-6 py-5 backdrop-blur-md">
         <div className="mx-auto flex max-w-4xl items-start justify-between gap-4">
           <div>
@@ -187,7 +291,7 @@ export function ServiceChatWorkspace() {
               </h1>
             </div>
             <p className="text-sm text-ink-muted">
-              Ricambi, troubleshooting e apertura ticket — guidato da Claude
+              Ricambi, troubleshooting, allegati e ticket — guidato da Claude
             </p>
           </div>
           <button
@@ -215,7 +319,6 @@ export function ServiceChatWorkspace() {
         </div>
       </div>
 
-      {/* Area messaggi */}
       <div
         ref={scrollRef}
         className="min-h-0 flex-1 overflow-y-auto bg-grid px-4 py-6 sm:px-6"
@@ -236,10 +339,55 @@ export function ServiceChatWorkspace() {
         </div>
       </div>
 
-      {/* Input + footer disclaimer */}
       <div className="border-t border-border bg-surface/90 px-4 py-4 backdrop-blur-md sm:px-6">
         <div className="mx-auto max-w-4xl">
-          <div className="flex gap-3">
+          <input
+            ref={fileRef}
+            type="file"
+            accept={CHAT_ATTACHMENT_ACCEPT}
+            multiple
+            className="hidden"
+            onChange={(e) => {
+              const files = e.target.files;
+              if (files) void handleFiles(files);
+            }}
+          />
+
+          {pendingAttachments.length > 0 && (
+            <div className="mb-3 rounded-xl border border-border bg-base/60 p-3">
+              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
+                Allegati pronti per l&apos;invio
+              </p>
+              <ChatAttachmentList
+                attachments={pendingAttachments}
+                onRemove={removePendingAttachment}
+                variant="pending"
+              />
+            </div>
+          )}
+
+          {attachError && (
+            <p className="mb-2 text-xs text-danger">{attachError}</p>
+          )}
+
+          <div className="flex gap-2 sm:gap-3">
+            <button
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              disabled={loading || pendingAttachments.length >= MAX_ATTACHMENTS_PER_MESSAGE}
+              className="inline-flex h-[52px] w-[52px] shrink-0 items-center justify-center self-end rounded-xl border border-border bg-base text-ink-muted transition-colors hover:border-brand/50 hover:text-brand disabled:cursor-not-allowed disabled:opacity-40"
+              title="Allega foto o documento"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="m21.44 11.05-8.49 8.49a5 5 0 0 1-7.07-7.07l9.19-9.19a3 3 0 1 1 4.24 4.24l-9.19 9.19a1.5 1.5 0 0 1-2.12-2.12l8.49-8.48"
+                  stroke="currentColor"
+                  strokeWidth="1.7"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
             <textarea
               ref={inputRef}
               value={input}
@@ -247,12 +395,12 @@ export function ServiceChatWorkspace() {
               onKeyDown={handleKeyDown}
               disabled={loading}
               rows={2}
-              placeholder="Descrivi la macchina e il problema, oppure chiedi un ricambio…"
+              placeholder="Descrivi il problema o allega una foto della macchina / del componente…"
               className="min-h-[52px] flex-1 resize-none rounded-xl border border-border bg-base px-4 py-3 text-[15px] leading-relaxed text-ink outline-none transition-colors placeholder:text-ink-faint focus:border-brand focus:ring-2 focus:ring-brand/20 disabled:opacity-60"
             />
             <button
               onClick={sendMessage}
-              disabled={loading || !input.trim()}
+              disabled={!canSend}
               className="inline-flex shrink-0 items-center justify-center gap-2 self-end rounded-xl bg-brand px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-brand/20 transition-all hover:bg-brand-strong disabled:cursor-not-allowed disabled:opacity-40"
             >
               {loading ? (
@@ -277,8 +425,8 @@ export function ServiceChatWorkspace() {
             </button>
           </div>
           <p className="mt-3 text-center text-xs text-ink-faint">
-            Le risposte dell&apos;agente AI vanno validate da un tecnico
-            qualificato prima di procedere con ordini o interventi.
+            Foto (JPG, PNG) analizzate dall&apos;AI · Documenti PDF/Office
+            inoltrati al tecnico · Max {MAX_ATTACHMENTS_PER_MESSAGE} allegati
           </p>
         </div>
       </div>
@@ -321,9 +469,17 @@ function MessageBubble({
             Assistente aestima
           </p>
         )}
-        <p className="whitespace-pre-wrap text-[15px] leading-relaxed">
-          {message.content}
-        </p>
+        {message.content && (
+          <p className="whitespace-pre-wrap text-[15px] leading-relaxed">
+            {message.content}
+          </p>
+        )}
+        {message.attachments && message.attachments.length > 0 && (
+          <ChatAttachmentList
+            attachments={message.attachments}
+            isUserMessage={isUser}
+          />
+        )}
         {!isUser && message.spareParts && message.spareParts.length > 0 && (
           <SparePartCardList parts={message.spareParts} />
         )}

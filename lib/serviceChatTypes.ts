@@ -1,11 +1,18 @@
 // Tipi condivisi tra API e UI della chat di assistenza service.
 
+import type { ChatTicketPreview } from "./ticketTypes";
+import type { ChatAttachment } from "./serviceChatAttachments";
+import type { ChatAttachmentPayload } from "./serviceChatAttachments";
+
+export type { ChatAttachment, ChatAttachmentPayload };
+
 export type ChatRole = "user" | "assistant";
 
 /** Messaggio nella cronologia conversazione (stateless lato API). */
 export interface ChatMessage {
   role: ChatRole;
   content: string;
+  attachments?: ChatAttachmentPayload[];
 }
 
 /** Ricambio proposto dall'agente (solo se trovato in distinta). */
@@ -18,10 +25,7 @@ export interface SparePartProposal {
 }
 
 /** Ticket aperto quando l'agente non trova la risposta nei dati. */
-export interface ServiceTicket {
-  id: string;
-  summary: string;
-}
+export type ServiceTicket = ChatTicketPreview;
 
 /** Opzione quick-reply: label in UI, value inviato come messaggio utente. */
 export interface QuickReplyOption {
@@ -46,5 +50,6 @@ export interface DisplayMessage {
   spareParts?: SparePartProposal[];
   ticket?: ServiceTicket;
   quickReplies?: QuickReplyOption[];
+  attachments?: ChatAttachment[];
   isError?: boolean;
 }

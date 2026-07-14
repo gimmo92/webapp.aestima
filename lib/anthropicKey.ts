@@ -55,9 +55,26 @@ function formatError(err: unknown): string {
   return "Errore sconosciuto verso Anthropic.";
 }
 
+export type AnthropicImageMediaType =
+  | "image/jpeg"
+  | "image/png"
+  | "image/gif"
+  | "image/webp";
+
+export type AnthropicContentBlock =
+  | { type: "text"; text: string }
+  | {
+      type: "image";
+      source: {
+        type: "base64";
+        media_type: AnthropicImageMediaType;
+        data: string;
+      };
+    };
+
 export type AnthropicChatTurn = {
   role: "user" | "assistant";
-  content: string;
+  content: string | AnthropicContentBlock[];
 };
 
 /** Chiamata multi-turno all'API Messages (cronologia completa, stateless). */
