@@ -119,14 +119,51 @@ export function isTroubleshootingQuery(text: string): boolean {
   return SYMPTOM_HINTS.some((h) => q.includes(h));
 }
 
+/** Utente chiede esplicitamente apertura ticket o conferma escalation. */
+export function isTicketEscalationIntent(
+  messages: { role: string; content: string }[],
+  lastUserText: string
+): boolean {
+  const trimmed = lastUserText.trim();
+  const lower = trimmed.toLowerCase();
+
+  if (
+    /apri(re)?\s+(un\s+)?ticket/.test(lower) ||
+    /crea(re)?\s+(un\s+)?ticket/.test(lower) ||
+    /voglio\s+(aprire\s+)?(un\s+)?ticket/.test(lower) ||
+    /procedi\s+con\s+(l')?apertura\s+(del\s+)?ticket/.test(lower) ||
+    (/ticket/.test(lower) &&
+      /^(sì|si|ok|certo|procedi|vai|apri)\b/.test(lower))
+  ) {
+    return true;
+  }
+
+  const lastAssistant = [...messages]
+    .reverse()
+    .find((m) => m.role === "assistant");
+  if (!lastAssistant) return false;
+
+  const offeredTicket =
+    /apertura del ticket|aprire un ticket|proceda con.*ticket|vuoi che proceda/i.test(
+      lastAssistant.content
+    );
+  if (!offeredTicket) return false;
+
+  return (
+    /^(sì|si|ok|certo|procedi|vai|apri)\.?$/i.test(trimmed) ||
+    /sì.*ticket|apri.*ticket/i.test(lower)
+  );
+}
+
 /**
  * KB ricercabile solo dopo: macchina identificata + guasto descritto
- * nell'ultimo messaggio utente.
+ * nell'ultimo messaggio utente. Mai se l'utente chiede un ticket.
  */
 export function isReadyForKbSearch(
   messages: { role: string; content: string }[],
   lastUserText: string
 ): boolean {
+  if (isTicketEscalationIntent(messages, lastUserText)) return false;
   if (!machineIdentifiedInHistory(messages)) return false;
   if (isMachineIdentificationOnly(lastUserText)) return false;
   return isSymptomDescription(lastUserText);
@@ -208,4 +245,12 @@ Proponi quickReplies con sintomi tipici. NON cercare nella KB. NON proporre solu
       `- ${e.id}: ${e.symptom.slice(0, 120)}… (frequenza ${e.frequency}×)`
   );
   return `## RICERCA AUTOMATICA KB\nCorrispondenze probabili per il guasto descritto:\n${lines.join("\n")}\nUsa la voce pertinente, imposta kbMatch e cita la scheda nel Manuale.`;
+}
+
+export function formatTicketEscalationBlock(): string {
+  return `## RICHIESTA APERTURA TICKET
+L'utente chiede esplicitamente di aprire un ticket (o ha confermato l'escalation).
+NON cercare nella knowledge base. NON scrivere "verifico nella knowledge base" o frasi simili.
+Conferma l'apertura del ticket in modo breve e professionale.
+Imposta "ticket" con summary descrittivo del problema. kbMatch deve essere null.`;
 }

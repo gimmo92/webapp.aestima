@@ -10,7 +10,9 @@ import { formatKnowledgeForPrompt } from "@/lib/knowledgeData";
 import {
   findKbCandidates,
   formatKbCandidatesForPrompt,
+  formatTicketEscalationBlock,
   isReadyForKbSearch,
+  isTicketEscalationIntent,
 } from "@/lib/knowledgeSearch";
 import { buildMachinesContext } from "@/lib/serviceChatData";
 import { documentAttachmentNote } from "@/lib/serviceChatAttachments";
@@ -62,6 +64,10 @@ Parli in italiano, tono professionale e chiaro, come un tecnico esperto ma acces
 - SOLO ORA avvia la ricerca KB. La risposta DEVE iniziare con: "Un attimo, verifico nella knowledge base se questo problema è già stato risolto in passato…"
 - Se trovi corrispondenza: spiega causa + soluzione + ricambi. Cita scheda [ID] nel Manuale. Imposta kbMatch.
 - Se NON trovi: dopo la frase iniziale, dichiara che la KB non contiene il caso e proponi ticket.
+
+**Fase D** — Utente chiede di aprire ticket (es. "Apri ticket", "Sì, procedi", dopo tua proposta di escalation):
+- NON cercare nella KB. NON dire "verifico nella knowledge base".
+- Conferma l'apertura e imposta "ticket" nel JSON. kbMatch=null.
 
 ## REGOLA PRIORITARIA — KNOWLEDGE BASE
 - La KB è la prima fonte per i malfunzionamenti: cerca SEMPRE prima di escalare.
@@ -194,6 +200,16 @@ function ensureKbSearchIntro(message: string): string {
     return message;
   }
   return `${KB_SEARCH_INTRO}\n\n${message}`;
+}
+
+function stripKbSearchIntro(message: string): string {
+  return message
+    .replace(
+      /^un attimo,?\s*verifico nella knowledge base[^\n]*\n*/i,
+      ""
+    )
+    .replace(/^attendi,?\s*cerco nella knowledge base[^\n]*\n*/i, "")
+    .trim();
 }
 
 function coerceAttachments(raw: unknown): ChatAttachmentPayload[] | undefined {
@@ -341,14 +357,20 @@ export async function POST(req: Request) {
     .slice(-6)
     .map((m) => m.content)
     .join(" ");
-  const readyForKb = lastUser
-    ? isReadyForKbSearch(messages, lastUser.content)
+  const ticketEscalation = lastUser
+    ? isTicketEscalationIntent(messages, lastUser.content)
     : false;
+  const readyForKb =
+    lastUser && !ticketEscalation
+      ? isReadyForKbSearch(messages, lastUser.content)
+      : false;
   const candidates =
     readyForKb && lastUser
       ? findKbCandidates(knowledgeBase, lastUser.content, recentContext)
       : [];
-  const kbSearchBlock = formatKbCandidatesForPrompt(candidates, readyForKb);
+  const kbSearchBlock = ticketEscalation
+    ? formatTicketEscalationBlock()
+    : formatKbCandidatesForPrompt(candidates, readyForKb);
   const troubleshootingTurn = readyForKb;
 
   const systemPrompt = buildSystemPrompt(knowledgeBase, kbSearchBlock);
@@ -383,7 +405,7 @@ export async function POST(req: Request) {
     }
 
     let kbMatch = buildKbMatch(parsed.kbMatch, knowledgeBase);
-    if (!readyForKb) {
+    if (!readyForKb || ticketEscalation) {
       kbMatch = undefined;
     } else if (!kbMatch && candidates.length > 0 && !parsed.ticket) {
       const top = candidates[0];
@@ -393,11 +415,22 @@ export async function POST(req: Request) {
         frequency: top.frequency,
       };
     }
-    const ticket = kbMatch ? undefined : buildTicket(parsed.ticket);
+    let ticket = kbMatch ? undefined : buildTicket(parsed.ticket);
+    if (ticketEscalation && !ticket && lastUser) {
+      const summary = lastUser.content
+        .replace(/^(apri(re)?|crea(re)?)\s+(un\s+)?ticket\s*/i, "")
+        .trim();
+      ticket = buildTicket({
+        summary: summary || lastUser.content.slice(0, 120),
+      });
+    }
 
     let message = parsed.message.trim();
     if (troubleshootingTurn) {
       message = ensureKbSearchIntro(message);
+    }
+    if (ticketEscalation) {
+      message = stripKbSearchIntro(message);
     }
 
     const response: ServiceChatResponse = {
