@@ -7,6 +7,11 @@ import {
   type AnthropicImageMediaType,
 } from "@/lib/anthropicKey";
 import { formatKnowledgeForPrompt } from "@/lib/knowledgeData";
+import {
+  findKbCandidates,
+  formatKbCandidatesForPrompt,
+  isTroubleshootingQuery,
+} from "@/lib/knowledgeSearch";
 import { buildMachinesContext } from "@/lib/serviceChatData";
 import { documentAttachmentNote } from "@/lib/serviceChatAttachments";
 import { normalizeApiQuickReplies } from "@/lib/serviceChatQuickReplies";
@@ -30,7 +35,10 @@ export const dynamic = "force-dynamic";
 
 const MACHINES_CONTEXT = buildMachinesContext();
 
-function buildSystemPrompt(knowledgeBase: KnowledgeEntry[]): string {
+function buildSystemPrompt(
+  knowledgeBase: KnowledgeEntry[],
+  kbSearchBlock: string
+): string {
   const kbContext = formatKnowledgeForPrompt(knowledgeBase);
   return `Sei l'agente di assistenza service after-sales di "aestima".
 Parli in italiano, tono professionale e chiaro, come un tecnico esperto ma accessibile.
@@ -39,13 +47,20 @@ Parli in italiano, tono professionale e chiaro, come un tecnico esperto ma acces
 1. **Identifica la macchina**: chiedi modello o matricola se mancano.
 2. **Capisci il bisogno**: distingui RICAMBIO vs MALFUNZIONAMENTO.
 3. **Ramo ricambi**: cerca il pezzo SOLO nella distinta della macchina identificata.
-4. **Ramo troubleshooting**: interroga sui sintomi, poi cerca nella BASE DI CONOSCENZA casi simili già risolti.
+4. **Ramo troubleshooting** (quando l'utente descrive un problema/malfunzionamento):
+   a) La risposta DEVE iniziare con: "Un attimo, verifico nella knowledge base se questo problema è già stato risolto in passato…"
+   b) Poi, come se stessi consultando la KB, presenta il risultato della ricerca.
+   c) Se trovi corrispondenza: spiega passo-passo come risolvere (causa + soluzione + ricambi se presenti).
+   d) Cita esplicitamente la referenza: "Scheda [ID] nel Manuale troubleshooting" (es. KB-104).
+   e) Imposta "kbMatch" con entryId e sintomo. NON aprire ticket.
+   f) Se NON trovi corrispondenza: dopo la frase iniziale, dichiara che la KB non contiene questo caso e proponi ticket.
 
 ## REGOLA PRIORITARIA — KNOWLEDGE BASE
-- Se trovi un caso simile nella KB (stesso sintomo/macchina/problema): **proponi la soluzione trovata** adattando il linguaggio.
-- **NON aprire un ticket** se la KB contiene già una soluzione applicabile.
-- Imposta "kbMatch" con l'id della voce KB usata (es. "KB-101") e un breve sintomo.
-- Menziona esplicitamente che la soluzione proviene da un intervento precedente già risolto (il sistema ha imparato).
+- La KB è la prima fonte per i malfunzionamenti: cerca SEMPRE prima di escalare.
+- Se trovi un caso simile (stesso sintomo/macchina): proponi la soluzione appresa da interventi precedenti.
+- **NON aprire un ticket** se la KB ha già una soluzione applicabile.
+- Imposta "kbMatch" con l'id esatto della voce (es. "KB-101") e un breve sintomo.
+- Nel "message" includi sempre la referenza alla scheda KB quando usi una voce.
 
 ## ALLEGATI
 - Analizza le FOTO per matricola, modello, codici o sintomi visibili.
@@ -77,7 +92,9 @@ Regole JSON:
 ## DATI DI CONTESTO (unica fonte di verità)
 ${MACHINES_CONTEXT}
 
-${kbContext}`;
+${kbContext}
+
+${kbSearchBlock}`;
 }
 
 interface ParsedAgentPayload {
@@ -154,6 +171,21 @@ function buildKbMatch(
     symptom: symptom || entry?.symptom || "Problema risolto in precedenza",
     frequency: entry?.frequency,
   };
+}
+
+const KB_SEARCH_INTRO =
+  "Un attimo, verifico nella knowledge base se questo problema è già stato risolto in passato…";
+
+function ensureKbSearchIntro(message: string): string {
+  const lower = message.toLowerCase();
+  if (
+    lower.includes("knowledge base") ||
+    lower.includes("verifico nella") ||
+    lower.includes("cerco nella")
+  ) {
+    return message;
+  }
+  return `${KB_SEARCH_INTRO}\n\n${message}`;
 }
 
 function coerceAttachments(raw: unknown): ChatAttachmentPayload[] | undefined {
@@ -296,7 +328,21 @@ export async function POST(req: Request) {
     );
   }
 
-  const systemPrompt = buildSystemPrompt(knowledgeBase);
+  const lastUser = [...messages].reverse().find((m) => m.role === "user");
+  const recentContext = messages
+    .slice(-6)
+    .map((m) => m.content)
+    .join(" ");
+  const candidates = lastUser
+    ? findKbCandidates(knowledgeBase, lastUser.content, recentContext)
+    : [];
+  const kbSearchBlock = formatKbCandidatesForPrompt(candidates);
+  const troubleshootingTurn =
+    !!lastUser &&
+    (isTroubleshootingQuery(lastUser.content) ||
+      isTroubleshootingQuery(recentContext));
+
+  const systemPrompt = buildSystemPrompt(knowledgeBase, kbSearchBlock);
 
   try {
     const llm = await callAnthropicConversation({
@@ -327,14 +373,28 @@ export async function POST(req: Request) {
       );
     }
 
-    const kbMatch = buildKbMatch(parsed.kbMatch, knowledgeBase);
+    let kbMatch = buildKbMatch(parsed.kbMatch, knowledgeBase);
+    if (!kbMatch && candidates.length > 0 && troubleshootingTurn && !parsed.ticket) {
+      const top = candidates[0];
+      kbMatch = {
+        entryId: top.id,
+        symptom: top.symptom.slice(0, 100),
+        frequency: top.frequency,
+      };
+    }
     const ticket = kbMatch ? undefined : buildTicket(parsed.ticket);
 
+    let message = parsed.message.trim();
+    if (troubleshootingTurn) {
+      message = ensureKbSearchIntro(message);
+    }
+
     const response: ServiceChatResponse = {
-      message: parsed.message.trim(),
+      message,
       spareParts: normalizeSpareParts(parsed.spareParts),
       ticket,
       kbMatch,
+      kbSearching: troubleshootingTurn,
       quickReplies: normalizeApiQuickReplies(parsed.quickReplies),
       source: "anthropic",
     };

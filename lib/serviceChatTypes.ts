@@ -34,6 +34,13 @@ export interface KbMatchPreview {
   frequency?: number;
 }
 
+/** Feedback utente su soluzione proposta dalla KB. */
+export type KbFeedbackStatus =
+  | "pending"
+  | "updating"
+  | "helpful"
+  | "not_helpful";
+
 /** Opzione quick-reply: label in UI, value inviato come messaggio utente. */
 export interface QuickReplyOption {
   label: string;
@@ -46,6 +53,8 @@ export interface ServiceChatResponse {
   spareParts?: SparePartProposal[];
   ticket?: ServiceTicket;
   kbMatch?: KbMatchPreview;
+  /** true se il turno corrente include ricerca nella KB */
+  kbSearching?: boolean;
   quickReplies?: QuickReplyOption[];
   source: "anthropic" | "fallback";
 }
@@ -58,6 +67,8 @@ export interface DisplayMessage {
   spareParts?: SparePartProposal[];
   ticket?: ServiceTicket;
   kbMatch?: KbMatchPreview;
+  /** Stato feedback su soluzione KB */
+  kbFeedback?: KbFeedbackStatus;
   quickReplies?: QuickReplyOption[];
   attachments?: ChatAttachment[];
   isError?: boolean;

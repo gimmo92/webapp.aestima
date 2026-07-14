@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useInbox } from "@/components/inbox/InboxProvider";
 import {
   PROBLEM_CATEGORY_LABELS,
@@ -15,22 +16,57 @@ export function KnowledgeWorkspace() {
     findSimilarKnowledgeEntries,
   } = useInbox();
   const [query, setQuery] = useState("");
+  const [machineFilter, setMachineFilter] = useState<string>("all");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [consolidating, setConsolidating] = useState(false);
   const [consolidateMsg, setConsolidateMsg] = useState<string | null>(null);
+  const searchParams = useSearchParams();
+  const highlightEntry = searchParams.get("entry");
+  const highlightRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!highlightEntry) return;
+    const entry = knowledgeBase.find((e) => e.id === highlightEntry);
+    if (entry) setMachineFilter(entry.machineModel);
+    const t = window.setTimeout(() => {
+      highlightRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 150);
+    return () => window.clearTimeout(t);
+  }, [highlightEntry, knowledgeBase]);
+
+  const machines = useMemo(() => {
+    const set = new Set(knowledgeBase.map((e) => e.machineModel));
+    return [...set].sort();
+  }, [knowledgeBase]);
+
+  const machineCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const e of knowledgeBase) {
+      counts[e.machineModel] = (counts[e.machineModel] ?? 0) + 1;
+    }
+    return counts;
+  }, [knowledgeBase]);
 
   const recurring = useMemo(
     () =>
       [...knowledgeBase]
-        .filter((e) => e.frequency >= RECURRING_FREQUENCY_THRESHOLD)
+        .filter(
+          (e) =>
+            e.frequency >= RECURRING_FREQUENCY_THRESHOLD &&
+            (machineFilter === "all" || e.machineModel === machineFilter)
+        )
         .sort((a, b) => b.frequency - a.frequency),
-    [knowledgeBase]
+    [knowledgeBase, machineFilter]
   );
 
   const filtered = useMemo(() => {
+    let list = knowledgeBase;
+    if (machineFilter !== "all") {
+      list = list.filter((e) => e.machineModel === machineFilter);
+    }
     const q = query.trim().toLowerCase();
-    if (!q) return knowledgeBase;
-    return knowledgeBase.filter((e) => {
+    if (!q) return list;
+    return list.filter((e) => {
       const haystack = [
         e.machineModel,
         e.machineSerial ?? "",
@@ -44,7 +80,7 @@ export function KnowledgeWorkspace() {
         .toLowerCase();
       return haystack.includes(q);
     });
-  }, [knowledgeBase, query]);
+  }, [knowledgeBase, query, machineFilter]);
 
   const grouped = useMemo(() => {
     const byMachine = new Map<string, KnowledgeEntry[]>();
@@ -155,28 +191,53 @@ export function KnowledgeWorkspace() {
           )}
         </div>
 
-        <div className="relative mt-4 max-w-xl">
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-faint"
-          >
-            <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="1.8" />
-            <path
-              d="m20 20-3.5-3.5"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              strokeLinecap="round"
+        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-4">
+          <div className="relative min-w-0 flex-1 max-w-xl">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-faint"
+            >
+              <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="1.8" />
+              <path
+                d="m20 20-3.5-3.5"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+              />
+            </svg>
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Cerca sintomo, codice ricambio…"
+              className="w-full rounded-lg border border-border bg-base py-2.5 pl-9 pr-3 text-sm text-ink outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
             />
-          </svg>
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Cerca macchina, sintomo, codice ricambio…"
-            className="w-full rounded-lg border border-border bg-base py-2.5 pl-9 pr-3 text-sm text-ink outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
-          />
+          </div>
+
+          <div className="flex min-w-0 flex-1 flex-col gap-2">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
+              Macchina
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              <MachineFilterChip
+                active={machineFilter === "all"}
+                onClick={() => setMachineFilter("all")}
+                label="Tutte"
+                count={knowledgeBase.length}
+              />
+              {machines.map((m) => (
+                <MachineFilterChip
+                  key={m}
+                  active={machineFilter === m}
+                  onClick={() => setMachineFilter(m)}
+                  label={m}
+                  count={machineCounts[m] ?? 0}
+                />
+              ))}
+            </div>
+          </div>
         </div>
 
         {consolidateMsg && (
@@ -195,17 +256,22 @@ export function KnowledgeWorkspace() {
             </h2>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {recurring.map((e) => (
-                <KnowledgeEntryCard
+                <div
                   key={`rec-${e.id}`}
-                  entry={e}
-                  selected={selectedIds.has(e.id)}
-                  onToggleSelect={() => toggleSelect(e.id)}
-                  similarCount={
-                    findSimilarKnowledgeEntries(e.machineModel, e.symptom)
-                      .length
-                  }
-                  compact
-                />
+                  ref={e.id === highlightEntry ? highlightRef : undefined}
+                >
+                  <KnowledgeEntryCard
+                    entry={e}
+                    highlighted={e.id === highlightEntry}
+                    selected={selectedIds.has(e.id)}
+                    onToggleSelect={() => toggleSelect(e.id)}
+                    similarCount={
+                      findSimilarKnowledgeEntries(e.machineModel, e.symptom)
+                        .length
+                    }
+                    compact
+                  />
+                </div>
               ))}
             </div>
           </section>
@@ -228,16 +294,21 @@ export function KnowledgeWorkspace() {
                   </h3>
                   <div className="space-y-3">
                     {entries.map((e) => (
-                      <KnowledgeEntryCard
+                      <div
                         key={e.id}
-                        entry={e}
-                        selected={selectedIds.has(e.id)}
-                        onToggleSelect={() => toggleSelect(e.id)}
-                        similarCount={
-                          findSimilarKnowledgeEntries(e.machineModel, e.symptom)
-                            .length
-                        }
-                      />
+                        ref={e.id === highlightEntry ? highlightRef : undefined}
+                      >
+                        <KnowledgeEntryCard
+                          entry={e}
+                          highlighted={e.id === highlightEntry}
+                          selected={selectedIds.has(e.id)}
+                          onToggleSelect={() => toggleSelect(e.id)}
+                          similarCount={
+                            findSimilarKnowledgeEntries(e.machineModel, e.symptom)
+                              .length
+                          }
+                        />
+                      </div>
                     ))}
                   </div>
                 </div>
@@ -252,12 +323,14 @@ export function KnowledgeWorkspace() {
 
 function KnowledgeEntryCard({
   entry,
+  highlighted = false,
   selected,
   onToggleSelect,
   similarCount,
   compact = false,
 }: {
   entry: KnowledgeEntry;
+  highlighted?: boolean;
   selected: boolean;
   onToggleSelect: () => void;
   similarCount: number;
@@ -267,9 +340,14 @@ function KnowledgeEntryCard({
 
   return (
     <article
+      id={`kb-entry-${entry.id}`}
       className={[
         "rounded-xl border bg-base/60 transition-colors",
-        selected ? "border-brand bg-brand-soft/30" : "border-border",
+        highlighted
+          ? "border-brand ring-2 ring-brand/30"
+          : selected
+            ? "border-brand bg-brand-soft/30"
+            : "border-border",
         compact ? "p-3" : "p-4",
       ].join(" ")}
     >
@@ -368,6 +446,40 @@ function KnowledgeEntryCard({
         </div>
       </div>
     </article>
+  );
+}
+
+function MachineFilterChip({
+  active,
+  onClick,
+  label,
+  count,
+}: {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+  count: number;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={[
+        "inline-flex max-w-full items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors",
+        active
+          ? "border-brand/50 bg-brand-soft text-ink"
+          : "border-border bg-base text-ink-muted hover:border-border-strong hover:text-ink",
+      ].join(" ")}
+    >
+      <span className="truncate">{label}</span>
+      <span
+        className={[
+          "shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold",
+          active ? "bg-brand/20 text-brand" : "bg-surface-2 text-ink-faint",
+        ].join(" ")}
+      >
+        {count}
+      </span>
+    </button>
   );
 }
 

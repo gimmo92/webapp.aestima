@@ -2,6 +2,8 @@ import Link from "next/link";
 import type { KbMatchPreview } from "@/lib/serviceChatTypes";
 
 export function KbMatchBanner({ match }: { match: KbMatchPreview }) {
+  const href = `/manuale?entry=${encodeURIComponent(match.entryId)}`;
+
   return (
     <div className="mt-3 rounded-xl border border-ok/40 bg-ok/10 px-4 py-3">
       <div className="mb-1 flex items-center gap-2">
@@ -14,31 +16,39 @@ export function KbMatchBanner({ match }: { match: KbMatchPreview }) {
           aria-hidden="true"
         >
           <path
-            d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"
+            d="M9 12h6m-6 4h6m2 5H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.586a1 1 0 0 1 .707.293l5.414 5.414a1 1 0 0 1 .293.707V19a2 2 0 0 1-2 2Z"
             stroke="currentColor"
             strokeWidth="1.8"
-            strokeLinecap="round"
+            strokeLinejoin="round"
           />
         </svg>
         <p className="text-xs font-bold uppercase tracking-wider text-ok">
-          Soluzione dalla knowledge base
+          Referenza knowledge base
         </p>
       </div>
       <p className="text-sm leading-relaxed text-ink-muted">
         Problema già risolto in un intervento precedente
         {match.frequency && match.frequency > 1
-          ? ` (${match.frequency} volte)`
+          ? ` — riscontrato ${match.frequency} volte`
           : ""}
-        . Il sistema ha imparato da quella esperienza — nessun ticket necessario.
+        . Nessun ticket necessario.
       </p>
-      <p className="mt-1 text-xs text-ink-faint">
-        Voce{" "}
-        <Link href="/manuale" className="font-mono text-brand hover:underline">
-          {match.entryId}
-        </Link>
-        {" · "}
-        {match.symptom}
-      </p>
+      <Link
+        href={href}
+        className="mt-2 inline-flex items-center gap-1.5 text-sm font-semibold text-brand hover:underline"
+      >
+        Vedi scheda {match.entryId} nel Manuale
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+          <path
+            d="M5 12h14M13 6l6 6-6 6"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </Link>
+      <p className="mt-1 text-xs text-ink-faint">{match.symptom}</p>
     </div>
   );
 }

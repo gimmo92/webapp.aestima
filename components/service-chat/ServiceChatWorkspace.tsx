@@ -6,6 +6,8 @@ import { QuickReplyBubbles } from "./QuickReplyBubbles";
 import { SparePartCardList } from "./SparePartCard";
 import { TicketBanner } from "./TicketBanner";
 import { KbMatchBanner } from "./KbMatchBanner";
+import { KbSolutionFeedback } from "./KbSolutionFeedback";
+import { EmbedCodeButtons } from "./EmbedCodeButtons";
 import { useInbox } from "@/components/inbox/InboxProvider";
 import {
   CHAT_ATTACHMENT_ACCEPT,
@@ -21,6 +23,7 @@ import {
   WELCOME_QUICK_REPLIES,
 } from "@/lib/serviceChatQuickReplies";
 import type { DisplayMessage } from "@/lib/serviceChatTypes";
+import { isTroubleshootingQuery } from "@/lib/knowledgeSearch";
 
 // =============================================================
 // Chat assistenza service — UI principale
@@ -99,6 +102,7 @@ export function ServiceChatWorkspace({
   );
   const [attachError, setAttachError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [kbSearching, setKbSearching] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -108,6 +112,42 @@ export function ServiceChatWorkspace({
     : undefined;
   const operatorActive = storedConversation?.assignee === "operatore";
   const conversationResolved = storedConversation?.status === "risolto";
+
+  const updateMessage = useCallback(
+    (id: string, patch: Partial<DisplayMessage>) => {
+      setMessages((prev) =>
+        prev.map((m) => (m.id === id ? { ...m, ...patch } : m))
+      );
+    },
+    []
+  );
+
+  const handleKbFeedback = useCallback(
+    async (
+      messageId: string,
+      entryId: string,
+      symptom: string,
+      currentFrequency: number | undefined,
+      helpful: boolean
+    ) => {
+      if (helpful) {
+        updateMessage(messageId, { kbFeedback: "updating" });
+        await new Promise((r) => setTimeout(r, 900));
+        incrementKnowledgeFrequency(entryId);
+        updateMessage(messageId, {
+          kbFeedback: "helpful",
+          kbMatch: {
+            entryId,
+            symptom,
+            frequency: (currentFrequency ?? 0) + 1,
+          },
+        });
+      } else {
+        updateMessage(messageId, { kbFeedback: "not_helpful" });
+      }
+    },
+    [updateMessage, incrementKnowledgeFrequency]
+  );
 
   const ensureConversation = useCallback(() => {
     if (conversationId) return conversationId;
@@ -296,6 +336,10 @@ export function ServiceChatWorkspace({
         return;
       }
 
+      setKbSearching(
+        isTroubleshootingQuery(content) ||
+          isTroubleshootingQuery(history.map((m) => m.content).join(" "))
+      );
       setLoading(true);
 
       const apiMessages = history.map((m) => ({
@@ -340,13 +384,10 @@ export function ServiceChatWorkspace({
           spareParts: data.spareParts,
           ticket: data.ticket,
           kbMatch: data.kbMatch,
+          kbFeedback: data.kbMatch ? "pending" : undefined,
           quickReplies,
         };
         setMessages((prev) => [...prev, assistantMsg]);
-
-        if (data.kbMatch?.entryId) {
-          incrementKnowledgeFrequency(data.kbMatch.entryId);
-        }
 
         appendConversationMessage(convId, {
           role: "assistant",
@@ -378,10 +419,11 @@ export function ServiceChatWorkspace({
         setMessages((prev) => [...prev, errMsg]);
       } finally {
         setLoading(false);
+        setKbSearching(false);
         inputRef.current?.focus();
       }
     },
-    [loading, messages, createTicket, ensureConversation, appendConversationMessage, getConversationById, updateConversation, knowledgeBase, incrementKnowledgeFrequency]
+    [loading, messages, createTicket, ensureConversation, appendConversationMessage, getConversationById, updateConversation, knowledgeBase]
   );
 
   const submitText = useCallback(
@@ -484,28 +526,31 @@ export function ServiceChatWorkspace({
             )}
           </div>
           {!hideReset && (
-            <button
-              onClick={resetChat}
-              disabled={loading}
-              className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-border bg-surface px-3 py-2 text-xs font-medium text-ink-muted transition-colors hover:border-border-strong hover:text-ink disabled:opacity-50"
-            >
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                aria-hidden="true"
+            <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+              {!embed && <EmbedCodeButtons />}
+              <button
+                onClick={resetChat}
+                disabled={loading}
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-border bg-surface px-3 py-2 text-xs font-medium text-ink-muted transition-colors hover:border-border-strong hover:text-ink disabled:opacity-50"
               >
-                <path
-                  d="M3 12a9 9 0 1 0 3-6.7L3 8m0-5v5h5"
-                  stroke="currentColor"
-                  strokeWidth="1.8"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-              Nuova conversazione
-            </button>
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M3 12a9 9 0 1 0 3-6.7L3 8m0-5v5h5"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+                Nuova conversazione
+              </button>
+            </div>
           )}
         </div>
       </div>
@@ -528,9 +573,19 @@ export function ServiceChatWorkspace({
               }
               onQuickReply={(value) => void submitText(value)}
               quickRepliesDisabled={loading}
+              onKbFeedback={(helpful) =>
+                msg.kbMatch &&
+                void handleKbFeedback(
+                  msg.id,
+                  msg.kbMatch.entryId,
+                  msg.kbMatch.symptom,
+                  msg.kbMatch.frequency,
+                  helpful
+                )
+              }
             />
           ))}
-          {loading && <TypingIndicator />}
+          {loading && <TypingIndicator kbSearch={kbSearching} />}
         </div>
       </div>
 
@@ -644,11 +699,13 @@ function MessageBubble({
   quickReplies,
   onQuickReply,
   quickRepliesDisabled,
+  onKbFeedback,
 }: {
   message: DisplayMessage;
   quickReplies?: DisplayMessage["quickReplies"];
   onQuickReply: (value: string) => void;
   quickRepliesDisabled?: boolean;
+  onKbFeedback?: (helpful: boolean) => void;
 }) {
   const isUser = message.role === "user";
 
@@ -700,6 +757,18 @@ function MessageBubble({
         {!isUser && message.kbMatch && (
           <KbMatchBanner match={message.kbMatch} />
         )}
+        {!isUser &&
+          message.kbMatch &&
+          message.kbFeedback &&
+          onKbFeedback && (
+            <KbSolutionFeedback
+              status={message.kbFeedback}
+              entryId={message.kbMatch.entryId}
+              onHelpful={() => onKbFeedback(true)}
+              onNotHelpful={() => onKbFeedback(false)}
+              disabled={message.kbFeedback !== "pending"}
+            />
+          )}
         {!isUser && quickReplies && quickReplies.length > 0 && (
           <QuickReplyBubbles
             options={quickReplies}
@@ -712,10 +781,17 @@ function MessageBubble({
   );
 }
 
-function TypingIndicator() {
+function TypingIndicator({ kbSearch = false }: { kbSearch?: boolean }) {
   return (
     <div className="flex justify-start animate-fade-up">
-      <div className="rounded-2xl rounded-bl-md border border-border bg-surface px-5 py-4 shadow-xl shadow-black/20">
+      <div
+        className={[
+          "rounded-2xl rounded-bl-md border px-5 py-4 shadow-xl shadow-black/20",
+          kbSearch
+            ? "border-brand/30 bg-brand-soft/40"
+            : "border-border bg-surface",
+        ].join(" ")}
+      >
         <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-brand">
           Assistente aestima
         </p>
@@ -730,7 +806,11 @@ function TypingIndicator() {
               }}
             />
           ))}
-          <span className="ml-2 text-sm text-ink-muted">Sta scrivendo…</span>
+          <span className="ml-2 text-sm text-ink-muted">
+            {kbSearch
+              ? "Attendi, cerco nella knowledge base…"
+              : "Sta scrivendo…"}
+          </span>
         </div>
       </div>
     </div>
