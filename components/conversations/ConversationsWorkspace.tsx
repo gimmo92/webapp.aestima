@@ -94,7 +94,7 @@ export function ConversationsWorkspace() {
     filtered.find((c) => c.id === selectedId) ?? filtered[0] ?? null;
 
   const filterLabel =
-    CONVERSATION_FILTERS.find((f) => f.id === filter)?.label ?? "Conversazioni";
+    CONVERSATION_FILTERS.find((f) => f.id === filter)?.label ?? "Ticket";
 
   let lastSection: string | undefined;
   const sidebarItems = CONVERSATION_FILTERS.map((item) => {
@@ -108,7 +108,7 @@ export function ConversationsWorkspace() {
       {/* Sidebar filtri */}
       <aside className="flex h-full w-60 shrink-0 flex-col border-r border-border bg-surface/60">
         <div className="border-b border-border px-4 py-4">
-          <h2 className="text-sm font-bold text-ink">Conversazioni</h2>
+          <h2 className="text-sm font-bold text-ink">Ticket</h2>
           <p className="text-xs text-ink-faint">Inbox live chat</p>
         </div>
 

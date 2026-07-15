@@ -1,13 +1,5 @@
-"use client";
-
-import { InboxTopBar } from "@/components/inbox/InboxTopBar";
-import { TicketsWorkspace } from "@/components/tickets/TicketsWorkspace";
+import { redirect } from "next/navigation";
 
 export default function TicketPage() {
-  return (
-    <div className="flex h-screen flex-col overflow-hidden bg-base">
-      <InboxTopBar />
-      <TicketsWorkspace />
-    </div>
-  );
+  redirect("/conversazioni");
 }
