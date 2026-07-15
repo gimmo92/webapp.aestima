@@ -243,7 +243,7 @@ export function ArchiveWorkspace() {
             active={archiveTab === "sorgente"}
             onClick={() => setArchiveTab("sorgente")}
             label="Sorgente"
-            sub={`${visibleFiles.length} file disordinati`}
+            sub={`${visibleFiles.length} file`}
           />
           <TabBtn
             active={archiveTab === "verificare"}

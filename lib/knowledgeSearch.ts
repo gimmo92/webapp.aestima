@@ -34,6 +34,11 @@ const INTENT_ONLY_PATTERNS = [
   /^altro\b/i,
 ];
 
+/** Utente sceglie "Altro — preferisco descrivere liberamente" dalle bubble iniziali. */
+export function isFreeDescriptionIntent(text: string): boolean {
+  return /^altro\b/i.test(text.trim());
+}
+
 export function userHistoryText(
   messages: { role: string; content: string }[]
 ): string {

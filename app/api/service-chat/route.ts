@@ -15,6 +15,7 @@ import {
   isTicketEscalationIntent,
 } from "@/lib/knowledgeSearch";
 import { buildMachinesContext } from "@/lib/serviceChatData";
+import { buildServiceChatFallback } from "@/lib/serviceChatFallback";
 import { documentAttachmentNote } from "@/lib/serviceChatAttachments";
 import { normalizeApiQuickReplies } from "@/lib/serviceChatQuickReplies";
 import type { KnowledgeEntry } from "@/lib/knowledgeTypes";
@@ -49,6 +50,12 @@ Parli in italiano, tono professionale e chiaro, come un tecnico esperto ma acces
 1. **Identifica la macchina**: chiedi modello o matricola se mancano.
 2. **Capisci il bisogno**: distingui RICAMBIO vs MALFUNZIONAMENTO.
 3. **Ramo ricambi**: cerca il pezzo SOLO nella distinta della macchina identificata.
+
+## OPZIONE "ALTRO"
+Se l'utente sceglie "Altro — preferisco descrivere liberamente":
+- Invitalo a descrivere liberamente la richiesta (ricambio, guasto o altro).
+- Suggerisci modello/matricola come opzione utile, con quickReplies delle macchine disponibili.
+- NON bloccare la conversazione. Rispondi SEMPRE con JSON valido e "message" non vuoto.
 
 ## FLUSSO TROUBLESHOOTING — ORDINE RIGIDO (non saltare passi)
 **Fase A** — Utente segnala malfunzionamento senza macchina:
@@ -120,19 +127,52 @@ interface ParsedAgentPayload {
 }
 
 function parseAgentJson(text: string): ParsedAgentPayload | null {
-  try {
-    return JSON.parse(text) as ParsedAgentPayload;
-  } catch {
-    const match = text.match(/\{[\s\S]*\}/);
-    if (match) {
-      try {
-        return JSON.parse(match[0]) as ParsedAgentPayload;
-      } catch {
-        return null;
-      }
+  const trimmed = text.trim();
+  const candidates = [
+    trimmed,
+    trimmed
+      .replace(/^```(?:json)?\s*/i, "")
+      .replace(/\s*```$/i, "")
+      .trim(),
+  ];
+
+  for (const candidate of candidates) {
+    try {
+      const parsed = JSON.parse(candidate) as ParsedAgentPayload;
+      if (parsed?.message?.trim()) return parsed;
+    } catch {
+      // Prova estrazione del blocco JSON.
     }
-    return null;
   }
+
+  const match = trimmed.match(/\{[\s\S]*\}/);
+  if (match) {
+    try {
+      const parsed = JSON.parse(match[0]) as ParsedAgentPayload;
+      if (parsed?.message?.trim()) return parsed;
+    } catch {
+      // Continua con fallback testuale.
+    }
+  }
+
+  const messageMatch = trimmed.match(
+    /"message"\s*:\s*"((?:\\.|[^"\\])*)"/
+  );
+  if (messageMatch) {
+    try {
+      return {
+        message: JSON.parse(`"${messageMatch[1]}"`) as string,
+      };
+    } catch {
+      return { message: messageMatch[1].replace(/\\n/g, "\n") };
+    }
+  }
+
+  if (trimmed && !trimmed.startsWith("{")) {
+    return { message: trimmed };
+  }
+
+  return null;
 }
 
 function normalizeSpareParts(raw: unknown): SparePartProposal[] | undefined {
@@ -344,11 +384,7 @@ export async function POST(req: Request) {
   const apiKey = getAnthropicKey();
   if (!apiKey) {
     return NextResponse.json(
-      {
-        error:
-          "Servizio AI non configurato. Imposta la variabile d'ambiente anthropic o ANTHROPIC_API_KEY.",
-      },
-      { status: 503 }
+      buildServiceChatFallback(messages, knowledgeBase)
     );
   }
 
@@ -383,25 +419,20 @@ export async function POST(req: Request) {
     });
 
     if (!llm.ok) {
-      console.error("Service chat Anthropic error:", llm.message);
+      console.error("Service chat Anthropic fallback:", llm.message);
       return NextResponse.json(
-        {
-          error:
-            "Al momento non riesco a rispondere. Riprova tra qualche istante o contatta l'assistenza telefonica.",
-        },
-        { status: llm.status === 429 ? 429 : 502 }
+        buildServiceChatFallback(messages, knowledgeBase)
       );
     }
 
     const parsed = parseAgentJson(llm.text);
     if (!parsed?.message?.trim()) {
-      return NextResponse.json(
-        {
-          error:
-            "Risposta non valida dal servizio AI. Riprova con una domanda più specifica.",
-        },
-        { status: 502 }
+      console.error(
+        "Service chat JSON parse fallback — raw:",
+        llm.text.slice(0, 500)
       );
+      const fallback = buildServiceChatFallback(messages, knowledgeBase);
+      return NextResponse.json(fallback);
     }
 
     let kbMatch = buildKbMatch(parsed.kbMatch, knowledgeBase);
@@ -447,11 +478,7 @@ export async function POST(req: Request) {
   } catch (err) {
     console.error("Service chat route error:", err);
     return NextResponse.json(
-      {
-        error:
-          "Si è verificato un errore imprevisto. Riprova tra qualche istante.",
-      },
-      { status: 500 }
+      buildServiceChatFallback(messages, knowledgeBase)
     );
   }
 }

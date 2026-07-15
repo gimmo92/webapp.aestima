@@ -55,7 +55,7 @@ export function SourceBrowser({
             Drive cloud · Ricambi · Da archiviare
           </div>
           <p className="mt-0.5 text-xs text-ink-faint">
-            {files.length} file · nomi e struttura disordinati
+            {files.length} file
           </p>
         </div>
         {onOrganize && (

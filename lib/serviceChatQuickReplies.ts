@@ -3,6 +3,7 @@ import {
   machineIdentifiedInHistory,
   userHistoryText,
   isMachineIdentificationOnly,
+  isFreeDescriptionIntent,
 } from "./knowledgeSearch";
 import type { CreateTicketInput } from "./ticketTypes";
 import type { QuickReplyOption } from "./serviceChatTypes";
@@ -105,6 +106,11 @@ export function inferQuickReplies(
   const userText = userHistoryText(messages);
   const machineKnown = machineIdentifiedInHistory(messages);
 
+  const lastUser = users[users.length - 1];
+  if (lastUser && isFreeDescriptionIntent(lastUser.content) && !machineKnown) {
+    return machineQuickReplies();
+  }
+
   const asksMachine =
     /matricol|modello|quale macchina|identific|precisare|variante|indicami la macchina|quale impianto/.test(
       text
@@ -120,12 +126,27 @@ export function inferQuickReplies(
     return machineQuickReplies();
   }
 
-  const lastUser = users[users.length - 1];
+  const spareIntent = /ricamb|pezzo|codice|componente|distinta/.test(userText);
   if (
     machineKnown &&
     lastUser &&
     isMachineIdentificationOnly(lastUser.content)
   ) {
+    if (spareIntent && !malfunctionIntent) {
+      const machine = SERVICE_MACHINES.find((m) =>
+        userText.includes(m.serial.toLowerCase()) ||
+        userText.includes(m.model.toLowerCase())
+      );
+      if (machine) {
+        return machine.parts.slice(0, 4).map((p) => ({
+          label:
+            p.description.length > 42
+              ? `${p.description.slice(0, 39)}…`
+              : p.description,
+          value: `Mi serve: ${p.description} (cod. ${p.code})`,
+        }));
+      }
+    }
     return symptomQuickReplies();
   }
 
