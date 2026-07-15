@@ -4,7 +4,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useInbox } from "@/components/inbox/InboxProvider";
 import { SparePartCardList } from "@/components/service-chat/SparePartCard";
-import { TicketBanner } from "@/components/service-chat/TicketBanner";
 import {
   CONVERSATION_CHANNEL_LABELS,
   CONVERSATION_FILTERS,
@@ -609,7 +608,6 @@ function ConversationMessage({ message }: { message: StoredConversationMessage }
         {!isUser && message.spareParts && message.spareParts.length > 0 && (
           <SparePartCardList parts={message.spareParts} />
         )}
-        {!isUser && message.ticket && <TicketBanner ticket={message.ticket} />}
       </div>
     </div>
   );

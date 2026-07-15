@@ -4,8 +4,8 @@ import {
   userHistoryText,
   isMachineIdentificationOnly,
   isFreeDescriptionIntent,
+  isMachineNotListedIntent,
 } from "./knowledgeSearch";
-import type { CreateTicketInput } from "./ticketTypes";
 import type { QuickReplyOption } from "./serviceChatTypes";
 
 // =============================================================
@@ -24,12 +24,43 @@ export const WELCOME_QUICK_REPLIES: QuickReplyOption[] = [
   { label: "Altro", value: "Altro — preferisco descrivere liberamente" },
 ];
 
+/** Bubble "macchina non in elenco" accanto alle matricole note. */
+export const MACHINE_NOT_LISTED_QUICK_REPLY: QuickReplyOption = {
+  label: "Altro",
+  value: "La macchina non è in elenco — indico modello o matricola",
+};
+
 /** Macchine presenti nella base dati demo. */
 export function machineQuickReplies(): QuickReplyOption[] {
-  return SERVICE_MACHINES.map((m) => ({
-    label: `${m.model} · ${m.serial}`,
-    value: `Matricola ${m.serial} — ${m.model}`,
-  }));
+  return [
+    ...SERVICE_MACHINES.map((m) => ({
+      label: `${m.model} · ${m.serial}`,
+      value: `Matricola ${m.serial} — ${m.model}`,
+    })),
+    MACHINE_NOT_LISTED_QUICK_REPLY,
+  ];
+}
+
+function isMachineSelectionReplies(replies: QuickReplyOption[]): boolean {
+  const serials = SERVICE_MACHINES.map((m) => m.serial.toLowerCase());
+  return replies.some((r) => {
+    const hay = `${r.label} ${r.value}`.toLowerCase();
+    return serials.some((s) => hay.includes(s));
+  });
+}
+
+/** Aggiunge "Altro" se le bubble elencano macchine note ma manca l'opzione manuale. */
+export function ensureMachineOtherOption(
+  replies: QuickReplyOption[] | undefined
+): QuickReplyOption[] | undefined {
+  if (!replies?.length || !isMachineSelectionReplies(replies)) return replies;
+  const hasOther = replies.some(
+    (r) =>
+      r.value === MACHINE_NOT_LISTED_QUICK_REPLY.value ||
+      /non è in elenco/i.test(r.value)
+  );
+  if (hasOther) return replies;
+  return [...replies, MACHINE_NOT_LISTED_QUICK_REPLY];
 }
 
 /** Sintomi comuni dalla KB troubleshooting (label brevi per proiettore). */
@@ -95,9 +126,9 @@ export function normalizeApiQuickReplies(raw: unknown): QuickReplyOption[] | und
 export function inferQuickReplies(
   messages: { role: string; content: string; id?: string }[],
   assistantContent: string,
-  opts?: { isWelcome?: boolean; hasTicket?: boolean; hasSpareParts?: boolean }
+  opts?: { isWelcome?: boolean; hasSpareParts?: boolean }
 ): QuickReplyOption[] | undefined {
-  if (opts?.hasTicket || opts?.hasSpareParts) return undefined;
+  if (opts?.hasSpareParts) return undefined;
 
   if (opts?.isWelcome) return WELCOME_QUICK_REPLIES;
 
@@ -107,6 +138,9 @@ export function inferQuickReplies(
   const machineKnown = machineIdentifiedInHistory(messages);
 
   const lastUser = users[users.length - 1];
+  if (lastUser && isMachineNotListedIntent(lastUser.content)) {
+    return undefined;
+  }
   if (lastUser && isFreeDescriptionIntent(lastUser.content) && !machineKnown) {
     return machineQuickReplies();
   }
@@ -163,41 +197,4 @@ export function inferQuickReplies(
   }
 
   return undefined;
-}
-
-/** Estrae macchina e categoria dalla cronologia chat per registrare il ticket. */
-export function inferTicketContextFromChat(
-  messages: { role: string; content: string }[]
-): Pick<
-  CreateTicketInput,
-  "machineModel" | "machineSerial" | "category" | "description"
-> {
-  const userLines = messages
-    .filter((m) => m.role === "user")
-    .map((m) => m.content);
-  const haystack = userLines.join(" ").toLowerCase();
-
-  const machine = SERVICE_MACHINES.find(
-    (m) =>
-      haystack.includes(m.serial.toLowerCase()) ||
-      haystack.includes(m.model.toLowerCase())
-  );
-
-  let category: CreateTicketInput["category"] = "altro";
-  if (/malfunzion|problema|guasto|errore|sintom/.test(haystack)) {
-    category = "troubleshooting";
-  } else if (/ricamb|pezzo|codice|componente/.test(haystack)) {
-    category = "ricambio";
-  }
-
-  const description = userLines.length
-    ? `Cronologia chat:\n${userLines.map((l) => `• ${l}`).join("\n")}`
-    : "";
-
-  return {
-    machineModel: machine?.model,
-    machineSerial: machine?.serial,
-    category,
-    description,
-  };
 }

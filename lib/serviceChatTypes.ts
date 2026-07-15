@@ -1,8 +1,8 @@
 // Tipi condivisi tra API e UI della chat di assistenza service.
 
-import type { ChatTicketPreview } from "./ticketTypes";
 import type { ChatAttachment } from "./serviceChatAttachments";
 import type { ChatAttachmentPayload } from "./serviceChatAttachments";
+import type { ChatTicketPreview } from "./ticketTypes";
 
 export type { ChatAttachment, ChatAttachmentPayload };
 
@@ -24,7 +24,7 @@ export interface SparePartProposal {
   leadTimeDays?: number;
 }
 
-/** Ticket aperto quando l'agente non trova la risposta nei dati. */
+/** Ticket aperto — solo per messaggi storici salvati in conversazione. */
 export type ServiceTicket = ChatTicketPreview;
 
 /** Match con voce knowledge base — soluzione appresa da intervento precedente. */
@@ -51,7 +51,6 @@ export interface QuickReplyOption {
 export interface ServiceChatResponse {
   message: string;
   spareParts?: SparePartProposal[];
-  ticket?: ServiceTicket;
   kbMatch?: KbMatchPreview;
   /** true se il turno corrente include ricerca nella KB */
   kbSearching?: boolean;

@@ -1,9 +1,9 @@
 import {
   findKbCandidates,
   isFreeDescriptionIntent,
+  isMachineNotListedIntent,
   isMachineIdentificationOnly,
   isReadyForKbSearch,
-  isTicketEscalationIntent,
   machineIdentifiedInHistory,
   userHistoryText,
 } from "./knowledgeSearch";
@@ -86,17 +86,21 @@ function findPartInMachine(
   });
 }
 
-function generateTicketId(): string {
-  const n = Math.floor(1000 + Math.random() * 9000);
-  return `SRV-${n}`;
-}
-
 function askMachineMessage(sparePartFocus = true): ServiceChatResponse {
   return {
     message: sparePartFocus
       ? "Per cercare il ricambio corretto nella distinta tecnica, ho bisogno di identificare la macchina. Puoi indicarmi il modello o la matricola dell'impianto?"
       : "Per indirizzarti al meglio, puoi indicarmi il modello o la matricola dell'impianto?",
     quickReplies: machineQuickReplies(),
+    source: "fallback",
+  };
+}
+
+function machineNotListedMessage(sparePartFocus = true): ServiceChatResponse {
+  return {
+    message: sparePartFocus
+      ? "Nessun problema. Scrivi il modello o la matricola dell'impianto nel messaggio qui sotto, oppure allega una foto della targhetta identificativa."
+      : "Nessun problema. Scrivi il modello o la matricola dell'impianto nel messaggio qui sotto.",
     source: "fallback",
   };
 }
@@ -163,17 +167,8 @@ export function buildServiceChatFallback(
     return freeDescriptionMessage();
   }
 
-  if (lastUser && isTicketEscalationIntent(messages, lastUserText)) {
-    const ticketId = generateTicketId();
-    const summary =
-      lastUserText
-        .replace(/^(apri(re)?|crea(re)?)\s+(un\s+)?ticket\s*/i, "")
-        .trim() || lastUserText.slice(0, 120);
-    return {
-      message: `Ho aperto il ticket ${ticketId} per il team tecnico. Riceverai aggiornamenti non appena un operatore prenderà in carico la richiesta.`,
-      ticket: { id: ticketId, summary },
-      source: "fallback",
-    };
+  if (lastUser && isMachineNotListedIntent(lastUserText)) {
+    return machineNotListedMessage(spareIntentInHistory(messages));
   }
 
   if (
@@ -190,9 +185,8 @@ export function buildServiceChatFallback(
       return buildKbFallback(candidates[0], knowledgeBase);
     }
     return {
-      message: `${KB_SEARCH_INTRO}\n\nNon ho trovato un caso analogo nella knowledge base per ${machine.model} (${machine.serial}). Posso aprire un ticket per il team tecnico?`,
+      message: `${KB_SEARCH_INTRO}\n\nNon ho trovato un caso analogo nella knowledge base per ${machine.model} (${machine.serial}). Puoi aggiungere altri dettagli sul guasto: la conversazione resta aperta e un operatore potrà aiutarti.`,
       quickReplies: [
-        { label: "Sì, apri ticket", value: "Sì, apri un ticket" },
         { label: "Aggiungo altri dettagli", value: "Aggiungo altri dettagli sul guasto" },
       ],
       source: "fallback",

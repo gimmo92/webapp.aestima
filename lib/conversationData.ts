@@ -119,7 +119,7 @@ export const MOCK_CONVERSATIONS: ConversationRecord[] = [
       msg(
         "m3",
         "assistant",
-        "Ho verificato la knowledge base: potrebbe essere un problema di permessi USB. Apro un ticket per il team tecnico?",
+        "Ho verificato la knowledge base: potrebbe essere un problema di permessi USB. Può aggiungere altri dettagli? Un operatore seguirà la conversazione.",
         "16:33"
       ),
       msg(

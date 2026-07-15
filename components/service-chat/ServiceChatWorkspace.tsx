@@ -4,7 +4,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ChatAttachmentList } from "./ChatAttachmentList";
 import { QuickReplyBubbles } from "./QuickReplyBubbles";
 import { SparePartCardList } from "./SparePartCard";
-import { TicketBanner } from "./TicketBanner";
 import { KbMatchBanner } from "./KbMatchBanner";
 import { KbSolutionFeedback } from "./KbSolutionFeedback";
 import { EmbedCodeButtons } from "./EmbedCodeButtons";
@@ -19,8 +18,8 @@ import {
 } from "@/lib/serviceChatAttachments";
 import {
   inferQuickReplies,
-  inferTicketContextFromChat,
   WELCOME_QUICK_REPLIES,
+  ensureMachineOtherOption,
 } from "@/lib/serviceChatQuickReplies";
 import type { DisplayMessage } from "@/lib/serviceChatTypes";
 import { isReadyForKbSearch } from "@/lib/knowledgeSearch";
@@ -84,7 +83,6 @@ export function ServiceChatWorkspace({
 } = {}) {
   const showHeader = !hideHeader;
   const {
-    createTicket,
     createConversation,
     appendConversationMessage,
     getConversationById,
@@ -371,19 +369,18 @@ export function ServiceChatWorkspace({
           return;
         }
 
-        const quickReplies =
+        const quickReplies = ensureMachineOtherOption(
           data.quickReplies ??
-          inferQuickReplies(history, data.message, {
-            hasTicket: Boolean(data.ticket),
-            hasSpareParts: Boolean(data.spareParts?.length),
-          });
+            inferQuickReplies(history, data.message, {
+              hasSpareParts: Boolean(data.spareParts?.length),
+            })
+        );
 
         const assistantMsg: DisplayMessage = {
           id: nextId(),
           role: "assistant",
           content: data.message,
           spareParts: data.spareParts,
-          ticket: data.ticket,
           kbMatch: data.kbMatch,
           kbFeedback: data.kbMatch ? "pending" : undefined,
           quickReplies,
@@ -394,21 +391,7 @@ export function ServiceChatWorkspace({
           role: "assistant",
           content: data.message,
           spareParts: data.spareParts,
-          ticket: data.ticket,
         });
-
-        if (data.ticket) {
-          const ctx = inferTicketContextFromChat(apiMessages);
-          createTicket({
-            id: data.ticket.id,
-            summary: data.ticket.summary,
-            description: ctx.description || data.ticket.summary,
-            source: "chat_ai",
-            category: ctx.category,
-            machineModel: ctx.machineModel,
-            machineSerial: ctx.machineSerial,
-          });
-        }
       } catch {
         const errMsg: DisplayMessage = {
           id: nextId(),
@@ -428,7 +411,7 @@ export function ServiceChatWorkspace({
         inputRef.current?.focus();
       }
     },
-    [loading, messages, createTicket, ensureConversation, appendConversationMessage, getConversationById, updateConversation, knowledgeBase]
+    [loading, messages, ensureConversation, appendConversationMessage, getConversationById, updateConversation, knowledgeBase]
   );
 
   const submitText = useCallback(
@@ -524,11 +507,6 @@ export function ServiceChatWorkspace({
                 Assistenza service
               </h1>
             </div>
-            {!embed && (
-              <p className="text-sm text-ink-muted">
-                Ricambi, troubleshooting, allegati e ticket — guidato da Claude
-              </p>
-            )}
           </div>
           {!hideReset && (
             <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
@@ -755,9 +733,6 @@ function MessageBubble({
         )}
         {!isUser && message.spareParts && message.spareParts.length > 0 && (
           <SparePartCardList parts={message.spareParts} />
-        )}
-        {!isUser && message.ticket && (
-          <TicketBanner ticket={message.ticket} />
         )}
         {!isUser && message.kbMatch && (
           <KbMatchBanner match={message.kbMatch} />

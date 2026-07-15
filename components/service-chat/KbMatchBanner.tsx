@@ -31,7 +31,7 @@ export function KbMatchBanner({ match }: { match: KbMatchPreview }) {
         {match.frequency && match.frequency > 1
           ? ` — riscontrato ${match.frequency} volte`
           : ""}
-        . Nessun ticket necessario.
+        .
       </p>
       <Link
         href={href}

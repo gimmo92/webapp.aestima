@@ -10,21 +10,18 @@ import { formatKnowledgeForPrompt } from "@/lib/knowledgeData";
 import {
   findKbCandidates,
   formatKbCandidatesForPrompt,
-  formatTicketEscalationBlock,
   isReadyForKbSearch,
-  isTicketEscalationIntent,
 } from "@/lib/knowledgeSearch";
 import { buildMachinesContext } from "@/lib/serviceChatData";
 import { buildServiceChatFallback } from "@/lib/serviceChatFallback";
 import { documentAttachmentNote } from "@/lib/serviceChatAttachments";
-import { normalizeApiQuickReplies } from "@/lib/serviceChatQuickReplies";
+import { normalizeApiQuickReplies, ensureMachineOtherOption } from "@/lib/serviceChatQuickReplies";
 import type { KnowledgeEntry } from "@/lib/knowledgeTypes";
 import type {
   ChatAttachmentPayload,
   ChatMessage,
   KbMatchPreview,
   ServiceChatResponse,
-  ServiceTicket,
   SparePartProposal,
 } from "@/lib/serviceChatTypes";
 
@@ -52,14 +49,18 @@ Parli in italiano, tono professionale e chiaro, come un tecnico esperto ma acces
 3. **Ramo ricambi**: cerca il pezzo SOLO nella distinta della macchina identificata.
 
 ## OPZIONE "ALTRO"
-Se l'utente sceglie "Altro — preferisco descrivere liberamente":
+Se l'utente sceglie "Altro — preferisco descrivere liberamente" (bubble iniziali):
 - Invitalo a descrivere liberamente la richiesta (ricambio, guasto o altro).
 - Suggerisci modello/matricola come opzione utile, con quickReplies delle macchine disponibili.
 - NON bloccare la conversazione. Rispondi SEMPRE con JSON valido e "message" non vuoto.
 
+Se l'utente sceglie "La macchina non è in elenco — indico modello o matricola" (bubble selezione macchina):
+- Invitalo a scrivere modello/matricola nel testo libero o ad allegare foto della targhetta.
+- NON ripetere l'elenco macchine. quickReplies=null finché non fornisce i dati.
+
 ## FLUSSO TROUBLESHOOTING — ORDINE RIGIDO (non saltare passi)
 **Fase A** — Utente segnala malfunzionamento senza macchina:
-- Chiedi matricola/modello. quickReplies con le macchine disponibili.
+- Chiedi matricola/modello. quickReplies con le macchine disponibili più opzione "Altro" (macchina non in elenco).
 - NON cercare nella KB. kbMatch=null. NON proporre soluzioni.
 
 **Fase B** — Utente indica SOLO la macchina (es. "Matricola MX-4521 — Rettificatrice RX-400"):
@@ -70,26 +71,21 @@ Se l'utente sceglie "Altro — preferisco descrivere liberamente":
 **Fase C** — Utente descrive il guasto (macchina già nota):
 - SOLO ORA avvia la ricerca KB. La risposta DEVE iniziare con: "Un attimo, verifico nella knowledge base se questo problema è già stato risolto in passato…"
 - Se trovi corrispondenza: spiega causa + soluzione + ricambi. Cita scheda [ID] nel Manuale. Imposta kbMatch.
-- Se NON trovi: dopo la frase iniziale, dichiara che la KB non contiene il caso e proponi ticket.
-
-**Fase D** — Utente chiede di aprire ticket (es. "Apri ticket", "Sì, procedi", dopo tua proposta di escalation):
-- NON cercare nella KB. NON dire "verifico nella knowledge base".
-- Conferma l'apertura e imposta "ticket" nel JSON. kbMatch=null.
+- Se NON trovi: dopo la frase iniziale, dichiara che la KB non contiene il caso e invita l'utente ad aggiungere dettagli. Un operatore seguirà la conversazione.
 
 ## REGOLA PRIORITARIA — KNOWLEDGE BASE
 - La KB è la prima fonte per i malfunzionamenti: cerca SEMPRE prima di escalare.
 - Se trovi un caso simile (stesso sintomo/macchina): proponi la soluzione appresa da interventi precedenti.
-- **NON aprire un ticket** se la KB ha già una soluzione applicabile.
 - Imposta "kbMatch" con l'id esatto della voce (es. "KB-101") e un breve sintomo.
 - Nel "message" includi sempre la referenza alla scheda KB quando usi una voce.
 
 ## ALLEGATI
 - Analizza le FOTO per matricola, modello, codici o sintomi visibili.
-- Per DOCUMENTI non visualizzabili usa il nome file e proponi escalation se serve.
+- Per DOCUMENTI non visualizzabili usa il nome file e invita l'utente ad aggiungere contesto.
 
 ## REGOLA CRITICA — MAI INVENTARE
 - Se il pezzo NON è in distinta, o il problema NON ha casi simili nella KB: NON inventare.
-- Solo allora proponi ticket (imposta "ticket" nel JSON).
+- Invita l'utente a fornire più dettagli: la conversazione resta aperta e un operatore può intervenire.
 
 ## VINCOLI
 Ragiona ESCLUSIVAMENTE sui dati nel contesto. Non usare conoscenza esterna.
@@ -99,15 +95,13 @@ Rispondi ESCLUSIVAMENTE con JSON valido (senza markdown):
 {
   "message": "testo per l'utente in italiano",
   "spareParts": null oppure [{"code":"...","description":"...","price":123.45,"availability":"disponibile"|"da_ordinare","leadTimeDays":0}],
-  "ticket": null oppure {"summary":"..."},
   "kbMatch": null oppure {"entryId":"KB-101","symptom":"breve sintomo della voce usata"},
   "quickReplies": null oppure [{"label":"...","value":"..."}]
 }
 
 Regole JSON:
 - "message" sempre obbligatorio.
-- "kbMatch": SOLO quando risolvi usando la KB — NON aprire ticket nello stesso messaggio.
-- "ticket": SOLO se KB e distinta non hanno la risposta.
+- "kbMatch": SOLO quando risolvi usando la KB.
 - "quickReplies": 2-5 opzioni quando chiedi scelte; sintomi dalla KB se troubleshooting.
 
 ## DATI DI CONTESTO (unica fonte di verità)
@@ -121,7 +115,6 @@ ${kbSearchBlock}`;
 interface ParsedAgentPayload {
   message?: string;
   spareParts?: SparePartProposal[] | null;
-  ticket?: { summary?: string } | null;
   kbMatch?: { entryId?: string; symptom?: string } | null;
   quickReplies?: unknown;
 }
@@ -199,18 +192,6 @@ function normalizeSpareParts(raw: unknown): SparePartProposal[] | undefined {
   return parts.length > 0 ? parts : undefined;
 }
 
-function generateTicketId(): string {
-  const n = Math.floor(1000 + Math.random() * 9000);
-  return `SRV-${n}`;
-}
-
-function buildTicket(raw: ParsedAgentPayload["ticket"]): ServiceTicket | undefined {
-  if (!raw || typeof raw !== "object") return undefined;
-  const summary = String(raw.summary ?? "").trim();
-  if (!summary) return undefined;
-  return { id: generateTicketId(), summary };
-}
-
 function buildKbMatch(
   raw: ParsedAgentPayload["kbMatch"],
   knowledgeBase: KnowledgeEntry[]
@@ -240,16 +221,6 @@ function ensureKbSearchIntro(message: string): string {
     return message;
   }
   return `${KB_SEARCH_INTRO}\n\n${message}`;
-}
-
-function stripKbSearchIntro(message: string): string {
-  return message
-    .replace(
-      /^un attimo,?\s*verifico nella knowledge base[^\n]*\n*/i,
-      ""
-    )
-    .replace(/^attendi,?\s*cerco nella knowledge base[^\n]*\n*/i, "")
-    .trim();
 }
 
 function coerceAttachments(raw: unknown): ChatAttachmentPayload[] | undefined {
@@ -393,20 +364,14 @@ export async function POST(req: Request) {
     .slice(-6)
     .map((m) => m.content)
     .join(" ");
-  const ticketEscalation = lastUser
-    ? isTicketEscalationIntent(messages, lastUser.content)
+  const readyForKb = lastUser
+    ? isReadyForKbSearch(messages, lastUser.content)
     : false;
-  const readyForKb =
-    lastUser && !ticketEscalation
-      ? isReadyForKbSearch(messages, lastUser.content)
-      : false;
   const candidates =
     readyForKb && lastUser
       ? findKbCandidates(knowledgeBase, lastUser.content, recentContext)
       : [];
-  const kbSearchBlock = ticketEscalation
-    ? formatTicketEscalationBlock()
-    : formatKbCandidatesForPrompt(candidates, readyForKb);
+  const kbSearchBlock = formatKbCandidatesForPrompt(candidates, readyForKb);
   const troubleshootingTurn = readyForKb;
 
   const systemPrompt = buildSystemPrompt(knowledgeBase, kbSearchBlock);
@@ -436,9 +401,9 @@ export async function POST(req: Request) {
     }
 
     let kbMatch = buildKbMatch(parsed.kbMatch, knowledgeBase);
-    if (!readyForKb || ticketEscalation) {
+    if (!readyForKb) {
       kbMatch = undefined;
-    } else if (!kbMatch && candidates.length > 0 && !parsed.ticket) {
+    } else if (!kbMatch && candidates.length > 0) {
       const top = candidates[0];
       kbMatch = {
         entryId: top.id,
@@ -446,31 +411,20 @@ export async function POST(req: Request) {
         frequency: top.frequency,
       };
     }
-    let ticket = kbMatch ? undefined : buildTicket(parsed.ticket);
-    if (ticketEscalation && !ticket && lastUser) {
-      const summary = lastUser.content
-        .replace(/^(apri(re)?|crea(re)?)\s+(un\s+)?ticket\s*/i, "")
-        .trim();
-      ticket = buildTicket({
-        summary: summary || lastUser.content.slice(0, 120),
-      });
-    }
 
     let message = parsed.message.trim();
     if (troubleshootingTurn) {
       message = ensureKbSearchIntro(message);
     }
-    if (ticketEscalation) {
-      message = stripKbSearchIntro(message);
-    }
 
     const response: ServiceChatResponse = {
       message,
       spareParts: normalizeSpareParts(parsed.spareParts),
-      ticket,
       kbMatch,
       kbSearching: troubleshootingTurn,
-      quickReplies: normalizeApiQuickReplies(parsed.quickReplies),
+      quickReplies: ensureMachineOtherOption(
+        normalizeApiQuickReplies(parsed.quickReplies)
+      ),
       source: "anthropic",
     };
 
