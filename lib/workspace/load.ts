@@ -1,5 +1,4 @@
 import { prisma } from "@/lib/prisma";
-import { seedCompanyWorkspace } from "./seed";
 import {
   mapAssignment,
   mapConversation,
@@ -42,10 +41,6 @@ export async function loadCompanyWorkspace(
   const company = await prisma.company.findUnique({ where: { id: companyId } });
   if (!company) {
     throw new Error("Company non trovata");
-  }
-
-  if (!company.seededAt) {
-    await seedCompanyWorkspace(companyId);
   }
 
   const [

@@ -1,12 +1,6 @@
 import type { ConversationRecord } from "./conversationTypes";
-import { MOCK_CONVERSATIONS } from "./conversationData";
 
-// =============================================================
-// Persistenza locale conversazioni (demo)
-// Sincronizza assistenza, embed iframe e inbox conversazioni
-// sulla stessa origine via localStorage + evento storage.
-// =============================================================
-
+// Persistenza locale conversazioni (ospite / stessa origine).
 export const CONVERSATIONS_STORAGE_KEY = "aestima:conversations:v1";
 
 function isConversationRecord(value: unknown): value is ConversationRecord {
@@ -49,10 +43,10 @@ export function saveStoredConversations(
       JSON.stringify(conversations)
     );
   } catch {
-    // Quota o storage disabilitato — ignora in demo.
+    // Quota o storage disabilitato — ignora.
   }
 }
 
 export function defaultConversations(): ConversationRecord[] {
-  return MOCK_CONVERSATIONS;
+  return [];
 }

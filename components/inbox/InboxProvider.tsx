@@ -8,15 +8,9 @@ import {
   useEffect,
   useRef,
 } from "react";
-import {
-  DEFAULT_LABELS,
-  LABEL_PALETTE,
-  MOCK_REQUESTS,
-} from "@/lib/inboxData";
+import { LABEL_PALETTE } from "@/lib/inboxData";
 import type { Label, PartRequest, RequestStatus } from "@/lib/inboxTypes";
 import {
-  MOCK_SUPPLIERS,
-  MOCK_SUPPLIER_REQUESTS,
   newSupplierId,
   newSupplierRequestId,
 } from "@/lib/supplierData";
@@ -27,9 +21,6 @@ import type {
   SupplierRequestStatus,
 } from "@/lib/supplierTypes";
 import {
-  MOCK_TECHNICIANS,
-  MOCK_TECHNICIAN_ASSIGNMENTS,
-  MOCK_INTERVENTION_REPORTS,
   newTechnicianAssignmentId,
   newTechnicianId,
 } from "@/lib/technicianData";
@@ -40,15 +31,11 @@ import type {
   TechnicianAssignmentStatus,
   TechnicianInput,
 } from "@/lib/technicianTypes";
-import {
-  MOCK_KNOWLEDGE_ENTRIES,
-  newKnowledgeId,
-} from "@/lib/knowledgeData";
+import { newKnowledgeId } from "@/lib/knowledgeData";
 import type { KnowledgeEntry } from "@/lib/knowledgeTypes";
 import { newConversationId } from "@/lib/conversationData";
 import {
   CONVERSATIONS_STORAGE_KEY,
-  defaultConversations,
   loadStoredConversations,
   saveStoredConversations,
 } from "@/lib/conversationStorage";
@@ -58,10 +45,7 @@ import type {
   CreateConversationInput,
   UpdateConversationInput,
 } from "@/lib/conversationTypes";
-import {
-  MOCK_TICKETS,
-  newTicketId,
-} from "@/lib/ticketData";
+import { newTicketId } from "@/lib/ticketData";
 import type {
   CreateTicketInput,
   ServiceTicketRecord,
@@ -71,8 +55,8 @@ import { persistWorkspace } from "@/lib/workspace/persistClient";
 
 // =============================================================
 // Stato condiviso della dashboard.
-// Se l'utente è loggato: dati company da Supabase (seed demo al primo accesso).
-// Se ospite (es. Assistenza pubblica): mock in memoria + localStorage chat.
+// Loggato: dati company da Supabase (vuoti finché non li crei).
+// Ospite: stato vuoto + eventuale localStorage chat.
 // =============================================================
 
 export interface CreateSupplierRequestInput {
@@ -188,29 +172,25 @@ function nowLabels() {
 }
 
 export function InboxProvider({ children }: { children: React.ReactNode }) {
-  const [requests, setRequests] = useState<PartRequest[]>(MOCK_REQUESTS);
-  const [labels, setLabels] = useState<Label[]>(DEFAULT_LABELS);
-  const [selectedId, setSelectedId] = useState<string | null>(
-    MOCK_REQUESTS[0]?.id ?? null
-  );
-  const [suppliers, setSuppliers] = useState<Supplier[]>(MOCK_SUPPLIERS);
+  const [requests, setRequests] = useState<PartRequest[]>([]);
+  const [labels, setLabels] = useState<Label[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [supplierRequests, setSupplierRequests] = useState<SupplierRequest[]>(
-    MOCK_SUPPLIER_REQUESTS
+    []
   );
-  const [technicians, setTechnicians] = useState<Technician[]>(MOCK_TECHNICIANS);
+  const [technicians, setTechnicians] = useState<Technician[]>([]);
   const [technicianAssignments, setTechnicianAssignments] = useState<
     TechnicianAssignment[]
-  >(MOCK_TECHNICIAN_ASSIGNMENTS);
+  >([]);
   const [interventionReports, setInterventionReports] = useState<
     InterventionReport[]
-  >(MOCK_INTERVENTION_REPORTS);
-  const [tickets, setTickets] = useState<ServiceTicketRecord[]>(MOCK_TICKETS);
-  const [conversations, setConversations] =
-    useState<ConversationRecord[]>(defaultConversations);
+  >([]);
+  const [tickets, setTickets] = useState<ServiceTicketRecord[]>([]);
+  const [conversations, setConversations] = useState<ConversationRecord[]>([]);
   const conversationsHydratedRef = useRef(false);
   const cloudModeRef = useRef(false);
-  const [knowledgeBase, setKnowledgeBase] =
-    useState<KnowledgeEntry[]>(MOCK_KNOWLEDGE_ENTRIES);
+  const [knowledgeBase, setKnowledgeBase] = useState<KnowledgeEntry[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -218,7 +198,7 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
       try {
         const res = await fetch("/api/workspace");
         if (!res.ok) {
-          // Ospite: mock locali + localStorage conversazioni
+          // Ospite: localStorage conversazioni se presente
           const stored = loadStoredConversations();
           if (!cancelled) {
             if (stored) setConversations(stored);
