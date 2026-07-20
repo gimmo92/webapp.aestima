@@ -1,5 +1,4 @@
-// Prisma schema — aestima
-// Auth company + utenti su Postgres Supabase.
+// Prisma schema — aestima multi-tenant (company-scoped)
 
 generator client {
   provider = "prisma-client"
@@ -20,9 +19,21 @@ model Company {
   id        String   @id @default(cuid())
   name      String
   slug      String   @unique
+  seededAt  DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  users     User[]
+
+  users                  User[]
+  labels                 Label[]
+  partRequests           PartRequest[]
+  conversations          Conversation[]
+  knowledgeEntries       KnowledgeEntry[]
+  tickets                ServiceTicket[]
+  suppliers              Supplier[]
+  supplierRequests       SupplierRequest[]
+  technicians            Technician[]
+  technicianAssignments  TechnicianAssignment[]
+  interventionReports    InterventionReport[]
 }
 
 model User {
@@ -35,6 +46,241 @@ model User {
   company      Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
+
+  @@index([companyId])
+}
+
+model Label {
+  id        String   @id @default(cuid())
+  companyId String
+  name      String
+  color     String
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  requests  PartRequestLabel[]
+  createdAt DateTime @default(now())
+
+  @@index([companyId])
+}
+
+model PartRequest {
+  id              String   @id @default(cuid())
+  companyId       String
+  fromName        String
+  fromEmail       String
+  customerCompany String
+  subject         String
+  body            String
+  status          String
+  primary         Boolean  @default(true)
+  receivedAt      DateTime @default(now())
+  receivedLabel   String
+  receivedFull    String
+  attachmentsJson Json?
+  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  labels          PartRequestLabel[]
+  supplierRequests SupplierRequest[]
+  technicianAssignments TechnicianAssignment[]
+
+  @@index([companyId, status])
+}
+
+model PartRequestLabel {
+  partRequestId String
+  labelId       String
+  partRequest   PartRequest @relation(fields: [partRequestId], references: [id], onDelete: Cascade)
+  label         Label       @relation(fields: [labelId], references: [id], onDelete: Cascade)
+
+  @@id([partRequestId, labelId])
+}
+
+model Conversation {
+  id                 String   @id @default(cuid())
+  companyId          String
+  customerName       String
+  customerEmail      String?
+  status             String
+  assignee           String
+  assignedOperatorId String?
+  channel            String
+  lastMessagePreview String
+  lastMessageLabel   String
+  machineModel       String?
+  machineSerial      String?
+  ticketId           String?
+  visitorOnline      Boolean  @default(false)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  createdFull        String
+  updatedFull        String
+  company            Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  messages           ConversationMessage[]
+
+  @@index([companyId, status])
+}
+
+model ConversationMessage {
+  id             String   @id @default(cuid())
+  conversationId String
+  companyId      String
+  role           String
+  content        String
+  timestampLabel String
+  sparePartsJson Json?
+  ticketJson     Json?
+  createdAt      DateTime @default(now())
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+  @@index([companyId])
+}
+
+model KnowledgeEntry {
+  id              String   @id @default(cuid())
+  companyId       String
+  machineModel    String
+  machineSerial   String?
+  problemCategory String
+  symptom         String
+  probableCause   String
+  solution        String
+  sparePartsJson  Json
+  frequency       Int      @default(1)
+  sourceTicketId  String?
+  consolidated    Boolean  @default(false)
+  mergedFromIds   String[] @default([])
+  tags            String[] @default([])
+  createdLabel    String
+  createdFull     String
+  updatedFull     String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, machineModel])
+}
+
+model ServiceTicket {
+  id                   String   @id @default(cuid())
+  companyId            String
+  status               String
+  priority             String
+  source               String
+  category             String
+  summary              String
+  description          String
+  machineModel         String?
+  machineSerial        String?
+  assignedTechnicianId String?
+  internalNotes        String?
+  solution             String?
+  knowledgeEntryId     String?
+  createdLabel         String
+  createdFull          String
+  updatedFull          String
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  company              Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, status])
+}
+
+model Supplier {
+  id           String   @id @default(cuid())
+  companyId    String
+  name         String
+  email        String
+  contact      String?
+  categories   String[] @default([])
+  notes        String?
+  company      Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  requests     SupplierRequest[]
+  createdAt    DateTime @default(now())
+
+  @@index([companyId])
+}
+
+model SupplierRequest {
+  id                   String   @id @default(cuid())
+  companyId            String
+  partRequestId        String
+  supplierId           String
+  status               String
+  subject              String
+  body                 String
+  componentCode        String
+  componentDescription String
+  machineModel         String
+  machineSerial        String
+  sentLabel            String
+  sentFull             String
+  createdAt            DateTime @default(now())
+  company              Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  partRequest          PartRequest @relation(fields: [partRequestId], references: [id], onDelete: Cascade)
+  supplier             Supplier    @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+}
+
+model Technician {
+  id           String   @id @default(cuid())
+  companyId    String
+  name         String
+  email        String
+  phone        String
+  capabilities String[] @default([])
+  region       String?
+  notes        String?
+  company      Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  assignments  TechnicianAssignment[]
+  reports      InterventionReport[]
+  createdAt    DateTime @default(now())
+
+  @@index([companyId])
+}
+
+model TechnicianAssignment {
+  id                   String   @id @default(cuid())
+  companyId            String
+  partRequestId        String
+  technicianId         String
+  status               String
+  subject              String
+  body                 String
+  machineModel         String?
+  machineSerial        String?
+  componentCode        String?
+  componentDescription String?
+  assignedLabel        String
+  assignedFull         String
+  createdAt            DateTime @default(now())
+  company              Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  partRequest          PartRequest @relation(fields: [partRequestId], references: [id], onDelete: Cascade)
+  technician           Technician  @relation(fields: [technicianId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@index([partRequestId])
+}
+
+model InterventionReport {
+  id                   String   @id @default(cuid())
+  companyId            String
+  reportNumber         String
+  machineSerial        String
+  machineModel         String
+  technicianId         String
+  interventionDate     String
+  interventionDateFull String
+  type                 String
+  outcome              String
+  hours                Float
+  summary              String
+  workPerformed        String
+  partsUsedJson        Json?
+  customerCompany      String?
+  assignmentId         String?
+  createdAt            DateTime @default(now())
+  company              Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  technician           Technician @relation(fields: [technicianId], references: [id], onDelete: Cascade)
 
   @@index([companyId])
 }

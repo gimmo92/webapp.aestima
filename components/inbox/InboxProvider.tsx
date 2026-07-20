@@ -67,12 +67,12 @@ import type {
   ServiceTicketRecord,
   UpdateTicketInput,
 } from "@/lib/ticketTypes";
+import { persistWorkspace } from "@/lib/workspace/persistClient";
 
 // =============================================================
-// Stato condiviso della dashboard (inbox, pipeline, fornitori).
-//
-// Vive in memoria con React state. In PRODUZIONE qui si collegherebbe
-// l'API/DB, la casella email e il modulo acquisti/fornitori.
+// Stato condiviso della dashboard.
+// Se l'utente è loggato: dati company da Supabase (seed demo al primo accesso).
+// Se ospite (es. Assistenza pubblica): mock in memoria + localStorage chat.
 // =============================================================
 
 export interface CreateSupplierRequestInput {
@@ -201,29 +201,68 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
   const [technicianAssignments, setTechnicianAssignments] = useState<
     TechnicianAssignment[]
   >(MOCK_TECHNICIAN_ASSIGNMENTS);
-  const [interventionReports] = useState<InterventionReport[]>(
-    MOCK_INTERVENTION_REPORTS
-  );
+  const [interventionReports, setInterventionReports] = useState<
+    InterventionReport[]
+  >(MOCK_INTERVENTION_REPORTS);
   const [tickets, setTickets] = useState<ServiceTicketRecord[]>(MOCK_TICKETS);
   const [conversations, setConversations] =
     useState<ConversationRecord[]>(defaultConversations);
   const conversationsHydratedRef = useRef(false);
+  const cloudModeRef = useRef(false);
   const [knowledgeBase, setKnowledgeBase] =
     useState<KnowledgeEntry[]>(MOCK_KNOWLEDGE_ENTRIES);
 
   useEffect(() => {
-    const stored = loadStoredConversations();
-    if (stored) setConversations(stored);
-    conversationsHydratedRef.current = true;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch("/api/workspace");
+        if (!res.ok) {
+          // Ospite: mock locali + localStorage conversazioni
+          const stored = loadStoredConversations();
+          if (!cancelled) {
+            if (stored) setConversations(stored);
+            conversationsHydratedRef.current = true;
+            cloudModeRef.current = false;
+          }
+          return;
+        }
+        const data = await res.json();
+        if (cancelled) return;
+        cloudModeRef.current = true;
+        setLabels(data.labels ?? []);
+        setRequests(data.requests ?? []);
+        setConversations(data.conversations ?? []);
+        setKnowledgeBase(data.knowledgeBase ?? []);
+        setTickets(data.tickets ?? []);
+        setSuppliers(data.suppliers ?? []);
+        setSupplierRequests(data.supplierRequests ?? []);
+        setTechnicians(data.technicians ?? []);
+        setTechnicianAssignments(data.technicianAssignments ?? []);
+        setInterventionReports(data.interventionReports ?? []);
+        setSelectedId(data.requests?.[0]?.id ?? null);
+        conversationsHydratedRef.current = true;
+      } catch {
+        if (!cancelled) {
+          conversationsHydratedRef.current = true;
+          cloudModeRef.current = false;
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
     if (!conversationsHydratedRef.current) return;
+    if (cloudModeRef.current) return; // cloud: niente localStorage
     saveStoredConversations(conversations);
   }, [conversations]);
 
   useEffect(() => {
     const onStorage = (event: StorageEvent) => {
+      if (cloudModeRef.current) return;
       if (event.key !== CONVERSATIONS_STORAGE_KEY || !event.newValue) return;
       try {
         const parsed: unknown = JSON.parse(event.newValue);
@@ -237,8 +276,14 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener("storage", onStorage);
   }, []);
 
+  const persist = useCallback((action: string, payload: unknown) => {
+    if (!cloudModeRef.current) return;
+    persistWorkspace(action, payload);
+  }, []);
+
   const changeStatus = (id: string, status: RequestStatus) => {
     setRequests((prev) => prev.map((r) => (r.id === id ? { ...r, status } : r)));
+    persist("changeStatus", { id, status });
   };
 
   const toggleLabel = (id: string, labelId: string) => {
@@ -254,18 +299,21 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
         };
       })
     );
+    persist("toggleLabel", { id, labelId });
   };
 
   const createLabel = (name: string): string => {
     const id = `label-${Date.now()}`;
     const color = LABEL_PALETTE[labels.length % LABEL_PALETTE.length];
     setLabels((prev) => [...prev, { id, name, color }]);
+    persist("createLabel", { id, name, color });
     return id;
   };
 
   const addSupplier = (input: SupplierInput): string => {
     const id = newSupplierId();
     setSuppliers((prev) => [...prev, { ...input, id }]);
+    persist("addSupplier", { id, ...input });
     return id;
   };
 
@@ -277,6 +325,7 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
       id: `sup-${base}-${i}`,
     }));
     setSuppliers((prev) => [...prev, ...added]);
+    for (const row of added) persist("addSupplier", row);
     return added.length;
   };
 
@@ -286,7 +335,7 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
       id: newSupplierRequestId(),
       partRequestId: input.partRequestId,
       supplierId,
-      status: "inviata",
+      status: "inviata" as const,
       subject: input.subject,
       body: input.body,
       componentCode: input.componentCode,
@@ -302,6 +351,10 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
         r.id === input.partRequestId ? { ...r, status: "attesa_fornitore" } : r
       )
     );
+    persist("createSupplierRequests", {
+      partRequestId: input.partRequestId,
+      rows,
+    });
   };
 
   const updateSupplierRequestStatus = (
@@ -311,11 +364,13 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
     setSupplierRequests((prev) =>
       prev.map((sr) => (sr.id === id ? { ...sr, status } : sr))
     );
+    persist("updateSupplierRequestStatus", { id, status });
   };
 
   const addTechnician = (input: TechnicianInput): string => {
     const id = newTechnicianId();
     setTechnicians((prev) => [...prev, { ...input, id }]);
+    persist("addTechnician", { id, ...input });
     return id;
   };
 
@@ -327,29 +382,31 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
       id: `tech-${base}-${i}`,
     }));
     setTechnicians((prev) => [...prev, ...added]);
+    for (const row of added) persist("addTechnician", row);
     return added.length;
   };
 
   const createTechnicianAssignment = (input: CreateTechnicianAssignmentInput) => {
     const { sentLabel, sentFull } = nowLabels();
+    const row: TechnicianAssignment = {
+      id: newTechnicianAssignmentId(),
+      partRequestId: input.partRequestId,
+      technicianId: input.technicianId,
+      status: input.contacted ? "contattato" : "bozza",
+      subject: input.subject,
+      body: input.body,
+      machineModel: input.machineModel,
+      machineSerial: input.machineSerial,
+      componentCode: input.componentCode,
+      componentDescription: input.componentDescription,
+      assignedLabel: sentLabel,
+      assignedFull: sentFull,
+    };
     setTechnicianAssignments((prev) => {
       const without = prev.filter((a) => a.partRequestId !== input.partRequestId);
-      const row: TechnicianAssignment = {
-        id: newTechnicianAssignmentId(),
-        partRequestId: input.partRequestId,
-        technicianId: input.technicianId,
-        status: input.contacted ? "contattato" : "bozza",
-        subject: input.subject,
-        body: input.body,
-        machineModel: input.machineModel,
-        machineSerial: input.machineSerial,
-        componentCode: input.componentCode,
-        componentDescription: input.componentDescription,
-        assignedLabel: sentLabel,
-        assignedFull: sentFull,
-      };
       return [row, ...without];
     });
+    persist("createTechnicianAssignment", row);
   };
 
   const updateTechnicianAssignmentStatus = (
@@ -359,6 +416,7 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
     setTechnicianAssignments((prev) =>
       prev.map((a) => (a.id === id ? { ...a, status } : a))
     );
+    persist("updateTechnicianAssignmentStatus", { id, status });
   };
 
   const getTechnicianAssignmentForRequest = useCallback(
@@ -367,11 +425,10 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
     [technicianAssignments]
   );
 
-  const createTicket = useCallback((input: CreateTicketInput): string => {
-    const { sentLabel, sentFull } = nowLabels();
-    const id = input.id?.trim() || newTicketId();
-    setTickets((prev) => {
-      if (prev.some((t) => t.id === id)) return prev;
+  const createTicket = useCallback(
+    (input: CreateTicketInput): string => {
+      const { sentLabel, sentFull } = nowLabels();
+      const id = input.id?.trim() || newTicketId();
       const row: ServiceTicketRecord = {
         id,
         status: "aperto",
@@ -386,71 +443,86 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
         createdFull: sentFull,
         updatedFull: sentFull,
       };
-      return [row, ...prev];
-    });
-    return id;
-  }, []);
+      setTickets((prev) => {
+        if (prev.some((t) => t.id === id)) return prev;
+        return [row, ...prev];
+      });
+      persist("createTicket", row);
+      return id;
+    },
+    [persist]
+  );
 
-  const updateTicket = useCallback((id: string, input: UpdateTicketInput) => {
-    const { sentFull } = nowLabels();
-    setTickets((prev) =>
-      prev.map((t) => {
-        if (t.id !== id) return t;
-        const next: ServiceTicketRecord = {
-          ...t,
-          updatedFull: sentFull,
-        };
-        if (input.status !== undefined) next.status = input.status;
-        if (input.priority !== undefined) next.priority = input.priority;
-        if (input.internalNotes !== undefined)
-          next.internalNotes = input.internalNotes;
-        if (input.description !== undefined)
-          next.description = input.description;
-        if (input.solution !== undefined) next.solution = input.solution;
-        if (input.knowledgeEntryId !== undefined)
-          next.knowledgeEntryId = input.knowledgeEntryId;
-        if (input.assignedTechnicianId !== undefined) {
-          next.assignedTechnicianId =
-            input.assignedTechnicianId ?? undefined;
-          if (input.assignedTechnicianId && next.status === "aperto") {
-            next.status = "assegnato";
+  const updateTicket = useCallback(
+    (id: string, input: UpdateTicketInput) => {
+      const { sentFull } = nowLabels();
+      let nextRow: ServiceTicketRecord | null = null;
+      setTickets((prev) =>
+        prev.map((t) => {
+          if (t.id !== id) return t;
+          const next: ServiceTicketRecord = {
+            ...t,
+            updatedFull: sentFull,
+          };
+          if (input.status !== undefined) next.status = input.status;
+          if (input.priority !== undefined) next.priority = input.priority;
+          if (input.internalNotes !== undefined)
+            next.internalNotes = input.internalNotes;
+          if (input.description !== undefined)
+            next.description = input.description;
+          if (input.solution !== undefined) next.solution = input.solution;
+          if (input.knowledgeEntryId !== undefined)
+            next.knowledgeEntryId = input.knowledgeEntryId;
+          if (input.assignedTechnicianId !== undefined) {
+            next.assignedTechnicianId =
+              input.assignedTechnicianId ?? undefined;
+            if (input.assignedTechnicianId && next.status === "aperto") {
+              next.status = "assegnato";
+            }
           }
-        }
-        return next;
-      })
-    );
-  }, []);
+          nextRow = next;
+          return next;
+        })
+      );
+      if (nextRow) persist("updateTicket", { ...(nextRow as object), id });
+    },
+    [persist]
+  );
 
   const getTicketById = useCallback(
     (id: string) => tickets.find((t) => t.id === id),
     [tickets]
   );
 
-  const createConversation = useCallback((input: CreateConversationInput): string => {
-    const { sentLabel, sentFull } = nowLabels();
-    const id = newConversationId();
-    const initial = input.initialMessages ?? [];
-    const last = initial[initial.length - 1];
-    const row: ConversationRecord = {
-      id,
-      customerName: input.customerName,
-      customerEmail: input.customerEmail,
-      status: "aperto",
-      assignee: input.assignee ?? "ai",
-      assignedOperatorId: input.assignedOperatorId,
-      channel: input.channel,
-      lastMessagePreview: last?.content.slice(0, 80) ?? "Nuova conversazione",
-      lastMessageLabel: last?.timestampLabel ?? sentLabel,
-      createdFull: sentFull,
-      updatedFull: sentFull,
-      messages: initial,
-      machineModel: input.machineModel,
-      machineSerial: input.machineSerial,
-      visitorOnline: input.channel !== "inbox",
-    };
-    setConversations((prev) => [row, ...prev]);
-    return id;
-  }, []);
+  const createConversation = useCallback(
+    (input: CreateConversationInput): string => {
+      const { sentLabel, sentFull } = nowLabels();
+      const id = newConversationId();
+      const initial = input.initialMessages ?? [];
+      const last = initial[initial.length - 1];
+      const row: ConversationRecord = {
+        id,
+        customerName: input.customerName,
+        customerEmail: input.customerEmail,
+        status: "aperto",
+        assignee: input.assignee ?? "ai",
+        assignedOperatorId: input.assignedOperatorId,
+        channel: input.channel,
+        lastMessagePreview: last?.content.slice(0, 80) ?? "Nuova conversazione",
+        lastMessageLabel: last?.timestampLabel ?? sentLabel,
+        createdFull: sentFull,
+        updatedFull: sentFull,
+        messages: initial,
+        machineModel: input.machineModel,
+        machineSerial: input.machineSerial,
+        visitorOnline: input.channel !== "inbox",
+      };
+      setConversations((prev) => [row, ...prev]);
+      persist("createConversation", row);
+      return id;
+    },
+    [persist]
+  );
 
   const updateConversation = useCallback(
     (id: string, input: UpdateConversationInput) => {
@@ -481,24 +553,30 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
           return next;
         })
       );
+      persist("updateConversation", {
+        id,
+        ...input,
+        lastMessageLabel: sentLabel,
+        updatedFull: sentFull,
+      });
     },
-    []
+    [persist]
   );
 
   const appendConversationMessage = useCallback(
     (id: string, input: AppendConversationMessageInput) => {
       const { sentLabel, sentFull } = nowLabels();
+      const message = {
+        id: `msg-${Date.now()}`,
+        role: input.role,
+        content: input.content,
+        timestampLabel: sentLabel,
+        spareParts: input.spareParts,
+        ticket: input.ticket,
+      };
       setConversations((prev) =>
         prev.map((c) => {
           if (c.id !== id) return c;
-          const message = {
-            id: `msg-${Date.now()}-${c.messages.length}`,
-            role: input.role,
-            content: input.content,
-            timestampLabel: sentLabel,
-            spareParts: input.spareParts,
-            ticket: input.ticket,
-          };
           return {
             ...c,
             messages: [...c.messages, message],
@@ -508,34 +586,48 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
           };
         })
       );
+      persist("appendConversationMessage", {
+        id,
+        message,
+        updatedFull: sentFull,
+      });
     },
-    []
+    [persist]
   );
 
-  const takeOverConversation = useCallback((id: string, operatorId: string) => {
-    const { sentLabel, sentFull } = nowLabels();
-    setConversations((prev) =>
-      prev.map((c) => {
-        if (c.id !== id) return c;
-        if (c.assignee === "operatore") return c;
-        const notice = {
-          id: `msg-${Date.now()}-${c.messages.length}`,
-          role: "agent" as const,
-          content: "Stai parlando con un agente umano.",
-          timestampLabel: sentLabel,
-        };
-        return {
-          ...c,
-          assignee: "operatore" as const,
-          assignedOperatorId: operatorId,
-          messages: [...c.messages, notice],
-          lastMessagePreview: notice.content.slice(0, 80),
-          lastMessageLabel: sentLabel,
-          updatedFull: sentFull,
-        };
-      })
-    );
-  }, []);
+  const takeOverConversation = useCallback(
+    (id: string, operatorId: string) => {
+      const { sentLabel, sentFull } = nowLabels();
+      const notice = {
+        id: `msg-${Date.now()}`,
+        role: "agent" as const,
+        content: "Stai parlando con un agente umano.",
+        timestampLabel: sentLabel,
+      };
+      setConversations((prev) =>
+        prev.map((c) => {
+          if (c.id !== id) return c;
+          if (c.assignee === "operatore") return c;
+          return {
+            ...c,
+            assignee: "operatore" as const,
+            assignedOperatorId: operatorId,
+            messages: [...c.messages, notice],
+            lastMessagePreview: notice.content.slice(0, 80),
+            lastMessageLabel: sentLabel,
+            updatedFull: sentFull,
+          };
+        })
+      );
+      persist("takeOverConversation", {
+        id,
+        operatorId,
+        notice,
+        updatedFull: sentFull,
+      });
+    },
+    [persist]
+  );
 
   const resolveConversation = useCallback((id: string) => {
     updateConversation(id, { status: "risolto", visitorOnline: false });
@@ -568,19 +660,17 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
           )
       );
       if (similar) {
+        const next = {
+          ...similar,
+          frequency: similar.frequency + 1,
+          updatedFull: sentFull,
+          solution: input.solution,
+          probableCause: input.probableCause,
+        };
         setKnowledgeBase((prev) =>
-          prev.map((e) =>
-            e.id === similar.id
-              ? {
-                  ...e,
-                  frequency: e.frequency + 1,
-                  updatedFull: sentFull,
-                  solution: input.solution,
-                  probableCause: input.probableCause,
-                }
-              : e
-          )
+          prev.map((e) => (e.id === similar.id ? next : e))
         );
+        persist("upsertKnowledgeEntry", next);
         return similar.id;
       }
       const row: KnowledgeEntry = {
@@ -594,19 +684,26 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
         updatedFull: sentFull,
       };
       setKnowledgeBase((prev) => [row, ...prev]);
+      persist("upsertKnowledgeEntry", row);
       return id;
     },
-    [knowledgeBase]
+    [knowledgeBase, persist]
   );
 
-  const incrementKnowledgeFrequency = useCallback((id: string) => {
-    const { sentFull } = nowLabels();
-    setKnowledgeBase((prev) =>
-      prev.map((e) =>
-        e.id === id ? { ...e, frequency: e.frequency + 1, updatedFull: sentFull } : e
-      )
-    );
-  }, []);
+  const incrementKnowledgeFrequency = useCallback(
+    (id: string) => {
+      const { sentFull } = nowLabels();
+      setKnowledgeBase((prev) =>
+        prev.map((e) =>
+          e.id === id
+            ? { ...e, frequency: e.frequency + 1, updatedFull: sentFull }
+            : e
+        )
+      );
+      persist("incrementKnowledgeFrequency", { id, updatedFull: sentFull });
+    },
+    [persist]
+  );
 
   const consolidateKnowledgeEntries = useCallback(
     (
@@ -636,14 +733,26 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
         row,
         ...prev.filter((e) => !entryIds.includes(e.id)),
       ]);
+      persist("consolidateKnowledge", {
+        id,
+        entryIds,
+        merged: row,
+        createdLabel: sentLabel,
+        createdFull: sentFull,
+        updatedFull: sentFull,
+      });
       return id;
     },
-    []
+    [persist]
   );
 
-  const removeKnowledgeEntries = useCallback((ids: string[]) => {
-    setKnowledgeBase((prev) => prev.filter((e) => !ids.includes(e.id)));
-  }, []);
+  const removeKnowledgeEntries = useCallback(
+    (ids: string[]) => {
+      setKnowledgeBase((prev) => prev.filter((e) => !ids.includes(e.id)));
+      persist("removeKnowledgeEntries", { ids });
+    },
+    [persist]
+  );
 
   const getKnowledgeEntryById = useCallback(
     (id: string) => knowledgeBase.find((e) => e.id === id),
