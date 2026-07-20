@@ -23,6 +23,7 @@ import {
 } from "@/lib/serviceChatQuickReplies";
 import type { DisplayMessage } from "@/lib/serviceChatTypes";
 import { isReadyForKbSearch } from "@/lib/knowledgeSearch";
+import { useSpeechDictation } from "@/lib/useSpeechDictation";
 
 // =============================================================
 // Chat assistenza service — UI principale
@@ -110,6 +111,18 @@ export function ServiceChatWorkspace({
     : undefined;
   const operatorActive = storedConversation?.assignee === "operatore";
   const conversationResolved = storedConversation?.status === "risolto";
+
+  const {
+    supported: dictationSupported,
+    listening: dictating,
+    error: dictationError,
+    toggle: toggleDictation,
+    stop: stopDictation,
+    clearError: clearDictationError,
+  } = useSpeechDictation({
+    onTranscript: setInput,
+    enabled: !loading && !conversationResolved,
+  });
 
   const updateMessage = useCallback(
     (id: string, patch: Partial<DisplayMessage>) => {
@@ -416,9 +429,10 @@ export function ServiceChatWorkspace({
 
   const submitText = useCallback(
     (text: string) => {
+      stopDictation();
       void submitMessage(text, [...pendingAttachments]);
     },
-    [submitMessage, pendingAttachments]
+    [submitMessage, pendingAttachments, stopDictation]
   );
 
   const sendMessage = useCallback(() => {
@@ -433,6 +447,8 @@ export function ServiceChatWorkspace({
   };
 
   const resetChat = () => {
+    stopDictation();
+    clearDictationError();
     revokeAttachmentUrls(collectAttachmentUrls(messages));
     revokeAttachmentUrls(pendingAttachments);
     setMessages([WELCOME]);
@@ -604,8 +620,10 @@ export function ServiceChatWorkspace({
             </div>
           )}
 
-          {attachError && (
-            <p className="mb-2 text-xs text-danger">{attachError}</p>
+          {(attachError || dictationError) && (
+            <p className="mb-2 text-xs text-danger">
+              {attachError || dictationError}
+            </p>
           )}
 
           <div className="flex gap-2 sm:gap-3">
@@ -626,15 +644,64 @@ export function ServiceChatWorkspace({
                 />
               </svg>
             </button>
+            {dictationSupported && (
+              <button
+                type="button"
+                onClick={() => {
+                  clearDictationError();
+                  toggleDictation(input);
+                  inputRef.current?.focus();
+                }}
+                disabled={loading || conversationResolved}
+                aria-pressed={dictating}
+                aria-label={dictating ? "Ferma dettatura" : "Dettatura audio"}
+                title={dictating ? "Ferma dettatura" : "Dettatura audio"}
+                className={[
+                  "inline-flex h-[52px] w-[52px] shrink-0 items-center justify-center self-end rounded-xl border transition-colors disabled:cursor-not-allowed disabled:opacity-40",
+                  dictating
+                    ? "border-danger/60 bg-danger/10 text-danger animate-pulse"
+                    : "border-border bg-base text-ink-muted hover:border-brand/50 hover:text-brand",
+                ].join(" ")}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path
+                    d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Z"
+                    stroke="currentColor"
+                    strokeWidth="1.7"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <path
+                    d="M19 11a7 7 0 0 1-14 0M12 18v3"
+                    stroke="currentColor"
+                    strokeWidth="1.7"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </button>
+            )}
             <textarea
               ref={inputRef}
               value={input}
-              onChange={(e) => setInput(e.target.value)}
+              onChange={(e) => {
+                if (dictating) stopDictation();
+                setInput(e.target.value);
+              }}
               onKeyDown={handleKeyDown}
               disabled={loading}
               rows={2}
-              placeholder="Descrivi il problema o allega una foto della macchina / del componente…"
-              className="min-h-[52px] flex-1 resize-none rounded-xl border border-border bg-base px-4 py-3 text-[15px] leading-relaxed text-ink outline-none transition-colors placeholder:text-ink-faint focus:border-brand focus:ring-2 focus:ring-brand/20 disabled:opacity-60"
+              placeholder={
+                dictating
+                  ? "Sto ascoltando… parla pure"
+                  : "Descrivi il problema, dettalo o allega una foto della macchina / del componente…"
+              }
+              className={[
+                "min-h-[52px] flex-1 resize-none rounded-xl border bg-base px-4 py-3 text-[15px] leading-relaxed text-ink outline-none transition-colors placeholder:text-ink-faint disabled:opacity-60",
+                dictating
+                  ? "border-danger/50 focus:border-danger focus:ring-2 focus:ring-danger/20"
+                  : "border-border focus:border-brand focus:ring-2 focus:ring-brand/20",
+              ].join(" ")}
             />
             <button
               onClick={sendMessage}
@@ -662,6 +729,11 @@ export function ServiceChatWorkspace({
               Invia
             </button>
           </div>
+          {dictating && (
+            <p className="mt-2 text-center text-xs font-medium text-danger">
+              Dettatura attiva — tocca di nuovo il microfono per fermare
+            </p>
+          )}
           {operatorActive && !conversationResolved && (
             <p className="mt-2 text-center text-xs text-ok">
               Un operatore sta gestendo questa conversazione.
@@ -670,6 +742,7 @@ export function ServiceChatWorkspace({
           <p className="mt-3 text-center text-xs text-ink-faint">
             Foto (JPG, PNG) analizzate dall&apos;AI · Documenti PDF/Office
             inoltrati al tecnico · Max {MAX_ATTACHMENTS_PER_MESSAGE} allegati
+            {dictationSupported ? " · Microfono per dettare" : ""}
           </p>
         </div>
       </div>
