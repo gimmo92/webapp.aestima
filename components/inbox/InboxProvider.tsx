@@ -436,7 +436,8 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
       customerName: input.customerName,
       customerEmail: input.customerEmail,
       status: "aperto",
-      assignee: "ai",
+      assignee: input.assignee ?? "ai",
+      assignedOperatorId: input.assignedOperatorId,
       channel: input.channel,
       lastMessagePreview: last?.content.slice(0, 80) ?? "Nuova conversazione",
       lastMessageLabel: last?.timestampLabel ?? sentLabel,
@@ -445,7 +446,7 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
       messages: initial,
       machineModel: input.machineModel,
       machineSerial: input.machineSerial,
-      visitorOnline: true,
+      visitorOnline: input.channel !== "inbox",
     };
     setConversations((prev) => [row, ...prev]);
     return id;

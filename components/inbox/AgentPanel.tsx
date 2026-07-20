@@ -355,10 +355,7 @@ export function AgentPanel({ request, onApproveSend }: Props) {
                       <svg width="14" height="14" viewBox="0 0 20 20" fill="none" aria-hidden="true">
                         <path d="M4 10.5 8 14.5 16 5.5" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
                       </svg>
-                      Richiesta inviata ai fornitori selezionati.{" "}
-                      <Link href="/fornitori" className="font-medium text-brand hover:underline">
-                        Vedi in Fornitori →
-                      </Link>
+                      Richiesta inviata ai fornitori selezionati.
                     </p>
                   ) : (
                     <>

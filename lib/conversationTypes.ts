@@ -10,7 +10,7 @@ export type ConversationStatus = "aperto" | "risolto";
 
 export type ConversationAssignee = "ai" | "operatore";
 
-export type ConversationChannel = "live_chat" | "embed" | "assistenza";
+export type ConversationChannel = "live_chat" | "embed" | "assistenza" | "inbox";
 
 export type ConversationMessageRole = "user" | "assistant" | "agent";
 
@@ -49,6 +49,9 @@ export interface CreateConversationInput {
   machineModel?: string;
   machineSerial?: string;
   initialMessages?: StoredConversationMessage[];
+  /** Se omesso, la conversazione resta assegnata all'AI. */
+  assignee?: ConversationAssignee;
+  assignedOperatorId?: string;
 }
 
 export interface UpdateConversationInput {

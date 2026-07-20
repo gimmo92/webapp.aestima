@@ -3,12 +3,14 @@
 import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { STATUSES } from "@/lib/inboxData";
 import {
   buildTechnicianAvailabilityRequest,
   buildTechnicianSubject,
 } from "@/lib/inboxDrafts";
 import type { Label, PartRequest, RequestStatus } from "@/lib/inboxTypes";
+import { CURRENT_OPERATOR } from "@/lib/conversationData";
 import { LabelChip } from "./LabelChip";
 import { StatusPill } from "./StatusPill";
 import { AgentPanel } from "./AgentPanel";
@@ -36,11 +38,13 @@ export function RequestDetail({
   onToggleLabel,
   onCreateLabel,
 }: Props) {
+  const router = useRouter();
   const {
     technicians,
     createTechnicianAssignment,
     getTechnicianAssignmentForRequest,
     updateTechnicianAssignmentStatus,
+    createConversation,
   } = useInbox();
   const [menu, setMenu] = useState<OpenMenu>(null);
   const [newLabel, setNewLabel] = useState("");
@@ -74,6 +78,39 @@ export function RequestDetail({
   useEffect(() => {
     setLightbox(null);
   }, [request?.id]);
+
+  const handleCreateTicket = () => {
+    if (!request) return;
+    const timestampLabel = new Date().toLocaleTimeString("it-IT", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+    const emailContent = [
+      `Oggetto: ${request.subject}`,
+      `Da: ${request.from} <${request.fromEmail}>`,
+      `Azienda: ${request.company}`,
+      `Ricevuta: ${request.receivedFull}`,
+      "",
+      request.body,
+    ].join("\n");
+
+    const id = createConversation({
+      customerName: request.from,
+      customerEmail: request.fromEmail,
+      channel: "inbox",
+      assignee: "operatore",
+      assignedOperatorId: CURRENT_OPERATOR.id,
+      initialMessages: [
+        {
+          id: `msg-inbox-${Date.now()}`,
+          role: "user",
+          content: emailContent,
+          timestampLabel,
+        },
+      ],
+    });
+    router.push(`/conversazioni?id=${encodeURIComponent(id)}`);
+  };
 
   if (!request) {
     return (
@@ -283,6 +320,20 @@ export function RequestDetail({
               </div>
             )}
           </div>
+
+          <ActionButton
+            label="Crea ticket"
+            onClick={handleCreateTicket}
+            icon={
+              <path
+                d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2M9 12h6M9 16h4"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            }
+          />
 
           {assignment && assignedTech && (
             <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-base/80 px-2.5 py-1.5">

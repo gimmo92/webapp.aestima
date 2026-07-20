@@ -18,6 +18,7 @@ export const CONVERSATION_CHANNEL_LABELS: Record<ConversationChannel, string> =
     live_chat: "Live chat",
     embed: "Widget embed",
     assistenza: "Assistenza AI",
+    inbox: "Email inbox",
   };
 
 export type ConversationFilter =

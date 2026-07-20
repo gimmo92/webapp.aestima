@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useInbox } from "@/components/inbox/InboxProvider";
 import { SparePartCardList } from "@/components/service-chat/SparePartCard";
 import {
@@ -22,21 +23,57 @@ export function ConversationsWorkspace() {
     resolveConversation,
     appendConversationMessage,
   } = useInbox();
+  const searchParams = useSearchParams();
+  const deepLinkId = searchParams.get("id");
 
   const [filter, setFilter] = useState<ConversationFilter>("non_assegnate");
   const [query, setQuery] = useState("");
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(deepLinkId);
   const knownIdsRef = useRef<Set<string>>(new Set());
+  const deepLinkHandledRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!deepLinkId) return;
+    if (deepLinkHandledRef.current === deepLinkId) return;
+    const target = conversations.find((c) => c.id === deepLinkId);
+    if (!target) return;
+    deepLinkHandledRef.current = deepLinkId;
+    setSelectedId(deepLinkId);
+    if (target.status === "risolto") setFilter("risolte");
+    else if (
+      target.assignee === "operatore" &&
+      target.assignedOperatorId === CURRENT_OPERATOR.id
+    ) {
+      setFilter("miei_aperti");
+    } else if (target.assignee === "ai") {
+      setFilter("non_assegnate");
+    } else {
+      setFilter("tutte");
+    }
+  }, [deepLinkId, conversations]);
 
   useEffect(() => {
     const currentIds = conversations.map((c) => c.id);
     const newId = currentIds.find((id) => !knownIdsRef.current.has(id));
     knownIdsRef.current = new Set(currentIds);
 
+    if (deepLinkId && deepLinkHandledRef.current === deepLinkId) {
+      if (selectedId && conversations.some((c) => c.id === selectedId)) return;
+    }
+
     if (newId) {
       const created = conversations.find((c) => c.id === newId);
       if (created?.status === "aperto" && created.assignee === "ai") {
         setFilter("non_assegnate");
+        setSelectedId(newId);
+        return;
+      }
+      if (
+        created?.status === "aperto" &&
+        created.assignee === "operatore" &&
+        created.assignedOperatorId === CURRENT_OPERATOR.id
+      ) {
+        setFilter("miei_aperti");
         setSelectedId(newId);
         return;
       }
@@ -47,7 +84,7 @@ export function ConversationsWorkspace() {
       (c) => c.status === "aperto" && c.assignee === "ai"
     );
     setSelectedId(firstOpenAi?.id ?? conversations[0]?.id ?? null);
-  }, [conversations, selectedId]);
+  }, [conversations, selectedId, deepLinkId]);
 
   const counts = useMemo(
     () => ({

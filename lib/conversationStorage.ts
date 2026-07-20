@@ -19,7 +19,8 @@ function isConversationRecord(value: unknown): value is ConversationRecord {
     (c.assignee === "ai" || c.assignee === "operatore") &&
     (c.channel === "live_chat" ||
       c.channel === "embed" ||
-      c.channel === "assistenza") &&
+      c.channel === "assistenza" ||
+      c.channel === "inbox") &&
     Array.isArray(c.messages)
   );
 }
