@@ -36,11 +36,12 @@ export function isPartPriceMissing(code: string): boolean {
   return price === undefined || price <= 0;
 }
 
-/** Prezzi unitari demo per codici ricambio (EUR). */
+/** Prezzi unitari demo per codici ricambio (EUR).
+ * Alcuni codici BOM sono volutamente assenti → lacune in Completezza ricambi. */
 const UNIT_PRICES: Record<string, number> = {
   "1291200010_GR": 185,
   "1291200130": 245,
-  "1291400010_GR": 420,
+  // "1291400010_GR" — prezzo mancante (demo)
   "1002033": 38,
   UNI1751D08ZN: 0.45,
   UNI5588M08ZN: 0.35,
@@ -48,15 +49,16 @@ const UNIT_PRICES: Record<string, number> = {
   UNI5739M08050ZN: 0.65,
   UNI6592D08ZN: 0.12,
   UNI7435D025: 1.2,
-  "1381400061C": 2.5,
+  // "1381400061C" — prezzo mancante (demo)
   "1381400061D": 890,
   "1841400120B": 4.2,
   "1023021": 3.8,
   "1011600051": 12,
-  "1011600070": 18,
+  // "1011600070" — prezzo mancante (demo)
   "1011600080": 22,
   "1051600230": 45,
   UNI7437D019FE: 0.8,
+  // "1051600190" — prezzo mancante (demo)
 };
 
 export const BOM_CATALOG: Record<string, BomDefinition> = {

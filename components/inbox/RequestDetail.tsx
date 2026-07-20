@@ -321,20 +321,6 @@ export function RequestDetail({
             )}
           </div>
 
-          <ActionButton
-            label="Crea ticket"
-            onClick={handleCreateTicket}
-            icon={
-              <path
-                d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2M9 12h6M9 16h4"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            }
-          />
-
           {assignment && assignedTech && (
             <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-base/80 px-2.5 py-1.5">
               <TechnicianAssignmentStatusPill status={assignment.status} compact />
@@ -370,6 +356,23 @@ export function RequestDetail({
               ))}
             </div>
           )}
+
+          <button
+            type="button"
+            onClick={handleCreateTicket}
+            className="ml-auto inline-flex items-center gap-2 rounded-xl bg-brand px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-brand/20 transition-all hover:bg-brand-strong"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path
+                d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2M9 12h6M9 16h4"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+            Crea ticket
+          </button>
         </div>
       </div>
 
