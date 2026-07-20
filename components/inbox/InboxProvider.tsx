@@ -512,11 +512,29 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
   );
 
   const takeOverConversation = useCallback((id: string, operatorId: string) => {
-    updateConversation(id, {
-      assignee: "operatore",
-      assignedOperatorId: operatorId,
-    });
-  }, [updateConversation]);
+    const { sentLabel, sentFull } = nowLabels();
+    setConversations((prev) =>
+      prev.map((c) => {
+        if (c.id !== id) return c;
+        if (c.assignee === "operatore") return c;
+        const notice = {
+          id: `msg-${Date.now()}-${c.messages.length}`,
+          role: "agent" as const,
+          content: "Stai parlando con un agente umano.",
+          timestampLabel: sentLabel,
+        };
+        return {
+          ...c,
+          assignee: "operatore" as const,
+          assignedOperatorId: operatorId,
+          messages: [...c.messages, notice],
+          lastMessagePreview: notice.content.slice(0, 80),
+          lastMessageLabel: sentLabel,
+          updatedFull: sentFull,
+        };
+      })
+    );
+  }, []);
 
   const resolveConversation = useCallback((id: string) => {
     updateConversation(id, { status: "risolto", visitorOnline: false });

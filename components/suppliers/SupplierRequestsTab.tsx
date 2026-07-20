@@ -9,8 +9,7 @@ import { SupplierRequestStatusPill } from "./SupplierRequestStatusPill";
 // Tab iniziale Fornitori: richieste inviate ai fornitori con stato.
 
 export function SupplierRequestsTab() {
-  const { supplierRequests, suppliers, requests, updateSupplierRequestStatus } =
-    useInbox();
+  const { supplierRequests, suppliers, requests } = useInbox();
   const [statusFilter, setStatusFilter] = useState<SupplierRequestStatus | "all">(
     "all"
   );
@@ -122,7 +121,6 @@ export function SupplierRequestsTab() {
             supplierName={supplierById[selected.supplierId]?.name ?? "—"}
             supplierEmail={supplierById[selected.supplierId]?.email ?? "—"}
             clientCompany={requestById[selected.partRequestId]?.company ?? "—"}
-            onChangeStatus={updateSupplierRequestStatus}
           />
         ) : (
           <div className="flex h-full items-center justify-center text-sm text-ink-faint">
@@ -171,13 +169,11 @@ function RequestDetail({
   supplierName,
   supplierEmail,
   clientCompany,
-  onChangeStatus,
 }: {
   sr: SupplierRequest;
   supplierName: string;
   supplierEmail: string;
   clientCompany: string;
-  onChangeStatus: (id: string, status: SupplierRequestStatus) => void;
 }) {
   return (
     <div className="mx-auto max-w-2xl space-y-4">
@@ -218,22 +214,6 @@ function RequestDetail({
           {sr.body}
         </pre>
       </article>
-
-      <div className="flex flex-wrap gap-2">
-        <p className="w-full text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
-          Aggiorna stato
-        </p>
-        {SUPPLIER_REQUEST_STATUSES.filter((s) => s.id !== "bozza").map((s) => (
-          <button
-            key={s.id}
-            onClick={() => onChangeStatus(sr.id, s.id)}
-            disabled={sr.status === s.id}
-            className="rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-medium text-ink-muted transition-colors hover:border-border-strong hover:text-ink disabled:opacity-40"
-          >
-            {s.label}
-          </button>
-        ))}
-      </div>
     </div>
   );
 }

@@ -30,7 +30,6 @@ export function PartIdentified({ analysis, match, onBack, onGenerate }: Props) {
           </h2>
           <div className="mt-2 flex items-center gap-2">
             <SourceBadge source={analysis.source} />
-            <UrgencyBadge urgency={analysis.urgenza} />
           </div>
         </div>
 
@@ -225,15 +224,6 @@ function SourceBadge({ source }: { source: AnalysisResult["source"] }) {
     >
       <span className="h-1.5 w-1.5 rounded-full bg-current" />
       {isAI ? "Analizzato con Claude" : "Demo locale (mock)"}
-    </span>
-  );
-}
-
-function UrgencyBadge({ urgency }: { urgency: AnalysisResult["urgenza"] }) {
-  if (urgency !== "alta") return null;
-  return (
-    <span className="inline-flex items-center gap-1.5 rounded-full bg-danger/15 px-2.5 py-0.5 text-xs font-semibold text-danger">
-      Urgenza alta
     </span>
   );
 }

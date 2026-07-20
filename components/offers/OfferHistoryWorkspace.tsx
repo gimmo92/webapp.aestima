@@ -47,15 +47,6 @@ export function OfferHistoryWorkspace() {
     });
   }, [records, filter, query]);
 
-  const accepted = records.filter((r) => r.outcome === "accettata");
-  const rejected = records.filter((r) => r.outcome === "rifiutata");
-  const pending = records.filter((r) => r.outcome === "in_attesa");
-  const wonValue = accepted.reduce((acc, r) => acc + r.amount, 0);
-  const conversion =
-    accepted.length + rejected.length > 0
-      ? Math.round((accepted.length / (accepted.length + rejected.length)) * 100)
-      : 0;
-
   const openRequest = (requestId?: string) => {
     if (!requestId) return;
     setSelectedId(requestId);
@@ -64,33 +55,6 @@ export function OfferHistoryWorkspace() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="grid grid-cols-2 gap-3 border-b border-border px-5 py-4 lg:grid-cols-4">
-        <Kpi
-          label="Offerte nello storico"
-          value={String(records.length)}
-          sub={`${accepted.length} accettate · ${rejected.length} rifiutate`}
-          color="#6366f1"
-        />
-        <Kpi
-          label="Valore accettato"
-          value={euro(wonValue)}
-          sub={`${accepted.length} ordini confermati`}
-          color="#22c55e"
-        />
-        <Kpi
-          label="In attesa risposta"
-          value={String(pending.length)}
-          sub={euro(pending.reduce((a, r) => a + r.amount, 0))}
-          color="#3b82f6"
-        />
-        <Kpi
-          label="Tasso accettazione"
-          value={`${conversion}%`}
-          sub="su offerte concluse"
-          color="#a855f7"
-        />
-      </div>
-
       <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-wrap gap-1.5">
@@ -224,31 +188,6 @@ export function OfferHistoryWorkspace() {
           dettaglio in Inbox.
         </p>
       </div>
-    </div>
-  );
-}
-
-function Kpi({
-  label,
-  value,
-  sub,
-  color,
-}: {
-  label: string;
-  value: string;
-  sub: string;
-  color: string;
-}) {
-  return (
-    <div className="rounded-xl border border-border bg-surface/60 px-4 py-3">
-      <div className="flex items-center gap-2">
-        <span className="h-2 w-2 rounded-full" style={{ backgroundColor: color }} />
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
-          {label}
-        </p>
-      </div>
-      <p className="mt-1 text-xl font-bold tabular-nums text-ink">{value}</p>
-      <p className="text-xs text-ink-faint">{sub}</p>
     </div>
   );
 }

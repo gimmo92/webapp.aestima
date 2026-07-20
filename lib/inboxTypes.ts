@@ -22,7 +22,7 @@ export interface StatusConfig {
   description: string;
 }
 
-/** Etichetta custom applicabile a una richiesta (Urgente, Garanzia, ...). */
+/** Etichetta custom applicabile a una richiesta (Cliente chiave, Garanzia, ...). */
 export interface Label {
   id: string;
   name: string;

@@ -68,7 +68,6 @@ export const STATUS_BY_ID: Record<string, StatusConfig> = Object.fromEntries(
 
 /** Etichette custom iniziali. Se ne possono creare di nuove a runtime. */
 export const DEFAULT_LABELS: Label[] = [
-  { id: "urgente", name: "Urgente", color: "#ef4444" },
   { id: "cliente_chiave", name: "Cliente chiave", color: "#a855f7" },
   { id: "garanzia", name: "Garanzia", color: "#06b6d4" },
 ];
@@ -97,13 +96,13 @@ export const MOCK_REQUESTS: PartRequest[] = [
     from: "Marco Rossi",
     fromEmail: "m.rossi@rossimeccanica.it",
     company: "Rossi Meccanica S.r.l.",
-    subject: "URGENTE — curva rinvio impianto IDC 114",
+    subject: "Curva rinvio impianto IDC 114",
     body:
       "Buongiorno,\n\nsull'impianto IDC 114 TCZ matricola IDC-114-084 la curva di rinvio 90° ha gioco eccessivo e perdiamo tensione sul cavo. Ci serve un preventivo per la curva rinvio completa montata, con tutti i componenti della distinta (perno, interno, cuscinetti, viteria) compreso il montaggio in officina.\n\nLa macchina è ferma, serve il prima possibile.\n\nGrazie,\nMarco Rossi",
     receivedLabel: "09:12",
     receivedFull: "Oggi, 09:12",
     status: "nuova",
-    labelIds: ["urgente"],
+    labelIds: [],
     primary: true,
   },
   {
@@ -117,7 +116,7 @@ export const MOCK_REQUESTS: PartRequest[] = [
     receivedLabel: "09:05",
     receivedFull: "Oggi, 09:05",
     status: "nuova",
-    labelIds: ["urgente"],
+    labelIds: [],
     primary: true,
     attachments: [
       {

@@ -22,13 +22,6 @@ const PIPELINE_STAGES: RequestStatus[] = [
   "persa",
 ];
 
-// Fasi considerate "aperte" (offerta in corso).
-const OPEN_STAGES: RequestStatus[] = [
-  "preventivo_pronto",
-  "inviata",
-  "attesa_fornitore",
-];
-
 export function PipelineBoard() {
   const { requests, labels, changeStatus, setSelectedId } = useInbox();
   const router = useRouter();
@@ -49,14 +42,6 @@ export function PipelineBoard() {
   const sumValue = (list: PartRequest[]) =>
     list.reduce((acc, r) => acc + valueOf(r), 0);
 
-  const openReqs = requests.filter((r) => OPEN_STAGES.includes(r.status));
-  const wonReqs = requests.filter((r) => r.status === "vinta");
-  const lostReqs = requests.filter((r) => r.status === "persa");
-  const conversion =
-    wonReqs.length + lostReqs.length > 0
-      ? Math.round((wonReqs.length / (wonReqs.length + lostReqs.length)) * 100)
-      : 0;
-
   const openCard = (id: string) => {
     setSelectedId(id);
     router.push("/");
@@ -72,34 +57,6 @@ export function PipelineBoard() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      {/* KPI */}
-      <div className="grid grid-cols-2 gap-3 border-b border-border px-5 py-4 lg:grid-cols-4">
-        <Kpi
-          label="Pipeline aperta"
-          value={euro(sumValue(openReqs))}
-          sub={`${openReqs.length} offerte in corso`}
-          color="#3b82f6"
-        />
-        <Kpi
-          label="Vinte"
-          value={euro(sumValue(wonReqs))}
-          sub={`${wonReqs.length} ordini confermati`}
-          color="#22c55e"
-        />
-        <Kpi
-          label="Perse"
-          value={euro(sumValue(lostReqs))}
-          sub={`${lostReqs.length} non concluse`}
-          color="#ef4444"
-        />
-        <Kpi
-          label="Tasso di conversione"
-          value={`${conversion}%`}
-          sub="vinte / (vinte + perse)"
-          color="#a855f7"
-        />
-      </div>
-
       {/* Board */}
       <div className="min-h-0 flex-1 overflow-x-auto overflow-y-hidden">
         <div className="flex h-full min-w-max gap-3 p-5">
@@ -207,31 +164,6 @@ export function PipelineBoard() {
           })}
         </div>
       </div>
-    </div>
-  );
-}
-
-function Kpi({
-  label,
-  value,
-  sub,
-  color,
-}: {
-  label: string;
-  value: string;
-  sub: string;
-  color: string;
-}) {
-  return (
-    <div className="rounded-xl border border-border bg-surface/60 px-4 py-3">
-      <div className="flex items-center gap-2">
-        <span className="h-2 w-2 rounded-full" style={{ backgroundColor: color }} />
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
-          {label}
-        </p>
-      </div>
-      <p className="mt-1 text-xl font-bold text-ink tabular-nums">{value}</p>
-      <p className="text-xs text-ink-faint">{sub}</p>
     </div>
   );
 }

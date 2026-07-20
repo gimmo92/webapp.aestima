@@ -208,9 +208,6 @@ export function AgentPanel({ request, onApproveSend }: Props) {
                       Matr. {match.machine.serial} · {match.machine.year}
                     </p>
                   </Field>
-                  <Field label="Urgenza">
-                    <UrgencyTag urgency={analysis!.urgenza} />
-                  </Field>
                   <Field label="Componente">
                     <p className="font-medium text-ink">
                       {match.component.description}
@@ -528,24 +525,6 @@ function Availability({ quote }: { quote: Quote }) {
     <span className="inline-flex items-center gap-1.5 text-sm font-medium text-warn">
       <span className="h-1.5 w-1.5 rounded-full bg-warn" />
       Da ordinare — consegna stimata in {quote.leadTimeDays} gg lavorativi
-    </span>
-  );
-}
-
-function UrgencyTag({ urgency }: { urgency: AnalysisResult["urgenza"] }) {
-  const map = {
-    alta: { c: "#ef4444", t: "Alta" },
-    normale: { c: "#9fb0c3", t: "Normale" },
-    bassa: { c: "#6b7d92", t: "Bassa" },
-  } as const;
-  const { c, t } = map[urgency];
-  return (
-    <span
-      className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-semibold"
-      style={{ color: c, backgroundColor: `${c}1f` }}
-    >
-      <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: c }} />
-      {t}
     </span>
   );
 }

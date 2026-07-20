@@ -736,7 +736,7 @@ export function ServiceChatWorkspace({
           )}
           {operatorActive && !conversationResolved && (
             <p className="mt-2 text-center text-xs text-ok">
-              Un operatore sta gestendo questa conversazione.
+              Stai parlando con un agente umano.
             </p>
           )}
           <p className="mt-3 text-center text-xs text-ink-faint">
@@ -786,6 +786,7 @@ function MessageBubble({
           <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-brand">
             {message.content.includes("operatore sta gestendo") ||
             message.content.includes("inoltrato all'operatore") ||
+            message.content.includes("agente umano") ||
             message.content.includes("conversazione è stata chiusa")
               ? "Sistema"
               : message.isOperatorReply

@@ -461,59 +461,65 @@ function ConversationPanel({
         </div>
       </div>
 
-      {/* Input operatore */}
+      {/* Input operatore / CTA Subentra */}
       <div className="border-t border-border bg-surface/90 px-5 py-4 backdrop-blur-md">
         <div className="mx-auto max-w-3xl">
-          {!isResolved && !isOperator && (
-            <p className="mb-3 text-center text-xs text-ink-faint">
-              L&apos;assistente AI sta gestendo questa conversazione. Clicca{" "}
-              <button
-                onClick={onTakeOver}
-                className="font-medium text-brand hover:underline"
-              >
-                Subentra
-              </button>{" "}
-              per rispondere personalmente.
-            </p>
-          )}
-
-          {isResolved && (
-            <p className="mb-3 text-center text-xs text-ink-faint">
+          {isResolved ? (
+            <p className="text-center text-xs text-ink-faint">
               Conversazione risolta. Riapri dalla sezione &quot;Risolte&quot; per
               consultare la cronologia.
             </p>
-          )}
-
-          <div className="flex gap-2">
-            <textarea
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              disabled={!canReply}
-              rows={2}
-              placeholder={
-                canReply
-                  ? "Scrivi un messaggio al cliente…"
-                  : isResolved
-                    ? "Conversazione chiusa"
-                    : "Subentra per rispondere…"
-              }
-              className="min-h-[48px] flex-1 resize-none rounded-xl border border-border bg-base px-4 py-3 text-sm leading-relaxed text-ink outline-none transition-colors placeholder:text-ink-faint focus:border-brand focus:ring-2 focus:ring-brand/20 disabled:cursor-not-allowed disabled:opacity-50"
-            />
-            <button
-              onClick={handleSend}
-              disabled={!canReply || !input.trim()}
-              className="inline-flex shrink-0 items-center justify-center self-end rounded-xl bg-brand px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-brand/20 transition-all hover:bg-brand-strong disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              Rispondi
-            </button>
-          </div>
-
-          {canReply && (
-            <p className="mt-2 text-center text-[11px] text-ink-faint">
-              {CONVERSATION_CHANNEL_LABELS[conversation.channel]} · Rispondi come{" "}
-              {CURRENT_OPERATOR.name}
-            </p>
+          ) : !isOperator ? (
+            <div className="flex flex-col items-center gap-3 py-2">
+              <p className="text-center text-sm text-ink-muted">
+                L&apos;assistente AI sta gestendo questa conversazione.
+              </p>
+              <button
+                type="button"
+                onClick={onTakeOver}
+                className="inline-flex min-h-[56px] w-full max-w-md items-center justify-center gap-2.5 rounded-xl bg-brand px-8 py-4 text-base font-semibold text-white shadow-lg shadow-brand/25 transition-all hover:bg-brand-strong"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path
+                    d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                  />
+                  <circle cx="9" cy="7" r="4" stroke="currentColor" strokeWidth="1.8" />
+                  <path
+                    d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                  />
+                </svg>
+                Subentra
+              </button>
+            </div>
+          ) : (
+            <>
+              <div className="flex gap-2">
+                <textarea
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  rows={2}
+                  placeholder="Scrivi un messaggio al cliente…"
+                  className="min-h-[48px] flex-1 resize-none rounded-xl border border-border bg-base px-4 py-3 text-sm leading-relaxed text-ink outline-none transition-colors placeholder:text-ink-faint focus:border-brand focus:ring-2 focus:ring-brand/20"
+                />
+                <button
+                  onClick={handleSend}
+                  disabled={!input.trim()}
+                  className="inline-flex shrink-0 items-center justify-center self-end rounded-xl bg-brand px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-brand/20 transition-all hover:bg-brand-strong disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Rispondi
+                </button>
+              </div>
+              <p className="mt-2 text-center text-[11px] text-ink-faint">
+                {CONVERSATION_CHANNEL_LABELS[conversation.channel]} · Rispondi come{" "}
+                {CURRENT_OPERATOR.name}
+              </p>
+            </>
           )}
         </div>
       </div>
@@ -556,18 +562,22 @@ function AssigneeBadge({ conversation }: { conversation: ConversationRecord }) {
 function ConversationMessage({ message }: { message: StoredConversationMessage }) {
   const isUser = message.role === "user";
   const isAgent = message.role === "agent";
+  const isSystemNotice =
+    isAgent && message.content.toLowerCase().includes("agente umano");
 
   const senderLabel = isUser
     ? "Cliente"
-    : isAgent
-      ? CURRENT_OPERATOR.name
-      : "Assistente AI";
+    : isSystemNotice
+      ? "Sistema"
+      : isAgent
+        ? CURRENT_OPERATOR.name
+        : "Assistente AI";
 
   return (
     <div
       className={[
         "flex",
-        isUser ? "justify-start" : "justify-end",
+        isUser ? "justify-start" : isSystemNotice ? "justify-center" : "justify-end",
       ].join(" ")}
     >
       <div
@@ -575,9 +585,11 @@ function ConversationMessage({ message }: { message: StoredConversationMessage }
           "max-w-[80%] rounded-2xl px-4 py-3",
           isUser
             ? "rounded-bl-md border border-border bg-surface text-ink shadow-xl shadow-black/20"
-            : isAgent
-              ? "rounded-br-md bg-ok text-white shadow-lg shadow-ok/15"
-              : "rounded-br-md border border-border bg-brand-soft text-ink",
+            : isSystemNotice
+              ? "rounded-xl border border-ok/40 bg-ok/10 text-center text-ok"
+              : isAgent
+                ? "rounded-br-md bg-ok text-white shadow-lg shadow-ok/15"
+                : "rounded-br-md border border-border bg-brand-soft text-ink",
         ].join(" ")}
       >
         <div className="mb-1 flex items-center gap-2">
@@ -586,9 +598,11 @@ function ConversationMessage({ message }: { message: StoredConversationMessage }
               "text-[11px] font-semibold uppercase tracking-wider",
               isUser
                 ? "text-ink-faint"
-                : isAgent
-                  ? "text-white/80"
-                  : "text-brand",
+                : isSystemNotice
+                  ? "text-ok/80"
+                  : isAgent
+                    ? "text-white/80"
+                    : "text-brand",
             ].join(" ")}
           >
             {senderLabel}
@@ -596,13 +610,22 @@ function ConversationMessage({ message }: { message: StoredConversationMessage }
           <span
             className={[
               "text-[10px]",
-              isAgent ? "text-white/60" : "text-ink-faint",
+              isSystemNotice
+                ? "text-ok/60"
+                : isAgent
+                  ? "text-white/60"
+                  : "text-ink-faint",
             ].join(" ")}
           >
             {message.timestampLabel}
           </span>
         </div>
-        <p className="whitespace-pre-wrap text-sm leading-relaxed">
+        <p
+          className={[
+            "whitespace-pre-wrap text-sm leading-relaxed",
+            isSystemNotice ? "font-medium" : "",
+          ].join(" ")}
+        >
           {message.content}
         </p>
         {!isUser && message.spareParts && message.spareParts.length > 0 && (
