@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { DEMO_COMPANY_SLUG, seedCompanyWorkspace } from "./seed";
 import {
   mapAssignment,
   mapConversation,
@@ -41,6 +42,11 @@ export async function loadCompanyWorkspace(
   const company = await prisma.company.findUnique({ where: { id: companyId } });
   if (!company) {
     throw new Error("Company non trovata");
+  }
+
+  // Solo Spark riceve i dati demo; le altre company restano vuote.
+  if (company.slug === DEMO_COMPANY_SLUG && !company.seededAt) {
+    await seedCompanyWorkspace(companyId);
   }
 
   const [

@@ -1,31 +1,31 @@
 @import "tailwindcss";
 
 /* =============================================================
-   Tema aestima — dark, professionale, industriale
-   Palette scura con accenti blu. Definita via @theme (Tailwind v4).
+   Tema aestima — light, professionale
+   Sfondo bianco con accenti blu. Definita via @theme (Tailwind v4).
    ============================================================= */
 @theme {
   /* Sfondi */
-  --color-base: #0a0e14;
-  --color-surface: #111722;
-  --color-surface-2: #161e2b;
-  --color-border: #23303f;
-  --color-border-strong: #33475c;
+  --color-base: #ffffff;
+  --color-surface: #f4f8fc;
+  --color-surface-2: #e8f0f8;
+  --color-border: #d5e0ec;
+  --color-border-strong: #a8bdd4;
 
   /* Testo */
-  --color-ink: #e8edf4;
-  --color-ink-muted: #9fb0c3;
-  --color-ink-faint: #6b7d92;
+  --color-ink: #0f1b2d;
+  --color-ink-muted: #4a5d73;
+  --color-ink-faint: #7a8fa6;
 
   /* Accento blu (brand aestima) */
-  --color-brand: #2f81f7;
-  --color-brand-strong: #1f6feb;
-  --color-brand-soft: #16283f;
+  --color-brand: #2563eb;
+  --color-brand-strong: #1d4ed8;
+  --color-brand-soft: #dbeafe;
 
   /* Semantici */
-  --color-ok: #2ea043;
-  --color-warn: #d29922;
-  --color-danger: #f85149;
+  --color-ok: #16a34a;
+  --color-warn: #ca8a04;
+  --color-danger: #dc2626;
 
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system,
     "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -50,8 +50,8 @@ body {
 /* Griglia tecnica di sfondo, sottile — richiama un ambiente industriale/CAD */
 .bg-grid {
   background-image:
-    linear-gradient(to right, rgba(47, 129, 247, 0.05) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(47, 129, 247, 0.05) 1px, transparent 1px);
+    linear-gradient(to right, rgba(37, 99, 235, 0.07) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(37, 99, 235, 0.07) 1px, transparent 1px);
   background-size: 32px 32px;
 }
 
