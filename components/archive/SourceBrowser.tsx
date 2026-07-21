@@ -1,9 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import type { SourceFile } from "@/lib/archiveTypes";
+import type { FileExt, SourceFile } from "@/lib/archiveTypes";
 import { FileIcon } from "./FileIcon";
-import { ExcelPreviewModal } from "./ExcelPreviewModal";
+import {
+  ArchiveFileViewer,
+  ArchiveOpenButton,
+  canPreviewArchiveFile,
+} from "./ArchiveFileViewer";
 import { ArchiveFileActions } from "./ArchiveFileActions";
 import { SourceUploadZone } from "./SourceUploadZone";
 
@@ -30,22 +34,23 @@ export function SourceBrowser({
   onShowApiFile,
   onUploadFiles,
 }: Props) {
-  const [excelPreview, setExcelPreview] = useState<{
+  const [preview, setPreview] = useState<{
     name: string;
     url: string;
+    ext: FileExt;
   } | null>(null);
+
+  const openFile = (f: SourceFile) => {
+    if (!canPreviewArchiveFile(f) || !f.publicUrl) return;
+    setPreview({ name: f.name, url: f.publicUrl, ext: f.ext });
+  };
 
   return (
     <>
-      {excelPreview && (
-        <ExcelPreviewModal
-          fileName={excelPreview.name}
-          url={excelPreview.url}
-          onClose={() => setExcelPreview(null)}
-        />
+      {preview && (
+        <ArchiveFileViewer file={preview} onClose={() => setPreview(null)} />
       )}
     <section className="flex h-full min-h-0 flex-col rounded-2xl border border-border bg-surface/50">
-      {/* Header cartella */}
       <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2 text-sm font-semibold text-ink">
@@ -80,7 +85,6 @@ export function SourceBrowser({
 
       {onUploadFiles && <SourceUploadZone onUpload={onUploadFiles} />}
 
-      {/* Lista file */}
       <div className="min-h-0 flex-1 overflow-y-auto p-2">
         {files.length === 0 ? (
           <p className="px-2 py-8 text-center text-sm text-ink-faint">
@@ -88,7 +92,7 @@ export function SourceBrowser({
           </p>
         ) : (
           files.map((f) => {
-          const canPreview = f.ext === "xlsx" && !!f.publicUrl;
+          const canPreview = canPreviewArchiveFile(f);
           return (
           <div
             key={f.id}
@@ -99,10 +103,7 @@ export function SourceBrowser({
               <button
                 type="button"
                 disabled={!canPreview}
-                onClick={() =>
-                  canPreview &&
-                  setExcelPreview({ name: f.name, url: f.publicUrl! })
-                }
+                onClick={() => canPreview && openFile(f)}
                 className={[
                   "truncate text-left text-sm",
                   canPreview
@@ -117,17 +118,7 @@ export function SourceBrowser({
                 {f.uploaded ? " · caricato ora" : ""}
               </p>
             </div>
-            {canPreview && (
-              <button
-                type="button"
-                onClick={() =>
-                  setExcelPreview({ name: f.name, url: f.publicUrl! })
-                }
-                className="shrink-0 rounded-md border border-border bg-base px-2 py-1 text-[11px] font-medium text-ink-muted transition-colors hover:border-brand/50 hover:text-brand"
-              >
-                Apri
-              </button>
-            )}
+            {canPreview && <ArchiveOpenButton onClick={() => openFile(f)} />}
             {onDeleteFile && onShowApiFile && (
               <ArchiveFileActions
                 onApi={() => onShowApiFile(f)}

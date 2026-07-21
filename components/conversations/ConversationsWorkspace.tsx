@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useInbox } from "@/components/inbox/InboxProvider";
 import { SparePartCardList } from "@/components/service-chat/SparePartCard";
+import { TicketBanner } from "@/components/service-chat/TicketBanner";
 import {
   CONVERSATION_CHANNEL_LABELS,
   CONVERSATION_FILTERS,
@@ -15,6 +16,7 @@ import type {
   ConversationRecord,
   StoredConversationMessage,
 } from "@/lib/conversationTypes";
+import type { ServiceTicketRecord } from "@/lib/ticketTypes";
 
 export function ConversationsWorkspace() {
   const {
@@ -22,6 +24,10 @@ export function ConversationsWorkspace() {
     takeOverConversation,
     resolveConversation,
     appendConversationMessage,
+    createTicket,
+    updateConversation,
+    updateTicket,
+    getTicketById,
   } = useInbox();
   const searchParams = useSearchParams();
   const deepLinkId = searchParams.get("id");
@@ -145,8 +151,14 @@ export function ConversationsWorkspace() {
       {/* Sidebar filtri */}
       <aside className="flex h-full w-60 shrink-0 flex-col border-r border-border bg-surface/60">
         <div className="border-b border-border px-4 py-4">
-          <h2 className="text-sm font-bold text-ink">Ticket</h2>
-          <p className="text-xs text-ink-faint">Inbox live chat</p>
+          <h2 className="text-sm font-bold text-ink">Chat live</h2>
+          <p className="text-xs text-ink-faint">Inbox Assistenza AI</p>
+          <Link
+            href="/ticket"
+            className="mt-2 inline-flex text-xs font-semibold text-brand hover:underline"
+          >
+            Vai ai ticket service →
+          </Link>
         </div>
 
         <div className="p-3">
@@ -265,10 +277,48 @@ export function ConversationsWorkspace() {
         {selected ? (
           <ConversationPanel
             conversation={selected}
+            linkedTicket={
+              selected.ticketId ? getTicketById(selected.ticketId) : undefined
+            }
             onTakeOver={() =>
               takeOverConversation(selected.id, CURRENT_OPERATOR.id)
             }
-            onResolve={() => resolveConversation(selected.id)}
+            onResolve={() => {
+              resolveConversation(selected.id);
+              if (selected.ticketId) {
+                const t = getTicketById(selected.ticketId);
+                if (t && !["risolto", "chiuso"].includes(t.status)) {
+                  updateTicket(selected.ticketId, { status: "risolto" });
+                }
+              }
+            }}
+            onOpenTicket={() => {
+              if (selected.ticketId) return;
+              const summary =
+                selected.messages
+                  .filter((m) => m.role === "user")
+                  .at(-1)?.content ?? `Chat ${selected.id}`;
+              const ticketId = createTicket({
+                source: "chat_ai",
+                category: "troubleshooting",
+                summary:
+                  summary.length > 90
+                    ? `${summary.slice(0, 87).trim()}…`
+                    : summary,
+                description: selected.messages
+                  .slice(-12)
+                  .map((m) => `[${m.role}] ${m.content}`)
+                  .join("\n"),
+                machineModel: selected.machineModel,
+                machineSerial: selected.machineSerial,
+              });
+              updateConversation(selected.id, { ticketId });
+              appendConversationMessage(selected.id, {
+                role: "agent",
+                content: `Ticket ${ticketId} aperto dalla chat live.`,
+                ticket: { id: ticketId, summary },
+              });
+            }}
             onReply={(text) =>
               appendConversationMessage(selected.id, {
                 role: "agent",
@@ -373,14 +423,18 @@ function ConversationListRow({
 
 function ConversationPanel({
   conversation,
+  linkedTicket,
   onTakeOver,
   onResolve,
   onReply,
+  onOpenTicket,
 }: {
   conversation: ConversationRecord;
+  linkedTicket?: Pick<ServiceTicketRecord, "id" | "status" | "summary">;
   onTakeOver: () => void;
   onResolve: () => void;
   onReply: (text: string) => void;
+  onOpenTicket: () => void;
 }) {
   const [input, setInput] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -434,6 +488,25 @@ function ConversationPanel({
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
+          {conversation.ticketId ? (
+            <Link
+              href={`/ticket?id=${encodeURIComponent(conversation.ticketId)}`}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-brand/40 bg-brand-soft px-2.5 py-1.5 text-xs font-semibold text-brand hover:bg-brand/20"
+            >
+              {conversation.ticketId}
+              {linkedTicket ? ` · ${linkedTicket.status}` : ""}
+            </Link>
+          ) : (
+            !isResolved && (
+              <button
+                type="button"
+                onClick={onOpenTicket}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs font-semibold text-ink-muted transition-colors hover:border-brand/40 hover:text-brand"
+              >
+                Apri ticket
+              </button>
+            )
+          )}
           <AssigneeBadge conversation={conversation} />
 
           {!isOperator && !isResolved && (
@@ -668,6 +741,7 @@ function ConversationMessage({ message }: { message: StoredConversationMessage }
         {!isUser && message.spareParts && message.spareParts.length > 0 && (
           <SparePartCardList parts={message.spareParts} />
         )}
+        {!isUser && message.ticket && <TicketBanner ticket={message.ticket} />}
       </div>
     </div>
   );

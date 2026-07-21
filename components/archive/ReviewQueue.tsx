@@ -2,10 +2,15 @@
 
 import { useState } from "react";
 import { DOC_TYPES, KNOWN_MACHINES, machineLabel } from "@/lib/archiveData";
-import type { SourceFile } from "@/lib/archiveTypes";
+import type { FileExt, SourceFile } from "@/lib/archiveTypes";
 import { FileIcon } from "./FileIcon";
 import { ConfidenceBadge } from "./ConfidenceBadge";
 import { ArchiveFileActions } from "./ArchiveFileActions";
+import {
+  ArchiveFileViewer,
+  ArchiveOpenButton,
+  canPreviewArchiveFile,
+} from "./ArchiveFileViewer";
 
 // CODA DI REVISIONE (human-in-the-loop) — file a bassa confidenza dove
 // l'operatore conferma o corregge la classificazione proposta dall'agente.
@@ -26,6 +31,12 @@ export function ReviewQueue({
   onDeleteFile,
   onShowApiFile,
 }: Props) {
+  const [preview, setPreview] = useState<{
+    name: string;
+    url: string;
+    ext: FileExt;
+  } | null>(null);
+
   if (items.length === 0) {
     if (!embedded) return null;
     return (
@@ -44,6 +55,11 @@ export function ReviewQueue({
       </div>
     );
   }
+
+  const openFile = (file: SourceFile) => {
+    if (!canPreviewArchiveFile(file) || !file.publicUrl) return;
+    setPreview({ name: file.name, url: file.publicUrl, ext: file.ext });
+  };
 
   const inner = (
     <>
@@ -71,29 +87,33 @@ export function ReviewQueue({
             onResolve={onResolve}
             onDeleteFile={onDeleteFile}
             onShowApiFile={onShowApiFile}
+            onOpen={openFile}
           />
         ))}
       </div>
     </>
   );
 
-  if (embedded) {
-    return (
-      <section className="flex h-full min-h-0 flex-col overflow-y-auto rounded-xl border border-border bg-base/40">
-        <div className="border-b border-border px-4 py-3">
-          <p className="text-xs text-ink-muted">
-            File a bassa confidenza: conferma o correggi la macchina assegnata dall&apos;agente.
-          </p>
-        </div>
-        <div className="flex-1 space-y-2 p-3">{inner}</div>
-      </section>
-    );
-  }
-
   return (
-    <section className="rounded-2xl border border-warn/40 bg-warn/5 p-4">
-      {inner}
-    </section>
+    <>
+      {preview && (
+        <ArchiveFileViewer file={preview} onClose={() => setPreview(null)} />
+      )}
+      {embedded ? (
+        <section className="flex h-full min-h-0 flex-col overflow-y-auto rounded-xl border border-border bg-base/40">
+          <div className="border-b border-border px-4 py-3">
+            <p className="text-xs text-ink-muted">
+              File a bassa confidenza: conferma o correggi la macchina assegnata dall&apos;agente.
+            </p>
+          </div>
+          <div className="flex-1 space-y-2 p-3">{inner}</div>
+        </section>
+      ) : (
+        <section className="rounded-2xl border border-warn/40 bg-warn/5 p-4">
+          {inner}
+        </section>
+      )}
+    </>
   );
 }
 
@@ -102,11 +122,13 @@ function ReviewItem({
   onResolve,
   onDeleteFile,
   onShowApiFile,
+  onOpen,
 }: {
   file: SourceFile;
   onResolve: (fileId: string, serial: string) => void;
   onDeleteFile?: (fileId: string) => void;
   onShowApiFile?: (file: SourceFile) => void;
+  onOpen: (file: SourceFile) => void;
 }) {
   const suggested = file.classification.macchinaSerial;
   const suggestedKnown = KNOWN_MACHINES.some((m) => m.serial === suggested);
@@ -118,14 +140,25 @@ function ReviewItem({
 
   const tipoLabel = DOC_TYPES[file.classification.tipo].label.toLowerCase();
   const hasKnownMachines = KNOWN_MACHINES.length > 0;
+  const canPreview = canPreviewArchiveFile(file);
 
   return (
     <div className="rounded-xl border border-border bg-base/60 p-3">
       <div className="flex items-start gap-3">
         <FileIcon ext={file.ext} />
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <p className="truncate text-sm font-medium text-ink">{file.name}</p>
+          <div className="flex flex-wrap items-center gap-2">
+            {canPreview ? (
+              <button
+                type="button"
+                onClick={() => onOpen(file)}
+                className="truncate text-left text-sm font-medium text-ink hover:text-brand"
+              >
+                {file.name}
+              </button>
+            ) : (
+              <p className="truncate text-sm font-medium text-ink">{file.name}</p>
+            )}
             <ConfidenceBadge confidence={file.classification.confidence} showLabel />
           </div>
           <p className="mt-1 text-xs text-ink-muted">
@@ -186,6 +219,7 @@ function ReviewItem({
             </div>
           ) : (
             <div className="mt-2.5 flex flex-wrap items-center gap-2">
+              {canPreview && <ArchiveOpenButton onClick={() => onOpen(file)} />}
               {suggested && (
                 <button
                   onClick={() => onResolve(file.id, suggested)}

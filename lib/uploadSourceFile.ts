@@ -32,7 +32,8 @@ export function filesToSourceFiles(files: File[]): SourceFile[] {
     const ext = parseExt(file.name);
     if (!ext) continue;
 
-    const canPreview = ext === "xlsx" || ext === "pdf";
+    const canPreview =
+      ext === "xlsx" || ext === "pdf" || ext === "jpg" || ext === "png";
     out.push({
       id: `upload-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
       name: file.name,

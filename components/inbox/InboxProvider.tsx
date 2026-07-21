@@ -495,6 +495,7 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
         messages: initial,
         machineModel: input.machineModel,
         machineSerial: input.machineSerial,
+        ticketId: input.ticketId,
         visitorOnline: input.channel !== "inbox",
       };
       setConversations((prev) => [row, ...prev]);

@@ -12,7 +12,11 @@ import type { ArchivedDoc, DocType, FileExt, SourceFile } from "@/lib/archiveTyp
 import { FileIcon } from "./FileIcon";
 import { DocTypeBadge } from "./DocTypeBadge";
 import { ConfidenceBadge } from "./ConfidenceBadge";
-import { ExcelPreviewModal } from "./ExcelPreviewModal";
+import {
+  ArchiveFileViewer,
+  ArchiveOpenButton,
+  canPreviewArchiveFile,
+} from "./ArchiveFileViewer";
 import { ArchiveFileActions } from "./ArchiveFileActions";
 
 // VISTA ARCHIVIO ORGANIZZATO — raggruppamento configurabile:
@@ -57,15 +61,19 @@ export function OrganizedArchive({
   onDeleteFile,
   onShowApiFile,
 }: Props) {
-  const [excelPreview, setExcelPreview] = useState<{
+  const [preview, setPreview] = useState<{
     name: string;
     url: string;
+    ext: FileExt;
   } | null>(null);
 
-  const openExcel = (doc: ArchivedDoc) => {
-    if (doc.file.publicUrl) {
-      setExcelPreview({ name: doc.file.name, url: doc.file.publicUrl });
-    }
+  const openFile = (doc: ArchivedDoc) => {
+    if (!canPreviewArchiveFile(doc.file) || !doc.file.publicUrl) return;
+    setPreview({
+      name: doc.file.name,
+      url: doc.file.publicUrl,
+      ext: doc.file.ext,
+    });
   };
 
   const filtered = useMemo(() => {
@@ -90,12 +98,8 @@ export function OrganizedArchive({
 
   return (
     <>
-      {excelPreview && (
-        <ExcelPreviewModal
-          fileName={excelPreview.name}
-          url={excelPreview.url}
-          onClose={() => setExcelPreview(null)}
-        />
+      {preview && (
+        <ArchiveFileViewer file={preview} onClose={() => setPreview(null)} />
       )}
     <section className="flex h-full min-h-0 flex-col rounded-2xl border border-border bg-surface/50">
       <div className="border-b border-border px-4 py-3">
@@ -153,28 +157,28 @@ export function OrganizedArchive({
         ) : viewMode === "macchina" ? (
           <ByMachineView
             docs={filtered}
-            onOpenExcel={openExcel}
+            onOpenFile={openFile}
             onDeleteFile={onDeleteFile}
             onShowApiFile={onShowApiFile}
           />
         ) : viewMode === "documento" ? (
           <ByDocumentView
             docs={filtered}
-            onOpenExcel={openExcel}
+            onOpenFile={openFile}
             onDeleteFile={onDeleteFile}
             onShowApiFile={onShowApiFile}
           />
         ) : viewMode === "file" ? (
           <ByFileView
             docs={filtered}
-            onOpenExcel={openExcel}
+            onOpenFile={openFile}
             onDeleteFile={onDeleteFile}
             onShowApiFile={onShowApiFile}
           />
         ) : (
           <ByYearView
             docs={filtered}
-            onOpenExcel={openExcel}
+            onOpenFile={openFile}
             onDeleteFile={onDeleteFile}
             onShowApiFile={onShowApiFile}
           />
@@ -188,12 +192,12 @@ export function OrganizedArchive({
 /** Tipo macchina → macchina → tipo documento → file */
 function ByMachineView({
   docs,
-  onOpenExcel,
+  onOpenFile,
   onDeleteFile,
   onShowApiFile,
 }: {
   docs: ArchivedDoc[];
-  onOpenExcel: (doc: ArchivedDoc) => void;
+  onOpenFile: (doc: ArchivedDoc) => void;
 } & FileActions) {
   const byCategory = useMemo(() => {
     const map = new Map<string, Map<string, ArchivedDoc[]>>();
@@ -224,7 +228,7 @@ function ByMachineView({
                 key={serial}
                 serial={serial}
                 docs={machineDocs}
-                onOpenExcel={onOpenExcel}
+                onOpenFile={onOpenFile}
                 onDeleteFile={onDeleteFile}
                 onShowApiFile={onShowApiFile}
               />
@@ -239,12 +243,12 @@ function ByMachineView({
 /** Tipo documento → macchina → file */
 function ByDocumentView({
   docs,
-  onOpenExcel,
+  onOpenFile,
   onDeleteFile,
   onShowApiFile,
 }: {
   docs: ArchivedDoc[];
-  onOpenExcel: (doc: ArchivedDoc) => void;
+  onOpenFile: (doc: ArchivedDoc) => void;
 } & FileActions) {
   const byType = useMemo(() => {
     const map = new Map<DocType, ArchivedDoc[]>();
@@ -271,7 +275,7 @@ function ByDocumentView({
                 serial={serial}
                 docs={machineDocs}
                 showTypeGroups={false}
-                onOpenExcel={onOpenExcel}
+                onOpenFile={onOpenFile}
                 onDeleteFile={onDeleteFile}
                 onShowApiFile={onShowApiFile}
               />
@@ -286,12 +290,12 @@ function ByDocumentView({
 /** Tipo file (estensione) → elenco file */
 function ByFileView({
   docs,
-  onOpenExcel,
+  onOpenFile,
   onDeleteFile,
   onShowApiFile,
 }: {
   docs: ArchivedDoc[];
-  onOpenExcel: (doc: ArchivedDoc) => void;
+  onOpenFile: (doc: ArchivedDoc) => void;
 } & FileActions) {
   const byExt = useMemo(() => {
     const map = new Map<string, ArchivedDoc[]>();
@@ -324,7 +328,7 @@ function ByFileView({
                 doc={d}
                 showMachine
                 showDocType
-                onOpenExcel={onOpenExcel}
+                onOpenFile={onOpenFile}
                 onDeleteFile={onDeleteFile}
                 onShowApiFile={onShowApiFile}
               />
@@ -339,12 +343,12 @@ function ByFileView({
 /** Anno → macchina → tipo documento → file */
 function ByYearView({
   docs,
-  onOpenExcel,
+  onOpenFile,
   onDeleteFile,
   onShowApiFile,
 }: {
   docs: ArchivedDoc[];
-  onOpenExcel: (doc: ArchivedDoc) => void;
+  onOpenFile: (doc: ArchivedDoc) => void;
 } & FileActions) {
   const byYear = useMemo(() => {
     const map = new Map<string, ArchivedDoc[]>();
@@ -372,7 +376,7 @@ function ByYearView({
                 key={serial}
                 serial={serial}
                 docs={machineDocs}
-                onOpenExcel={onOpenExcel}
+                onOpenFile={onOpenFile}
                 onDeleteFile={onDeleteFile}
                 onShowApiFile={onShowApiFile}
               />
@@ -398,14 +402,14 @@ function MachineBlock({
   serial,
   docs,
   showTypeGroups = true,
-  onOpenExcel,
+  onOpenFile,
   onDeleteFile,
   onShowApiFile,
 }: {
   serial: string;
   docs: ArchivedDoc[];
   showTypeGroups?: boolean;
-  onOpenExcel: (doc: ArchivedDoc) => void;
+  onOpenFile: (doc: ArchivedDoc) => void;
 } & FileActions) {
   const byType = TYPE_ORDER.map((tipo) => ({
     tipo,
@@ -439,7 +443,7 @@ function MachineBlock({
                     key={d.file.id}
                     doc={d}
                     showFileType
-                    onOpenExcel={onOpenExcel}
+                    onOpenFile={onOpenFile}
                     onDeleteFile={onDeleteFile}
                     onShowApiFile={onShowApiFile}
                   />
@@ -456,7 +460,7 @@ function MachineBlock({
               doc={d}
               showFileType
               showDocType
-              onOpenExcel={onOpenExcel}
+              onOpenFile={onOpenFile}
               onDeleteFile={onDeleteFile}
               onShowApiFile={onShowApiFile}
             />
@@ -472,7 +476,7 @@ function DocRow({
   showMachine,
   showDocType,
   showFileType,
-  onOpenExcel,
+  onOpenFile,
   onDeleteFile,
   onShowApiFile,
 }: {
@@ -480,9 +484,9 @@ function DocRow({
   showMachine?: boolean;
   showDocType?: boolean;
   showFileType?: boolean;
-  onOpenExcel: (doc: ArchivedDoc) => void;
+  onOpenFile: (doc: ArchivedDoc) => void;
 } & FileActions) {
-  const canPreview = doc.file.ext === "xlsx" && !!doc.file.publicUrl;
+  const canPreview = canPreviewArchiveFile(doc.file);
 
   return (
     <div className="flex items-center gap-3 rounded-lg border border-border bg-surface/40 px-2.5 py-1.5">
@@ -491,7 +495,7 @@ function DocRow({
         <button
           type="button"
           disabled={!canPreview}
-          onClick={() => canPreview && onOpenExcel(doc)}
+          onClick={() => canPreview && onOpenFile(doc)}
           className={[
             "truncate text-left text-sm",
             canPreview
@@ -514,15 +518,7 @@ function DocRow({
             .join(" · ") || "Metadati estratti"}
         </p>
       </div>
-      {canPreview && (
-        <button
-          type="button"
-          onClick={() => onOpenExcel(doc)}
-          className="shrink-0 rounded-md border border-border bg-base px-2 py-1 text-[11px] font-medium text-ink-muted transition-colors hover:border-brand/50 hover:text-brand"
-        >
-          Apri
-        </button>
-      )}
+      {canPreview && <ArchiveOpenButton onClick={() => onOpenFile(doc)} />}
       <ArchiveFileActions
         onApi={() => onShowApiFile(doc.file)}
         onDelete={() => onDeleteFile(doc.file.id)}

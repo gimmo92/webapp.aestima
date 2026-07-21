@@ -45,6 +45,7 @@ export function RequestDetail({
     getTechnicianAssignmentForRequest,
     updateTechnicianAssignmentStatus,
     createConversation,
+    createTicket,
   } = useInbox();
   const [menu, setMenu] = useState<OpenMenu>(null);
   const [newLabel, setNewLabel] = useState("");
@@ -94,12 +95,21 @@ export function RequestDetail({
       request.body,
     ].join("\n");
 
-    const id = createConversation({
+    const ticketId = createTicket({
+      source: "inbox",
+      category: "ricambio",
+      priority: "normale",
+      summary: request.subject || `Richiesta da ${request.from}`,
+      description: emailContent,
+    });
+
+    createConversation({
       customerName: request.from,
       customerEmail: request.fromEmail,
       channel: "inbox",
       assignee: "operatore",
       assignedOperatorId: CURRENT_OPERATOR.id,
+      ticketId,
       initialMessages: [
         {
           id: `msg-inbox-${Date.now()}`,
@@ -107,9 +117,16 @@ export function RequestDetail({
           content: emailContent,
           timestampLabel,
         },
+        {
+          id: `msg-ticket-${Date.now()}`,
+          role: "assistant",
+          content: `Ticket ${ticketId} creato dall'email. Puoi gestirlo dalla sezione Ticket.`,
+          timestampLabel,
+          ticket: { id: ticketId, summary: request.subject || ticketId },
+        },
       ],
     });
-    router.push(`/conversazioni?id=${encodeURIComponent(id)}`);
+    router.push(`/ticket?id=${encodeURIComponent(ticketId)}`);
   };
 
   if (!request) {

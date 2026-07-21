@@ -87,6 +87,7 @@ export async function applyWorkspaceMutation(
           lastMessageLabel: asString(p.lastMessageLabel),
           machineModel: p.machineModel ? asString(p.machineModel) : null,
           machineSerial: p.machineSerial ? asString(p.machineSerial) : null,
+          ticketId: p.ticketId ? asString(p.ticketId) : null,
           visitorOnline: asBool(p.visitorOnline),
           createdFull: asString(p.createdFull),
           updatedFull: asString(p.updatedFull),

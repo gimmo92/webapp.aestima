@@ -51,7 +51,10 @@ export function inferClassificationFromName(
   }
 
   if (!macchinaSerial) {
-    const modelMatch = name.match(/\b([A-Z]{2,5}[-_]?\d{3,5}[A-Z]?)\b/i);
+    // Accetta anche modelli dopo underscore (es. DB_VLM-2200_rev.C.xlsx)
+    const modelMatch = name.match(
+      /(?:^|[^A-Za-z0-9])([A-Z]{2,5}[-_]?\d{3,5}[A-Z]?)(?=[^A-Za-z0-9]|$)/i
+    );
     if (modelMatch) {
       macchinaSerial = modelMatch[1].toUpperCase().replace("_", "-");
       confidence = 0.82;

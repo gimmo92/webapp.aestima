@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useInbox } from "@/components/inbox/InboxProvider";
 import {
   TICKET_CATEGORY_LABELS,
@@ -34,14 +35,30 @@ const OPEN_STATUSES: TicketStatus[] = [
 const CLOSED_STATUSES: TicketStatus[] = ["risolto", "chiuso"];
 
 export function TicketsWorkspace() {
-  const { tickets, technicians, createTicket, updateTicket, addKnowledgeEntry } =
-    useInbox();
+  const {
+    tickets,
+    technicians,
+    conversations,
+    createTicket,
+    updateTicket,
+    addKnowledgeEntry,
+  } = useInbox();
+  const searchParams = useSearchParams();
+  const deepLinkId = searchParams.get("id");
   const [tab, setTab] = useState<Tab>("aperti");
   const [statusFilter, setStatusFilter] = useState<TicketStatus | "all">("all");
   const [selectedId, setSelectedId] = useState<string | null>(
-    tickets[0]?.id ?? null
+    deepLinkId ?? tickets[0]?.id ?? null
   );
   const [showCreate, setShowCreate] = useState(false);
+
+  useEffect(() => {
+    if (!deepLinkId) return;
+    setSelectedId(deepLinkId);
+    const t = tickets.find((x) => x.id === deepLinkId);
+    if (t && CLOSED_STATUSES.includes(t.status)) setTab("chiusi");
+    else setTab("aperti");
+  }, [deepLinkId, tickets]);
 
   const techById = useMemo(
     () => Object.fromEntries(technicians.map((t) => [t.id, t])),
@@ -62,7 +79,18 @@ export function TicketsWorkspace() {
   }, [tickets, tab, statusFilter]);
 
   const selected =
-    filtered.find((t) => t.id === selectedId) ?? filtered[0] ?? null;
+    tickets.find((t) => t.id === selectedId) ??
+    filtered.find((t) => t.id === selectedId) ??
+    filtered[0] ??
+    null;
+
+  const linkedConversation = useMemo(
+    () =>
+      selected
+        ? conversations.find((c) => c.ticketId === selected.id)
+        : undefined,
+    [conversations, selected]
+  );
 
   const counts = useMemo(
     () => ({
@@ -103,7 +131,14 @@ export function TicketsWorkspace() {
               </button>
             ))}
           </div>
-          <button
+          <div className="flex items-center gap-2">
+            <Link
+              href="/conversazioni"
+              className="rounded-lg border border-border bg-base px-3 py-2 text-sm font-medium text-ink-muted transition-colors hover:border-brand/40 hover:text-brand"
+            >
+              Chat live
+            </Link>
+            <button
             onClick={() => setShowCreate(true)}
             className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-3 py-2 text-sm font-semibold text-white shadow-lg shadow-brand/20 hover:bg-brand-strong"
           >
@@ -117,6 +152,7 @@ export function TicketsWorkspace() {
             </svg>
             Nuovo ticket
           </button>
+          </div>
         </div>
       </div>
 
@@ -126,8 +162,7 @@ export function TicketsWorkspace() {
           <div className="border-b border-border px-4 py-3">
             <h2 className="text-sm font-semibold text-ink">Ticket service</h2>
             <p className="text-xs text-ink-faint">
-              {filtered.length} in vista · escalation da chat AI e creazione
-              manuale
+              {filtered.length} in vista · da Assistenza AI, email o manuale
             </p>
             {tab !== "chiusi" && (
               <div className="mt-2 flex flex-wrap gap-1.5">
@@ -182,6 +217,7 @@ export function TicketsWorkspace() {
             <TicketDetail
               ticket={selected}
               technicians={technicians}
+              linkedConversationId={linkedConversation?.id}
               onUpdate={updateTicket}
               onLearnFromSolution={addKnowledgeEntry}
             />
@@ -256,11 +292,13 @@ function TicketListRow({
 function TicketDetail({
   ticket,
   technicians,
+  linkedConversationId,
   onUpdate,
   onLearnFromSolution,
 }: {
   ticket: ServiceTicketRecord;
   technicians: { id: string; name: string }[];
+  linkedConversationId?: string;
   onUpdate: (id: string, input: UpdateTicketInput) => void;
   onLearnFromSolution: ReturnType<typeof useInbox>["addKnowledgeEntry"];
 }) {
@@ -350,6 +388,14 @@ function TicketDetail({
           <p className="mt-1 text-xs text-ink-faint">
             Creato {ticket.createdFull} · Aggiornato {ticket.updatedFull}
           </p>
+          {linkedConversationId && (
+            <Link
+              href={`/conversazioni?id=${encodeURIComponent(linkedConversationId)}`}
+              className="mt-2 inline-flex text-xs font-semibold text-brand hover:underline"
+            >
+              Apri chat collegata →
+            </Link>
+          )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <TicketStatusPill status={ticket.status} />

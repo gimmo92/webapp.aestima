@@ -6,6 +6,7 @@ import { QuickReplyBubbles } from "./QuickReplyBubbles";
 import { SparePartCardList } from "./SparePartCard";
 import { KbMatchBanner } from "./KbMatchBanner";
 import { KbSolutionFeedback } from "./KbSolutionFeedback";
+import { TicketBanner } from "./TicketBanner";
 import { EmbedCodeButtons } from "./EmbedCodeButtons";
 import { useInbox } from "@/components/inbox/InboxProvider";
 import {
@@ -24,6 +25,16 @@ import {
 import type { DisplayMessage } from "@/lib/serviceChatTypes";
 import { isReadyForKbSearch } from "@/lib/knowledgeSearch";
 import { useSpeechDictation } from "@/lib/useSpeechDictation";
+import {
+  buildTicketDescription,
+  buildTicketSummary,
+  escalateQuickReplyOption,
+  extractMachineFromMessages,
+  inferTicketCategory,
+  inferTicketPriority,
+  isAiUnresolved,
+  isHumanEscalationIntent,
+} from "@/lib/ticketEscalate";
 
 // =============================================================
 // Chat assistenza service — UI principale
@@ -90,6 +101,7 @@ export function ServiceChatWorkspace({
     updateConversation,
     knowledgeBase,
     incrementKnowledgeFrequency,
+    createTicket,
   } = useInbox();
   const [conversationId, setConversationId] = useState<string | null>(
     initialConversationId ?? null
@@ -133,33 +145,6 @@ export function ServiceChatWorkspace({
     []
   );
 
-  const handleKbFeedback = useCallback(
-    async (
-      messageId: string,
-      entryId: string,
-      symptom: string,
-      currentFrequency: number | undefined,
-      helpful: boolean
-    ) => {
-      if (helpful) {
-        updateMessage(messageId, { kbFeedback: "updating" });
-        await new Promise((r) => setTimeout(r, 900));
-        incrementKnowledgeFrequency(entryId);
-        updateMessage(messageId, {
-          kbFeedback: "helpful",
-          kbMatch: {
-            entryId,
-            symptom,
-            frequency: (currentFrequency ?? 0) + 1,
-          },
-        });
-      } else {
-        updateMessage(messageId, { kbFeedback: "not_helpful" });
-      }
-    },
-    [updateMessage, incrementKnowledgeFrequency]
-  );
-
   const ensureConversation = useCallback(() => {
     if (conversationId) return conversationId;
     const welcomeMsg = {
@@ -186,6 +171,107 @@ export function ServiceChatWorkspace({
     customerEmail,
     channel,
   ]);
+
+  /** Crea un ServiceTicket collegato alla conversazione (una sola volta). */
+  const escalateToTicket = useCallback(
+    (reason: string, history: DisplayMessage[]) => {
+      const convId = ensureConversation();
+      const conv = getConversationById(convId);
+      if (conv?.ticketId) {
+        return { ticketId: conv.ticketId, created: false as const };
+      }
+
+      const machineFromChat = extractMachineFromMessages(history);
+      const machineModel = conv?.machineModel ?? machineFromChat.machineModel;
+      const machineSerial = conv?.machineSerial ?? machineFromChat.machineSerial;
+
+      if (
+        (machineModel && machineModel !== conv?.machineModel) ||
+        (machineSerial && machineSerial !== conv?.machineSerial)
+      ) {
+        updateConversation(convId, {
+          machineModel: machineModel ?? conv?.machineModel,
+          machineSerial: machineSerial ?? conv?.machineSerial,
+        });
+      }
+
+      const summary = buildTicketSummary(history, {
+        customerName: conv?.customerName ?? customerName,
+        machineModel,
+        machineSerial,
+      });
+      const ticketId = createTicket({
+        source: "chat_ai",
+        category: inferTicketCategory(history),
+        priority: inferTicketPriority(history),
+        summary,
+        description: buildTicketDescription(history, reason),
+        machineModel,
+        machineSerial,
+      });
+
+      updateConversation(convId, { ticketId });
+
+      const ticket = { id: ticketId, summary };
+      const notice: DisplayMessage = {
+        id: nextId(),
+        role: "assistant",
+        content:
+          "Ho aperto un ticket di assistenza service. Un tecnico prenderà in carico la richiesta a breve.",
+        ticket,
+      };
+      setMessages((prev) => [...prev, notice]);
+      appendConversationMessage(convId, {
+        role: "assistant",
+        content: notice.content,
+        ticket,
+      });
+
+      return { ticketId, created: true as const };
+    },
+    [
+      ensureConversation,
+      getConversationById,
+      updateConversation,
+      createTicket,
+      appendConversationMessage,
+      customerName,
+    ]
+  );
+
+  const handleKbFeedback = useCallback(
+    async (
+      messageId: string,
+      entryId: string,
+      symptom: string,
+      currentFrequency: number | undefined,
+      helpful: boolean
+    ) => {
+      if (helpful) {
+        updateMessage(messageId, { kbFeedback: "updating" });
+        await new Promise((r) => setTimeout(r, 900));
+        incrementKnowledgeFrequency(entryId);
+        updateMessage(messageId, {
+          kbFeedback: "helpful",
+          kbMatch: {
+            entryId,
+            symptom,
+            frequency: (currentFrequency ?? 0) + 1,
+          },
+        });
+      } else {
+        updateMessage(messageId, { kbFeedback: "not_helpful" });
+        setMessages((prev) => {
+          escalateToTicket(
+            "Soluzione knowledge base non utile per il cliente",
+            prev
+          );
+          return prev;
+        });
+      }
+    },
+    [updateMessage, incrementKnowledgeFrequency, escalateToTicket]
+  );
 
   const syncFromStored = useCallback(
     (conv: NonNullable<ReturnType<typeof getConversationById>>) => {
@@ -347,6 +433,14 @@ export function ServiceChatWorkspace({
         return;
       }
 
+      // Richiesta esplicita di tecnico → apre ticket e non chiama l'AI
+      if (isHumanEscalationIntent(content)) {
+        escalateToTicket("Richiesta esplicita del cliente", history);
+        setLoading(false);
+        setKbSearching(false);
+        return;
+      }
+
       const apiMessages = history.map((m) => ({
         role: m.role,
         content: m.content,
@@ -382,12 +476,30 @@ export function ServiceChatWorkspace({
           return;
         }
 
-        const quickReplies = ensureMachineOtherOption(
+        let quickReplies = ensureMachineOtherOption(
           data.quickReplies ??
             inferQuickReplies(history, data.message, {
               hasSpareParts: Boolean(data.spareParts?.length),
             })
         );
+
+        if (isAiUnresolved(data.message) && !getConversationById(convId)?.ticketId) {
+          const escalateOpt = escalateQuickReplyOption();
+          const list = quickReplies ?? [];
+          if (!list.some((q) => q.value === escalateOpt.value)) {
+            quickReplies = [...list, escalateOpt];
+          }
+        }
+
+        const machineHint = extractMachineFromMessages(history);
+        if (machineHint.machineModel || machineHint.machineSerial) {
+          updateConversation(convId, {
+            machineModel:
+              machineHint.machineModel ?? getConversationById(convId)?.machineModel,
+            machineSerial:
+              machineHint.machineSerial ?? getConversationById(convId)?.machineSerial,
+          });
+        }
 
         const assistantMsg: DisplayMessage = {
           id: nextId(),
@@ -424,7 +536,16 @@ export function ServiceChatWorkspace({
         inputRef.current?.focus();
       }
     },
-    [loading, messages, ensureConversation, appendConversationMessage, getConversationById, updateConversation, knowledgeBase]
+    [
+      loading,
+      messages,
+      ensureConversation,
+      appendConversationMessage,
+      getConversationById,
+      updateConversation,
+      knowledgeBase,
+      escalateToTicket,
+    ]
   );
 
   const submitText = useCallback(
@@ -808,6 +929,7 @@ function MessageBubble({
         {!isUser && message.spareParts && message.spareParts.length > 0 && (
           <SparePartCardList parts={message.spareParts} />
         )}
+        {!isUser && message.ticket && <TicketBanner ticket={message.ticket} />}
         {!isUser && message.kbMatch && (
           <KbMatchBanner match={message.kbMatch} />
         )}

@@ -44,7 +44,7 @@ const NAV = [
     ),
   },
   {
-    href: "/conversazioni",
+    href: "/ticket",
     label: "Ticket",
     icon: (
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -59,6 +59,20 @@ const NAV = [
           stroke="currentColor"
           strokeWidth="1.8"
           strokeLinecap="round"
+        />
+      </svg>
+    ),
+  },
+  {
+    href: "/conversazioni",
+    label: "Chat live",
+    icon: (
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path
+          d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v8Z"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinejoin="round"
         />
       </svg>
     ),

@@ -52,6 +52,8 @@ export interface CreateConversationInput {
   /** Se omesso, la conversazione resta assegnata all'AI. */
   assignee?: ConversationAssignee;
   assignedOperatorId?: string;
+  /** Ticket service collegato (SRV-*). */
+  ticketId?: string;
 }
 
 export interface UpdateConversationInput {

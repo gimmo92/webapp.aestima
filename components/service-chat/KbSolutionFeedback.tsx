@@ -45,8 +45,8 @@ export function KbSolutionFeedback({
   if (status === "not_helpful") {
     return (
       <div className="mt-3 rounded-xl border border-border bg-surface/80 px-4 py-3 text-sm text-ink-muted">
-        Grazie per il feedback. Se il problema persiste, descrivi cosa non ha
-        funzionato: un operatore seguirà la conversazione e ti aiuterà.
+        Grazie per il feedback. Ho aperto un ticket: un tecnico seguirà la
+        conversazione e ti aiuterà.
       </div>
     );
   }
