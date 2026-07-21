@@ -63,20 +63,20 @@ export const MOCK_SUPPLIERS: Supplier[] = [
   },
 ];
 
-// Richieste già inviate (collegate a req-003: cinghia MX-4521).
+// Richieste già inviate (collegate a req-003: lame / kit VLM-2200 1475).
 export const MOCK_SUPPLIER_REQUESTS: SupplierRequest[] = [
   {
     id: "sr-001",
     partRequestId: "req-003",
     supplierId: "sup-001",
     status: "in_attesa",
-    subject: "Richiesta disponibilità — CB-8890-A",
+    subject: "Richiesta disponibilità — VLM-500-011",
     body:
-      "Richiediamo disponibilità e lead time per cinghia trasmissione mandrino HTD-8M, cod. CB-8890-A, applicazione Rettificatrice RX-400 matr. MX-4521, qty 1.",
-    componentCode: "CB-8890-A",
-    componentDescription: "Cinghia trasmissione mandrino dentata HTD-8M",
-    machineModel: "Rettificatrice RX-400",
-    machineSerial: "MX-4521",
+      "Richiediamo disponibilità e lead time per lama di taglio nastro, cod. VLM-500-011, applicazione Incartonatrice VLM-2200 matr. 1475, qty 2.",
+    componentCode: "VLM-500-011",
+    componentDescription: "Lama di taglio nastro",
+    machineModel: "Incartonatrice VLM-2200",
+    machineSerial: "1475",
     sentLabel: "ieri",
     sentFull: "Ieri, 17:10",
   },
@@ -85,13 +85,13 @@ export const MOCK_SUPPLIER_REQUESTS: SupplierRequest[] = [
     partRequestId: "req-003",
     supplierId: "sup-003",
     status: "risposta_ricevuta",
-    subject: "Richiesta disponibilità — CB-8890-A",
+    subject: "Richiesta disponibilità — VLM-KIT-2000H",
     body:
-      "Richiediamo disponibilità e lead time per cinghia trasmissione mandrino HTD-8M, cod. CB-8890-A, applicazione Rettificatrice RX-400 matr. MX-4521, qty 1.",
-    componentCode: "CB-8890-A",
-    componentDescription: "Cinghia trasmissione mandrino dentata HTD-8M",
-    machineModel: "Rettificatrice RX-400",
-    machineSerial: "MX-4521",
+      "Richiediamo disponibilità e lead time per kit manutenzione 2.000 ore VLM 2200, cod. VLM-KIT-2000H, applicazione Incartonatrice VLM-2200 matr. 1475, qty 1.",
+    componentCode: "VLM-KIT-2000H",
+    componentDescription: "Kit manutenzione 2.000 ore VLM 2200",
+    machineModel: "Incartonatrice VLM-2200",
+    machineSerial: "1475",
     sentLabel: "ieri",
     sentFull: "Ieri, 17:10",
   },

@@ -1,5 +1,7 @@
+import { MACHINES } from "./mockData";
+
 // Anagrafica macchine / KB statica per chat assistenza.
-// In produzione: catalogo ERP/PLM e storico interventi.
+// Allineata al parco Vallmec (dummy data demo) via MACHINES.
 
 export interface ServiceSparePart {
   code: string;
@@ -38,8 +40,50 @@ export interface TroubleshootingCase {
   tags: string[];
 }
 
-export const SERVICE_MACHINES: ServiceMachine[] = [];
-export const TROUBLESHOOTING_KB: TroubleshootingCase[] = [];
+export const SERVICE_MACHINES: ServiceMachine[] = MACHINES.map((m) => ({
+  id: `svc-${m.serial}`,
+  model: m.model,
+  serial: m.serial,
+  year: m.year,
+  category: m.category,
+  variant: "rev.C",
+  parts: m.bom.map((p) => ({
+    code: p.code,
+    description: p.description,
+    price: p.listPrice,
+    stock: p.stock,
+    leadTimeDays: p.leadTimeDays,
+    keywords: p.keywords,
+  })),
+}));
+
+export const TROUBLESHOOTING_KB: TroubleshootingCase[] = [
+  {
+    id: "kb-vlm-001",
+    machineRef: "VLM-2200",
+    symptom:
+      "Cinghia gruppo spinta salta i denti / rumore metallico in inserimento",
+    solution:
+      "Verificare usura cinghia AT10 L=2250 e allineamento pulegge. Sostituire con VLM-400-009/2 e ritensionare secondo manuale cap. 5.",
+    tags: ["cinghia", "spinta", "at10", "rumore"],
+  },
+  {
+    id: "kb-vlm-002",
+    machineRef: "VLM-2200",
+    symptom: "Ventose non tengono il fustellato / cartone cade in formazione",
+    solution:
+      "Sostituire ventose soffietto D.50 NBR (VLM-300-004) ogni ~2000 h. Controllare generatore di vuoto VLM-300-005 e tubazioni.",
+    tags: ["ventosa", "vuoto", "fustellato", "formazione"],
+  },
+  {
+    id: "kb-vlm-003",
+    machineRef: "VLM-2200",
+    symptom: "Fotocellula presenza prodotto non rileva i cartoni in ingresso",
+    solution:
+      "Pulire ottica, verificare allineamento e sostituire E3Z-D62 (VLM-200-040) se LED non segnala. Controllare ingresso PLC.",
+    tags: ["fotocellula", "e3z", "alimentazione"],
+  },
+];
 
 /** Serializza anagrafica macchine per il system prompt dell'agente. */
 export function buildMachinesContext(): string {
@@ -80,5 +124,5 @@ export function buildServiceContext(): string {
             `[${c.id}] ${c.machineRef}\n  Problema: ${c.symptom}\n  Soluzione: ${c.solution}`
         ).join("\n\n");
 
-  return `${buildMachinesContext()}\n\n=== BASE DI CONOSCENZA TROUBLESHOOTING (statica legacy) ===\n${kbBlock}`;
+  return `${buildMachinesContext()}\n\n=== CASI RISOLTI (KB STATICA) ===\n${kbBlock}`;
 }

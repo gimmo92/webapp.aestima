@@ -3,8 +3,8 @@ import type { Label, PartRequest, StatusConfig } from "./inboxTypes";
 // =============================================================
 // DATI DEMO — sorgente seed SOLO per company "spark"
 // -------------------------------------------------------------
-// Non sono usati direttamente dall'UI: InboxProvider legge da API.
-// Altre company restano vuote (tabula rasa).
+// Email allineate al parco / listino Vallmec in
+// Desktop/dummy data demo (VLM-2200 + ricambi in archivio).
 // =============================================================
 
 /** Configurazione degli 8 stati, con colore e descrizione. */
@@ -83,20 +83,20 @@ export const LABEL_PALETTE = [
 ];
 
 // -------------------------------------------------------------
-// Le richieste referenziano le matricole presenti in lib/mockData.ts
-// (IDC-114-084, MX-4521, TC-7788, FR-3092) così l'agente riesce a identificarle.
-// I testi sono volutamente vaghi, senza codici ricambio.
+// Richieste su matricole / ricambi presenti in dummy data demo
+// (Parco_installato_Vallmec + Listino + DB_VLM-2200_rev.C).
+// I testi sono realistici: a volte vaghi, a volte con indizi.
 // -------------------------------------------------------------
 
 export const MOCK_REQUESTS: PartRequest[] = [
   {
     id: "req-001",
     from: "Marco Rossi",
-    fromEmail: "m.rossi@rossimeccanica.it",
-    company: "Rossi Meccanica S.r.l.",
-    subject: "Curva rinvio impianto IDC 114",
+    fromEmail: "m.rossi@pontenuovo.it",
+    company: "Salumificio Ponte Nuovo S.p.A.",
+    subject: "Cinghia dentata gruppo spinta — VLM-2200 matr. 1389",
     body:
-      "Buongiorno,\n\nsull'impianto IDC 114 TCZ matricola IDC-114-084 la curva di rinvio 90° ha gioco eccessivo e perdiamo tensione sul cavo. Ci serve un preventivo per la curva rinvio completa montata, con tutti i componenti della distinta (perno, interno, cuscinetti, viteria) compreso il montaggio in officina.\n\nLa macchina è ferma, serve il prima possibile.\n\nGrazie,\nMarco Rossi",
+      "Buongiorno,\n\nsull'incartonatrice VLM-2200 matricola 1389 (stabilimento Langhirano) la cinghia dentata del gruppo spinta è usurata e inizia a saltare i denti. Ci serve un preventivo per la cinghia AT10 da 2250 mm (altezza 25).\n\nLa linea è quasi ferma, serve il prima possibile.\n\nGrazie,\nMarco Rossi — Manutenzione",
     receivedLabel: "09:12",
     receivedFull: "Oggi, 09:12",
     status: "nuova",
@@ -105,12 +105,12 @@ export const MOCK_REQUESTS: PartRequest[] = [
   },
   {
     id: "req-009",
-    from: "Davide Fontana",
-    fromEmail: "d.fontana@fontanaengineering.it",
-    company: "Fontana Engineering S.r.l.",
-    subject: "Perdita d'aria cambio utensile - foto allegata",
+    from: "Elena Fontanini",
+    fromEmail: "e.fontanini@fontanini.it",
+    company: "Dolciaria Fontanini S.r.l.",
+    subject: "Ventose soffietto formazione cartone — foto allegata",
     body:
-      "Buongiorno,\n\nsul centro di fresatura matricola FR-3092 abbiamo una forte perdita d'aria in corrispondenza del gruppo pneumatico del cambio utensile. Il cambio non aggancia più bene l'utensile.\n\nVi allego una foto dell'impianto pneumatico interessato, così vedete di cosa si tratta. Pensiamo siano da rifare le tenute.\n\nPotete mandarci un preventivo?\n\nGrazie,\nDavide Fontana - Ufficio Tecnico",
+      "Buongiorno,\n\nsulla nostra VLM-2200 matricola 1418 a Parma le ventose a soffietto del magazzino fustellati non tengono più il cartone: ne cambiamo spesso ma vorremmo il ricambio corretto (D.50 NBR).\n\nVi allego una foto del gruppo formazione. Potete mandarci un preventivo per 6 pezzi?\n\nGrazie,\nElena Fontanini — Ufficio Tecnico",
     receivedLabel: "09:05",
     receivedFull: "Oggi, 09:05",
     status: "nuova",
@@ -127,11 +127,11 @@ export const MOCK_REQUESTS: PartRequest[] = [
   {
     id: "req-002",
     from: "Laura Bianchi",
-    fromEmail: "ufficio.tecnico@officinebianchi.com",
-    company: "Officine Bianchi S.p.A.",
-    subject: "Problema pompa refrigerante tornio",
+    fromEmail: "l.bianchi@nutrilab.it",
+    company: "Nutrilab Integratori S.r.l.",
+    subject: "Fotocellula presenza prodotto — VLM-2200 1412",
     body:
-      "Salve,\n\nsul nostro tornio a controllo numerico (matricola TC-7788) la pompa del liquido refrigerante ha smesso di funzionare, non manda più refrigerante in zona lavoro.\n\nPotete mandarci un'offerta per la sostituzione?\n\nCordiali saluti,\nLaura Bianchi",
+      "Salve,\n\nsull'incartonatrice automatica VLM-2200 matricola 1412 (Bergamo) la fotocellula di presenza prodotto non legge più i fustellati in ingresso. Sospettiamo sia la E3Z-D62.\n\nPotete mandarci un'offerta per la sostituzione?\n\nCordiali saluti,\nLaura Bianchi",
     receivedLabel: "08:47",
     receivedFull: "Oggi, 08:47",
     status: "identificata",
@@ -141,11 +141,11 @@ export const MOCK_REQUESTS: PartRequest[] = [
   {
     id: "req-003",
     from: "Giuseppe Verdi",
-    fromEmail: "g.verdi@gammasrl.it",
-    company: "Gamma S.r.l.",
-    subject: "Ruota traino IDC 114 — usura corona",
+    fromEmail: "g.verdi@molinoserravalle.it",
+    company: "Molino Serravalle S.r.l.",
+    subject: "Lame taglio nastro + kit 2000 ore — matr. 1475",
     body:
-      "Buongiorno,\n\nsull'impianto IDC matricola IDC-114-084 la ruota di traino ha la corona usurata e i contenimenti danneggiati. Ci serve un preventivo per la ruota traino completa secondo distinta 1381400061_F, comprensiva di carpenteria e montaggio.\n\nFatemi sapere tempi e costi.\n\nGrazie",
+      "Buongiorno,\n\nsulla VLM-2200 matricola 1475 ci servono le lame di taglio nastro (testata nastrante) e, se possibile, anche il kit manutenzione 2.000 ore completo.\n\nFatemi sapere tempi e costi.\n\nGrazie,\nGiuseppe Verdi",
     receivedLabel: "ieri",
     receivedFull: "Ieri, 16:30",
     status: "attesa_fornitore",
@@ -155,11 +155,11 @@ export const MOCK_REQUESTS: PartRequest[] = [
   {
     id: "req-004",
     from: "Silvia Neri",
-    fromEmail: "manutenzione@deltamanufacturing.it",
-    company: "Delta Manufacturing",
-    subject: "Fresatrice - rumore anomalo testa",
+    fromEmail: "manutenzione@valtrebbia.it",
+    company: "Caseificio Val Trebbia S.p.A.",
+    subject: "Rumore / gioco sul gruppo spinta — VLM-2200",
     body:
-      "Salve,\n\nla nostra fresatrice (serial FR-3092) ha iniziato a fare un rumore anomalo dalla testa e vibra. Temiamo sia il mandrino. La macchina è ancora in garanzia?\n\nPotete verificare e mandarci un preventivo?\n\nSilvia Neri - Ufficio Manutenzione",
+      "Salve,\n\nla nostra incartonatrice VLM-2200 (serial 1364, Bobbio) ha iniziato a fare rumore anomalo sul gruppo spinta e vibra in fase di inserimento. Temiamo pattini guida o cinghia.\n\nLa macchina è ancora in contratto service base. Potete verificare e mandarci un preventivo?\n\nSilvia Neri — Ufficio Manutenzione",
     receivedLabel: "ieri",
     receivedFull: "Ieri, 11:05",
     status: "da_identificare",
@@ -169,11 +169,11 @@ export const MOCK_REQUESTS: PartRequest[] = [
   {
     id: "req-005",
     from: "Andrea Conti",
-    fromEmail: "a.conti@epsilonindustrie.com",
-    company: "Epsilon Industrie",
-    subject: "Sensore finecorsa asse X non legge",
+    fromEmail: "a.conti@lorentin.it",
+    company: "Farmaceutici Lorentin S.p.A.",
+    subject: "Sensore finecorsa asse spinta non legge",
     body:
-      "Buongiorno,\n\nsul tornio matricola TC-7788 il sensore di finecorsa dell'asse X non viene più letto dal controllo. Abbiamo bisogno del ricambio.\n\nInviateci cortesemente il preventivo.\n\nAndrea Conti",
+      "Buongiorno,\n\nsulla VLM-2200 matricola 1432 (Origgio) il sensore di finecorsa induttivo M12 del gruppo spinta non viene più letto dal PLC. Abbiamo bisogno del ricambio.\n\nInviateci cortesemente il preventivo.\n\nAndrea Conti",
     receivedLabel: "lun",
     receivedFull: "Lunedì, 14:22",
     status: "preventivo_pronto",
@@ -183,11 +183,11 @@ export const MOCK_REQUESTS: PartRequest[] = [
   {
     id: "req-006",
     from: "Francesca Galli",
-    fromEmail: "acquisti@zetaprecision.it",
-    company: "Zeta Precision S.r.l.",
-    subject: "Assieme fune IDC 114 — sostituzione completa",
+    fromEmail: "acquisti@pontenuovo.it",
+    company: "Salumificio Ponte Nuovo S.p.A.",
+    subject: "Tappeto modulare alimentazione — matr. 1389",
     body:
-      "Gentili,\n\nci occorre l'assieme fune completo per l'impianto IDC 114 TCZ matricola IDC-114-084 (distinta 3051600250_134): cavo acciaio zincato D.6, giunti, semidisco olefinica e montaggio.\n\nRestiamo in attesa di offerta.\n\nFrancesca Galli - Ufficio Acquisti",
+      "Gentili,\n\nci occorre il tappeto modulare acetalica passo 25,4 (larghezza 300) per il nastro alimentazione della VLM-2200 matricola 1389. Quello attuale è usurato dopo ~4 anni.\n\nRestiamo in attesa di offerta (prezzo al metro).\n\nFrancesca Galli — Ufficio Acquisti",
     receivedLabel: "lun",
     receivedFull: "Lunedì, 10:08",
     status: "inviata",
@@ -197,11 +197,11 @@ export const MOCK_REQUESTS: PartRequest[] = [
   {
     id: "req-017",
     from: "Paolo Martini",
-    fromEmail: "p.martini@liftcare.it",
-    company: "LiftCare Service S.r.l.",
-    subject: "Perno curva rinvio IDC-114-084",
+    fromEmail: "p.martini@valtrebbia.it",
+    company: "Caseificio Val Trebbia S.p.A.",
+    subject: "Cuscinetti 6205 nastro alimentazione — 1301",
     body:
-      "Buongiorno,\n\nsull'impianto IDC matricola IDC-114-084 ci serve solo il perno curva (cod. 1291200130) della distinta rinvio, zincato a freddo. Non ci serve l'intera curva montata.\n\nPotete inviarci preventivo per 1 pezzo?\n\nGrazie,\nPaolo Martini",
+      "Buongiorno,\n\nsull'incartonatrice VLM-2200 matricola 1301 ci servono i cuscinetti 6205-2RS del tamburo motrice (nastro alimentazione). Non ci serve l'intero assieme.\n\nPotete inviarci preventivo per 4 pezzi?\n\nGrazie,\nPaolo Martini",
     receivedLabel: "08:30",
     receivedFull: "Oggi, 08:30",
     status: "identificata",
@@ -211,11 +211,11 @@ export const MOCK_REQUESTS: PartRequest[] = [
   {
     id: "req-007",
     from: "Paolo Ferrari",
-    fromEmail: "p.ferrari@omegatools.it",
-    company: "Omega Tools",
-    subject: "Filtro aria compressa fresatrice",
+    fromEmail: "p.ferrari@torrefazionesud.it",
+    company: "Caffè Torrefazione Sud S.r.l.",
+    subject: "Testata nastrante superiore — VLM-2200 1441",
     body:
-      "Buongiorno,\n\nvorremmo ordinare il filtro dell'aria compressa in linea per la fresatrice FR-3092. Quello attuale è intasato.\n\nGrazie mille,\nPaolo Ferrari",
+      "Buongiorno,\n\nvorremmo ordinare la testata nastrante superiore 50 mm per la VLM-2200 matricola 1441 (Salerno). Quella attuale non taglia più bene il nastro.\n\nGrazie mille,\nPaolo Ferrari",
     receivedLabel: "26/06",
     receivedFull: "26 giugno, 15:40",
     status: "vinta",
@@ -225,16 +225,16 @@ export const MOCK_REQUESTS: PartRequest[] = [
   {
     id: "req-008",
     from: "Chiara Moretti",
-    fromEmail: "c.moretti@kappautomazioni.it",
-    company: "Kappa Automazioni",
-    subject: "Re: preventivo kit tenute",
+    fromEmail: "c.moretti@nutrilab.it",
+    company: "Nutrilab Integratori S.r.l.",
+    subject: "Re: preventivo kit manutenzione 8000 ore",
     body:
-      "Buongiorno,\n\ngrazie per la disponibilità ma per il kit tenute del cambio utensile della fresatrice FR-3092 abbiamo trovato una soluzione internamente. Non procediamo con l'ordine.\n\nGrazie comunque,\nChiara Moretti",
+      "Buongiorno,\n\ngrazie per la disponibilità ma per il kit manutenzione 8.000 ore della VLM-2200 matricola 1412 abbiamo trovato una soluzione internamente. Non procediamo con l'ordine.\n\nGrazie comunque,\nChiara Moretti",
     receivedLabel: "24/06",
     receivedFull: "24 giugno, 09:15",
     status: "persa",
     labelIds: [],
-    primary: true,
+    primary: false,
   },
   // -------------------------------------------------------------
   // Tab "Altre" — email in arrivo che NON sono richieste ricambi.
@@ -242,11 +242,11 @@ export const MOCK_REQUESTS: PartRequest[] = [
   {
     id: "req-010",
     from: "Ufficio Amministrazione",
-    fromEmail: "amministrazione@rossimeccanica.it",
-    company: "Rossi Meccanica S.r.l.",
-    subject: "Sollecito pagamento fattura n. 2024/1187",
+    fromEmail: "amministrazione@pontenuovo.it",
+    company: "Salumificio Ponte Nuovo S.p.A.",
+    subject: "Sollecito pagamento fattura n. 2026/0441",
     body:
-      "Spett.le,\n\ncon la presente Vi ricordiamo che la fattura n. 2024/1187 del 15/05, importo € 2.340,00, risulta scaduta il 30/06.\n\nVi preghiamo di provvedere al saldo entro 5 giorni lavorativi o di inviarci la contabile.\n\nDistinti saluti,\nUfficio Amministrazione",
+      "Spett.le,\n\ncon la presente Vi ricordiamo che la fattura n. 2026/0441 del 15/05, importo € 2.340,00, risulta scaduta il 30/06.\n\nVi preghiamo di provvedere al saldo entro 5 giorni lavorativi o di inviarci la contabile.\n\nDistinti saluti,\nUfficio Amministrazione",
     receivedLabel: "10:22",
     receivedFull: "Oggi, 10:22",
     status: "nuova",
@@ -255,12 +255,12 @@ export const MOCK_REQUESTS: PartRequest[] = [
   },
   {
     id: "req-011",
-    from: "Academy Industria",
-    fromEmail: "info@academyindustria.it",
-    company: "Academy Industria",
-    subject: "Invito — Corso manutenzione predittiva CNC (15 luglio)",
+    from: "Academy Packaging",
+    fromEmail: "info@academypackaging.it",
+    company: "Academy Packaging",
+    subject: "Invito — Corso manutenzione predittiva incartonatrici (15 luglio)",
     body:
-      "Gentile operatore,\n\nLa invitiamo al webinar gratuito \"Manutenzione predittiva su torni e centri di lavoro\" in programma il 15 luglio alle 10:00.\n\nProgramma: vibrazioni, termografia, best practice OEM.\n\nIscrizione: rispondere a questa email o cliccare il link nell'invito allegato.\n\nCordiali saluti,\nTeam Academy Industria",
+      "Gentile partner Vallmec,\n\nLa invitiamo al webinar gratuito \"Manutenzione predittiva su linee di fine linea\" in programma il 15 luglio alle 10:00.\n\nProgramma: vibrazioni, termografia, best practice OEM su VLM-1600/1800/2200.\n\nIscrizione: rispondere a questa email.\n\nCordiali saluti,\nTeam Academy Packaging",
     receivedLabel: "09:48",
     receivedFull: "Oggi, 09:48",
     status: "nuova",
@@ -274,7 +274,7 @@ export const MOCK_REQUESTS: PartRequest[] = [
     company: "—",
     subject: "Candidatura — Posizione tecnico after-sales",
     body:
-      "Buongiorno,\n\nmi chiamo Luca Mariani, tecnico meccatronico con 8 anni di esperienza in assistenza su macchine utensili.\n\nVi allego il mio CV per eventuali posizioni aperte nel Vostro ufficio tecnico / field service.\n\nResto a disposizione per un colloquio conoscitivo.\n\nCordiali saluti,\nLuca Mariani",
+      "Buongiorno,\n\nmi chiamo Luca Mariani, tecnico meccatronico con 8 anni di esperienza in assistenza su linee di packaging.\n\nVi allego il mio CV per eventuali posizioni aperte nel Vostro ufficio tecnico / field service.\n\nResto a disposizione per un colloquio conoscitivo.\n\nCordiali saluti,\nLuca Mariani",
     receivedLabel: "ieri",
     receivedFull: "Ieri, 14:55",
     status: "nuova",
@@ -286,9 +286,9 @@ export const MOCK_REQUESTS: PartRequest[] = [
     from: "Elena Russo",
     fromEmail: "e.russo@logisticanord.it",
     company: "Logistica Nord S.p.A.",
-    subject: "Conferma ritiro merce — DDT 8842/24",
+    subject: "Conferma ritiro merce — DDT 8842/26",
     body:
-      "Buongiorno,\n\nconfermiamo il ritiro della merce presso il Vostro magazzino previsto per mercoledì 9/07 tra le 08:00 e le 12:00.\n\nRiferimento: DDT 8842/24 — 3 colli, peso lordo 48 kg.\n\nIl nostro autista presenterà il documento di trasporto.\n\nGrazie,\nElena Russo — Ufficio Trasporti",
+      "Buongiorno,\n\nconfermiamo il ritiro della merce presso il Vostro magazzino previsto per mercoledì 9/07 tra le 08:00 e le 12:00.\n\nRiferimento: DDT 8842/26 — 3 colli, peso lordo 48 kg.\n\nIl nostro autista presenterà il documento di trasporto.\n\nGrazie,\nElena Russo — Ufficio Trasporti",
     receivedLabel: "ieri",
     receivedFull: "Ieri, 09:30",
     status: "nuova",
@@ -298,11 +298,11 @@ export const MOCK_REQUESTS: PartRequest[] = [
   {
     id: "req-014",
     from: "Marco Ferretti",
-    fromEmail: "m.ferretti@meccanicanord.it",
-    company: "Meccanica Nord S.r.l.",
-    subject: "Aggiornamento listino trasmissioni Q3 2025",
+    fromEmail: "m.ferretti@skf.it",
+    company: "SKF Italia S.p.A.",
+    subject: "Aggiornamento listino cuscinetti Q3 2026",
     body:
-      "Spett.le Partner,\n\nin allegato trovate il nuovo listino trasmissioni e pulegge valido dal 1° luglio 2025.\n\nVariazioni principali: +3% su cinghie HTD, invariati i tempi di consegna standard.\n\nPer ordini urgenti contattare il reparto vendite.\n\nCordiali saluti,\nMarco Ferretti — Area Commerciale",
+      "Spett.le Partner,\n\nin allegato trovate il nuovo listino cuscinetti e supporti valido dal 1° luglio 2026.\n\nVariazioni principali: +2% su serie 6200, invariati i tempi di consegna standard.\n\nPer ordini urgenti contattare il reparto vendite.\n\nCordiali saluti,\nMarco Ferretti — Area Commerciale",
     receivedLabel: "25/06",
     receivedFull: "25 giugno, 11:20",
     status: "nuova",
@@ -316,7 +316,7 @@ export const MOCK_REQUESTS: PartRequest[] = [
     company: "Google",
     subject: "Nuovo accesso al vostro account Google Workspace",
     body:
-      "È stato rilevato un nuovo accesso all'account amministrazione@aestima.demo da Windows, Vicenza, IT.\n\nSe eravate Voi, ignorate questo messaggio. In caso contrario, verificate l'attività recente e cambiate la password.\n\nQuesto è un messaggio automatico, non rispondere.",
+      "È stato rilevato un nuovo accesso all'account service@vallmec.demo da Windows, Piacenza, IT.\n\nSe eravate Voi, ignorate questo messaggio. In caso contrario, verificate l'attività recente e cambiate la password.\n\nQuesto è un messaggio automatico, non rispondere.",
     receivedLabel: "24/06",
     receivedFull: "24 giugno, 06:12",
     status: "nuova",
@@ -326,11 +326,11 @@ export const MOCK_REQUESTS: PartRequest[] = [
   {
     id: "req-016",
     from: "Silvia Neri",
-    fromEmail: "manutenzione@deltamanufacturing.it",
-    company: "Delta Manufacturing",
-    subject: "Appuntamento revisione annuale macchine — luglio",
+    fromEmail: "manutenzione@valtrebbia.it",
+    company: "Caseificio Val Trebbia S.p.A.",
+    subject: "Appuntamento revisione annuale VLM-2200 — luglio",
     body:
-      "Buongiorno,\n\nvorremmo fissare la revisione annuale programmata per le nostre 3 macchine in linea (rettificatrice, tornio e fresatrice).\n\nSiete disponibili nella settimana dal 14 al 18 luglio? Preferiamo il mattino.\n\nNon è una richiesta di ricambi: serve solo l'intervento di controllo previsto da contratto.\n\nGrazie,\nSilvia Neri",
+      "Buongiorno,\n\nvorremmo fissare la revisione annuale programmata per le nostre VLM-2200 (matricole 1301 e 1364).\n\nSiete disponibili nella settimana dal 14 al 18 luglio? Preferiamo il mattino.\n\nNon è una richiesta di ricambi: serve solo l'intervento di controllo previsto da contratto.\n\nGrazie,\nSilvia Neri",
     receivedLabel: "23/06",
     receivedFull: "23 giugno, 16:40",
     status: "nuova",
