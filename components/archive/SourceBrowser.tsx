@@ -71,7 +71,7 @@ export function SourceBrowser({
             Organizza con aestima
           </button>
         )}
-        {compact && (
+        {compact && !onOrganize && (
           <span className="shrink-0 rounded-full border border-border bg-surface-2/70 px-2.5 py-1 text-[11px] font-medium text-ink-faint">
             Prima
           </span>

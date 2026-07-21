@@ -1,15 +1,7 @@
-import type { DocType, FileExt, SourceFile } from "./archiveTypes";
+import type { FileExt, SourceFile } from "./archiveTypes";
+import { inferClassificationFromName } from "./classifyHeuristics";
 
 const ACCEPTED_EXT: FileExt[] = ["pdf", "xlsx", "jpg", "png", "dwg", "docx"];
-
-const EXT_TO_TIPO: Record<FileExt, DocType> = {
-  pdf: "disegno",
-  xlsx: "distinta",
-  jpg: "foto",
-  png: "foto",
-  dwg: "disegno",
-  docx: "manuale",
-};
 
 function parseExt(name: string): FileExt | null {
   const match = name.match(/\.([a-z0-9]+)$/i);
@@ -48,12 +40,7 @@ export function filesToSourceFiles(files: File[]): SourceFile[] {
       sizeLabel: formatSize(file.size),
       modified: formatDate(file.lastModified),
       preview: `File caricato dall'operatore: ${file.name}`,
-      classification: {
-        tipo: EXT_TO_TIPO[ext],
-        macchinaSerial: null,
-        confidence: 0.45,
-        source: "mock",
-      },
+      classification: inferClassificationFromName(file.name, ext),
       uploaded: true,
       publicUrl: canPreview ? URL.createObjectURL(file) : undefined,
     });

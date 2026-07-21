@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { REVIEW_THRESHOLD, SOURCE_FILES } from "@/lib/archiveData";
 import type { ArchivedDoc, ClassifyResult, SourceFile } from "@/lib/archiveTypes";
@@ -23,7 +23,7 @@ import { ArchiveGapsSidebar } from "./ArchiveGapsSidebar";
 type Phase = "source" | "processing" | "done";
 type ArchiveTab = "organizzato" | "sorgente" | "verificare";
 
-/** Classificazione di fallback a partire dal ground truth mock del file. */
+/** Classificazione di fallback a partire dal ground truth / euristica del file. */
 function fallbackResult(f: SourceFile): ClassifyResult {
   const c = f.classification;
   return {
@@ -34,28 +34,39 @@ function fallbackResult(f: SourceFile): ClassifyResult {
     revisione: c.revisione,
     data: c.data,
     confidence: c.confidence,
-    source: "mock",
+    source: c.source ?? "mock",
+  };
+}
+
+function withResult(f: SourceFile, r: ClassifyResult): SourceFile {
+  return {
+    ...f,
+    classification: {
+      tipo: r.tipo,
+      macchinaSerial: r.macchinaSerial,
+      codice: r.codice,
+      revisione: r.revisione,
+      data: r.data,
+      confidence: r.confidence,
+      source: r.source,
+    },
   };
 }
 
 export function ArchiveWorkspace() {
   const searchParams = useSearchParams();
-  // L'archivio parte già dal risultato organizzato (vista "dopo"):
-  // classificazione mock precalcolata dal ground truth dei file.
-  // "Ricomincia" riporta alla fase sorgente per mostrare l'elaborazione.
   const [phase, setPhase] = useState<Phase>("done");
   const [apiDone, setApiDone] = useState(true);
   const [results, setResults] = useState<Map<string, ClassifyResult>>(new Map());
   const [apiSource, setApiSource] = useState<"anthropic" | "mock">("mock");
-  // Ricerca inizializzata dal parametro ?q= (link interni dall'inbox).
   const [query, setQuery] = useState(() => searchParams.get("q") ?? "");
   const [archiveTab, setArchiveTab] = useState<ArchiveTab>("organizzato");
   const [viewMode, setViewMode] = useState<ArchiveViewMode>("macchina");
-  // Risoluzioni della coda di revisione: fileId → matricola assegnata.
   const [resolved, setResolved] = useState<Record<string, string>>({});
   const [deletedIds, setDeletedIds] = useState<Set<string>>(() => new Set());
   const [uploadedFiles, setUploadedFiles] = useState<SourceFile[]>([]);
   const [apiFile, setApiFile] = useState<SourceFile | null>(null);
+  const organizingRef = useRef(false);
 
   const visibleFiles = useMemo(
     () => [
@@ -65,11 +76,69 @@ export function ArchiveWorkspace() {
     [deletedIds, uploadedFiles]
   );
 
-  const uploadFiles = useCallback((files: File[]) => {
-    const added = filesToSourceFiles(files);
-    if (added.length === 0) return;
-    setUploadedFiles((prev) => [...prev, ...added]);
+  const runOrganize = useCallback(async (files: SourceFile[]) => {
+    if (files.length === 0 || organizingRef.current) return;
+    organizingRef.current = true;
+    setPhase("processing");
+    setApiDone(false);
+    setResolved({});
+    setArchiveTab("organizzato");
+
+    try {
+      const res = await fetch("/api/classify", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          files: files.map((f) => ({
+            id: f.id,
+            name: f.name,
+            preview: f.preview,
+            ext: f.ext,
+          })),
+        }),
+      });
+      const data = res.ok ? await res.json() : null;
+      const list: ClassifyResult[] = data?.results ?? files.map(fallbackResult);
+      setResults(new Map(list.map((r) => [r.id, r])));
+      setApiSource(data?.source === "anthropic" ? "anthropic" : "mock");
+
+      setUploadedFiles((prev) =>
+        prev.map((f) => {
+          const r = list.find((x) => x.id === f.id);
+          return r ? withResult(f, r) : f;
+        })
+      );
+    } catch {
+      setResults(new Map(files.map((f) => [f.id, fallbackResult(f)])));
+      setApiSource("mock");
+    } finally {
+      setApiDone(true);
+      organizingRef.current = false;
+    }
   }, []);
+
+  const handleOrganize = useCallback(() => {
+    void runOrganize(visibleFiles);
+  }, [runOrganize, visibleFiles]);
+
+  const uploadFiles = useCallback(
+    (files: File[]) => {
+      const added = filesToSourceFiles(files);
+      if (added.length === 0) return;
+      setUploadedFiles((prev) => {
+        const next = [...prev, ...added];
+        const all = [
+          ...SOURCE_FILES.filter((f) => !deletedIds.has(f.id)),
+          ...next.filter((f) => !deletedIds.has(f.id)),
+        ];
+        queueMicrotask(() => {
+          void runOrganize(all);
+        });
+        return next;
+      });
+    },
+    [deletedIds, runOrganize]
+  );
 
   const deleteFile = useCallback((fileId: string) => {
     setUploadedFiles((prev) => {
@@ -90,35 +159,11 @@ export function ArchiveWorkspace() {
     });
   }, []);
 
-  const handleOrganize = useCallback(async () => {
-    setPhase("processing");
-    setApiDone(false);
-    setResolved({});
-
-    try {
-      const res = await fetch("/api/classify", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({}),
-      });
-      const data = res.ok ? await res.json() : null;
-      const list: ClassifyResult[] = data?.results ?? visibleFiles.map(fallbackResult);
-      setResults(new Map(list.map((r) => [r.id, r])));
-      setApiSource(data?.source === "anthropic" ? "anthropic" : "mock");
-    } catch {
-      setResults(new Map(visibleFiles.map((f) => [f.id, fallbackResult(f)])));
-      setApiSource("mock");
-    } finally {
-      setApiDone(true);
-    }
-  }, [visibleFiles]);
-
   const resultFor = useCallback(
     (f: SourceFile): ClassifyResult => results.get(f.id) ?? fallbackResult(f),
     [results]
   );
 
-  // Costruisce archivio + coda di revisione dai risultati.
   const { archived, reviewItems } = useMemo(() => {
     const archived: ArchivedDoc[] = [];
     const reviewItems: SourceFile[] = [];
@@ -139,10 +184,9 @@ export function ArchiveWorkspace() {
       if (r.confidence >= REVIEW_THRESHOLD && r.macchinaSerial) {
         archived.push(toDoc(r.macchinaSerial, r.confidence));
       } else if (resolved[f.id]) {
-        // Confermato/corretto dall'operatore → confidenza piena.
         archived.push(toDoc(resolved[f.id], 1));
       } else {
-        reviewItems.push(f);
+        reviewItems.push(withResult(f, r));
       }
     }
     return { archived, reviewItems };
@@ -166,10 +210,11 @@ export function ArchiveWorkspace() {
   }, []);
 
   const onResolve = (fileId: string, serial: string) => {
-    setResolved((prev) => ({ ...prev, [fileId]: serial }));
+    const trimmed = serial.trim();
+    if (!trimmed) return;
+    setResolved((prev) => ({ ...prev, [fileId]: trimmed }));
   };
 
-  // --- Fase SORGENTE ---
   if (phase === "source") {
     return (
       <div className="flex min-h-0 flex-1 flex-col items-center gap-4 overflow-y-auto p-4">
@@ -200,7 +245,6 @@ export function ArchiveWorkspace() {
     );
   }
 
-  // --- Fase ELABORAZIONE ---
   if (phase === "processing") {
     return (
       <div className="min-h-0 flex-1 overflow-y-auto">
@@ -214,11 +258,9 @@ export function ArchiveWorkspace() {
     );
   }
 
-  // --- Fase ARCHIVIO ORGANIZZATO ---
   return (
     <div className="flex min-h-0 flex-1 gap-4 overflow-hidden p-4 lg:flex-row">
       <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-y-auto">
-      {/* Riepilogo + azioni */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm">
           <Stat value={visibleFiles.length} label="file sorgente" />
@@ -229,9 +271,21 @@ export function ArchiveWorkspace() {
             <Stat value={reviewItems.length} label="da verificare" warn />
           )}
         </div>
+        {visibleFiles.length > 0 && (
+          <button
+            type="button"
+            onClick={handleOrganize}
+            className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-brand px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-brand/20 transition-all hover:bg-brand-strong"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M12 3v2m0 14v2m9-9h-2M5 12H3" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+              <circle cx="12" cy="12" r="3.4" stroke="currentColor" strokeWidth="1.7" />
+            </svg>
+            Organizza con aestima
+          </button>
+        )}
       </div>
 
-      {/* Tab: Archivio organizzato | Sorgente | Da verificare */}
       <div className="flex min-h-0 flex-1 flex-col rounded-2xl border border-border bg-surface/30">
         <div className="flex shrink-0 gap-6 border-b border-border px-4">
           <TabBtn
@@ -269,6 +323,7 @@ export function ArchiveWorkspace() {
             <SourceBrowser
               files={visibleFiles}
               compact
+              onOrganize={handleOrganize}
               onDeleteFile={deleteFile}
               onShowApiFile={showApi}
               onUploadFiles={uploadFiles}

@@ -112,10 +112,12 @@ function ReviewItem({
   const suggestedKnown = KNOWN_MACHINES.some((m) => m.serial === suggested);
   const [correcting, setCorrecting] = useState(false);
   const [selected, setSelected] = useState<string>(
-    file.correctSerial ?? KNOWN_MACHINES[0]?.serial ?? ""
+    file.correctSerial ?? suggested ?? KNOWN_MACHINES[0]?.serial ?? ""
   );
+  const [customSerial, setCustomSerial] = useState(suggested ?? "");
 
   const tipoLabel = DOC_TYPES[file.classification.tipo].label.toLowerCase();
+  const hasKnownMachines = KNOWN_MACHINES.length > 0;
 
   return (
     <div className="rounded-xl border border-border bg-base/60 p-3">
@@ -133,8 +135,8 @@ function ReviewItem({
                 <span className="font-medium text-ink">
                   {machineLabel(suggested)}
                 </span>
-                {!suggestedKnown && (
-                  <span className="text-warn"> (matricola non trovata)</span>
+                {hasKnownMachines && !suggestedKnown && (
+                  <span className="text-warn"> (matricola non in anagrafica)</span>
                 )}
                 , confermi?
               </>
@@ -145,20 +147,33 @@ function ReviewItem({
 
           {correcting ? (
             <div className="mt-2.5 flex flex-wrap items-center gap-2">
-              <select
-                value={selected}
-                onChange={(e) => setSelected(e.target.value)}
-                className="rounded-lg border border-border bg-base px-2.5 py-1.5 text-sm text-ink outline-none focus:border-brand"
-              >
-                {KNOWN_MACHINES.map((m) => (
-                  <option key={m.serial} value={m.serial}>
-                    {m.label}
-                  </option>
-                ))}
-              </select>
+              {hasKnownMachines ? (
+                <select
+                  value={selected}
+                  onChange={(e) => setSelected(e.target.value)}
+                  className="rounded-lg border border-border bg-base px-2.5 py-1.5 text-sm text-ink outline-none focus:border-brand"
+                >
+                  {KNOWN_MACHINES.map((m) => (
+                    <option key={m.serial} value={m.serial}>
+                      {m.label}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  type="text"
+                  value={customSerial}
+                  onChange={(e) => setCustomSerial(e.target.value)}
+                  placeholder="Matricola o modello macchina"
+                  className="min-w-[220px] rounded-lg border border-border bg-base px-2.5 py-1.5 text-sm text-ink outline-none placeholder:text-ink-faint focus:border-brand"
+                />
+              )}
               <button
-                onClick={() => onResolve(file.id, selected)}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-3 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-brand-strong"
+                onClick={() =>
+                  onResolve(file.id, hasKnownMachines ? selected : customSerial)
+                }
+                disabled={!(hasKnownMachines ? selected : customSerial.trim())}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-3 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-brand-strong disabled:opacity-40"
               >
                 Assegna e archivia
               </button>
@@ -171,7 +186,7 @@ function ReviewItem({
             </div>
           ) : (
             <div className="mt-2.5 flex flex-wrap items-center gap-2">
-              {suggested && suggestedKnown && (
+              {suggested && (
                 <button
                   onClick={() => onResolve(file.id, suggested)}
                   className="inline-flex items-center gap-1.5 rounded-lg bg-ok px-3 py-1.5 text-sm font-semibold text-white transition-all hover:brightness-110"
@@ -189,7 +204,7 @@ function ReviewItem({
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                   <path d="M4 20h4L18.5 9.5a2.1 2.1 0 0 0-3-3L5 17v3Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
                 </svg>
-                Correggi
+                {suggested ? "Correggi" : "Assegna macchina"}
               </button>
             </div>
           )}
