@@ -7,14 +7,134 @@ import { Logo } from "@/components/Logo";
 import { logoutAction } from "@/app/actions/auth";
 
 const NAV = [
-  { href: "/", label: "Inbox" },
-  { href: "/archivio", label: "Archivio" },
-  { href: "/tecnici", label: "Tecnici" },
-  { href: "/assistenza", label: "Assistenza AI" },
-  { href: "/conversazioni", label: "Ticket" },
-  { href: "/manuale", label: "Manuale" },
-  { href: "/crea", label: "Crea offerta" },
-  { href: "/company", label: "Company" },
+  {
+    href: "/assistenza",
+    label: "Assistenza AI",
+    icon: (
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path
+          d="M12 8V4H8M12 8a4 4 0 1 0 4 4H8a4 4 0 0 0 4 4m0-8a4 4 0 0 1 4 4m-4 4v4h4M21 12h-1M4 12H3m16.364-7.364-.707.707M5.343 18.657l-.707.707m0-14.142.707.707m12.728 12.728.707.707"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    ),
+  },
+  {
+    href: "/",
+    label: "Email",
+    icon: (
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path
+          d="M4 6h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1Z"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinejoin="round"
+        />
+        <path
+          d="m3.5 7.5 8.5 6 8.5-6"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    ),
+  },
+  {
+    href: "/conversazioni",
+    label: "Ticket",
+    icon: (
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path
+          d="M3 9a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v1.5a1.5 1.5 0 0 0 0 3V16a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1.5a1.5 1.5 0 0 0 0-3V9Z"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M9 8v8M15 8v8"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+        />
+      </svg>
+    ),
+  },
+  {
+    href: "/archivio",
+    label: "Archivio",
+    icon: (
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path
+          d="M4 7.5A1.5 1.5 0 0 1 5.5 6h13A1.5 1.5 0 0 1 20 7.5V9H4V7.5ZM4 9v8.5A1.5 1.5 0 0 0 5.5 19h13a1.5 1.5 0 0 0 1.5-1.5V9"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M9 13h6"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+        />
+      </svg>
+    ),
+  },
+  {
+    href: "/manuale",
+    label: "Manuale",
+    icon: (
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path
+          d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20M4 19.5A2.5 2.5 0 0 0 6.5 22H20V2H6.5A2.5 2.5 0 0 0 4 4.5v15Z"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    ),
+  },
+  {
+    href: "/crea",
+    label: "Crea offerta",
+    icon: (
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path
+          d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6Z"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M14 2v6h6M12 18v-6M9 15h6"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    ),
+  },
+  {
+    href: "/company",
+    label: "Azienda",
+    icon: (
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path
+          d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    ),
+  },
 ] as const;
 
 const PUBLIC_PATHS = ["/assistenza", "/embed", "/login", "/register"];
@@ -87,12 +207,13 @@ export function InboxTopBar({
                 key={item.href}
                 href={item.href}
                 className={[
-                  "shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
+                  "inline-flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
                   active
                     ? "bg-brand-soft text-ink"
                     : "text-ink-muted hover:bg-surface-2/70 hover:text-ink",
                 ].join(" ")}
               >
+                {item.icon}
                 {item.label}
               </Link>
             );
