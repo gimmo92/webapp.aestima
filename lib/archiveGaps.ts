@@ -9,6 +9,8 @@ import type { ArchivedDoc, SourceFile } from "./archiveTypes";
 
 export type GapCategory = "price" | "data";
 
+export type GapAction = "set_codice" | "set_price" | "search";
+
 export interface ArchiveGap {
   id: string;
   category: GapCategory;
@@ -18,6 +20,10 @@ export interface ArchiveGap {
   title: string;
   detail: string;
   searchQuery?: string;
+  /** Azione supportata dal pulsante Aggiorna. */
+  action?: GapAction;
+  /** File sorgente collegato (es. codice mancante). */
+  fileId?: string;
 }
 
 export interface ArchiveGapReport {
@@ -116,6 +122,7 @@ export function computeArchiveGaps(
               title: "Prezzo ricambio mancante",
               detail: `${row.description} (${row.code}) in distinta ${bomRef}.`,
               searchQuery: row.code,
+              action: "set_price",
             });
           }
         }
@@ -129,6 +136,7 @@ export function computeArchiveGaps(
           title: "Prezzo listino assente",
           detail: `${component.description}: nessun prezzo in anagrafica macchina.`,
           searchQuery: component.code,
+          action: "set_price",
         });
       }
 
@@ -207,6 +215,8 @@ export function computeArchiveGaps(
         title: "Codice ricambio mancante",
         detail: `${file.name}: metadato codice non estratto dal documento.`,
         searchQuery: file.name,
+        action: "set_codice",
+        fileId: file.id,
       });
     }
   }

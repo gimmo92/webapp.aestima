@@ -29,9 +29,17 @@ export function isPartPriceMissing(code: string): boolean {
   return price === undefined || price <= 0;
 }
 
+/** Prezzi unitari ricambio (sovrascrivibili a runtime da lacune archivio). */
 const UNIT_PRICES: Record<string, number> = {};
 
 export const BOM_CATALOG: Record<string, BomDefinition> = {};
+
+/** Imposta/aggiorna il prezzo listino di un codice ricambio (sessione corrente). */
+export function setPartUnitPrice(code: string, price: number): void {
+  const trimmed = code.trim();
+  if (!trimmed || !(price > 0)) return;
+  UNIT_PRICES[trimmed] = price;
+}
 
 /** Righe preventivo da distinta base (ricambi + ore uomo). */
 export function quoteLinesFromBom(

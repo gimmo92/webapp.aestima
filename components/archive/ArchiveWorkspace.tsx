@@ -18,12 +18,16 @@ import {
 } from "@/lib/archivePersist";
 import { persistWorkspace } from "@/lib/workspace/persistClient";
 import { computeArchiveGaps } from "@/lib/archiveGaps";
+import { setPartUnitPrice } from "@/lib/bomCatalog";
 import { SourceBrowser } from "./SourceBrowser";
 import { ProcessingPipeline } from "./ProcessingPipeline";
 import { OrganizedArchive, type ArchiveViewMode } from "./OrganizedArchive";
 import { ReviewQueue } from "./ReviewQueue";
 import { ArchiveApiModal } from "./ArchiveApiModal";
-import { ArchiveGapsSidebar } from "./ArchiveGapsSidebar";
+import {
+  ArchiveGapsSidebar,
+  type GapUpdatePayload,
+} from "./ArchiveGapsSidebar";
 
 type Phase = "source" | "processing" | "done";
 type ArchiveTab = "organizzato" | "sorgente" | "verificare";
@@ -101,6 +105,7 @@ export function ArchiveWorkspace() {
   const [apiFile, setApiFile] = useState<SourceFile | null>(null);
   const [hydrated, setHydrated] = useState(false);
   const [cloudMode, setCloudMode] = useState(false);
+  const [priceRevision, setPriceRevision] = useState(0);
   const organizingRef = useRef(false);
 
   useEffect(() => {
@@ -351,13 +356,68 @@ export function ArchiveWorkspace() {
 
   const gapReport = useMemo(
     () => computeArchiveGaps(archived, visibleFiles),
-    [archived, visibleFiles]
+    // priceRevision: ricalcola lacune prezzi dopo Aggiorna
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- priceRevision intenzionale
+    [archived, visibleFiles, priceRevision]
   );
 
   const focusGap = useCallback((q: string) => {
     setArchiveTab("organizzato");
     setQuery(q);
   }, []);
+
+  const handleUpdateGap = useCallback(
+    (payload: GapUpdatePayload) => {
+      if (payload.kind === "set_price") {
+        setPartUnitPrice(payload.partCode, payload.price);
+        setPriceRevision((n) => n + 1);
+        return;
+      }
+
+      const { fileId, code, applyToAll } = payload;
+
+      setUploadedFiles((prev) =>
+        prev.map((f) => {
+          const match = applyToAll
+            ? !f.classification.codice
+            : f.id === fileId;
+          if (!match) return f;
+          const classification = { ...f.classification, codice: code };
+          if (cloudMode && isCloudArchiveId(f.id)) {
+            persistArchive("updateArchiveFile", {
+              id: f.id,
+              classification,
+            });
+          } else {
+            void updateLocalArchiveMeta(f.id, { classification });
+          }
+          return { ...f, classification };
+        })
+      );
+
+      setResults((prev) => {
+        const next = new Map(prev);
+        for (const [id, r] of next) {
+          if (applyToAll) {
+            if (!r.codice) next.set(id, { ...r, codice: code });
+          } else if (id === fileId) {
+            next.set(id, { ...r, codice: code });
+          }
+        }
+        if (!applyToAll && !next.has(fileId)) {
+          const fromUpload = uploadedFiles.find((f) => f.id === fileId);
+          if (fromUpload) {
+            next.set(fileId, {
+              ...fallbackResult(fromUpload),
+              codice: code,
+            });
+          }
+        }
+        return next;
+      });
+    },
+    [cloudMode, persistArchive, uploadedFiles]
+  );
 
   const onResolve = (fileId: string, assignment: ArchiveAssignment) => {
     const serial = assignment.serial?.trim() || null;
@@ -533,7 +593,11 @@ export function ArchiveWorkspace() {
       )}
       </div>
 
-      <ArchiveGapsSidebar report={gapReport} onSearch={focusGap} />
+      <ArchiveGapsSidebar
+        report={gapReport}
+        onSearch={focusGap}
+        onUpdateGap={handleUpdateGap}
+      />
     </div>
   );
 }
