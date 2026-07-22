@@ -14,6 +14,13 @@ import type {
   FileExt,
   SourceFile,
 } from "@/lib/archiveTypes";
+import type {
+  SparePart,
+  SparePartSource,
+  SparePartStatus,
+  SparePartSuccedaneo,
+} from "@/lib/sparePartTypes";
+import { computeSpareCompleteness } from "@/lib/sparePartTypes";
 
 type DbLabel = {
   id: string;
@@ -360,4 +367,48 @@ export function mapArchiveFile(row: {
       ? `/api/archive/files/${row.id}/content`
       : undefined,
   };
+}
+
+export function mapSparePart(row: {
+  id: string;
+  codice: string;
+  codiceOEM: string | null;
+  descrizione: string;
+  categoria: string | null;
+  um: string | null;
+  prezzoListino: number | null;
+  fornitore: string | null;
+  codiceFornitore: string | null;
+  leadTimeGiorni: number | null;
+  macchinaCompatibile: string | null;
+  stato: string;
+  completezza: number;
+  daVerificare: boolean;
+  sorgentiJson: Prisma.JsonValue | null;
+  succedaneiJson: Prisma.JsonValue | null;
+  conflictFieldsJson: Prisma.JsonValue | null;
+}): SparePart {
+  const part: SparePart = {
+    id: row.id,
+    codice: row.codice,
+    codiceOEM: row.codiceOEM ?? undefined,
+    descrizione: row.descrizione,
+    categoria: row.categoria ?? undefined,
+    um: row.um ?? undefined,
+    prezzoListino: row.prezzoListino,
+    fornitore: row.fornitore ?? undefined,
+    codiceFornitore: row.codiceFornitore ?? undefined,
+    leadTimeGiorni: row.leadTimeGiorni,
+    macchinaCompatibile: row.macchinaCompatibile ?? undefined,
+    stato: (row.stato as SparePartStatus) || "attivo",
+    completezza: row.completezza,
+    sorgenti: (row.sorgentiJson as unknown as SparePartSource[]) ?? [],
+    succedanei: (row.succedaneiJson as unknown as SparePartSuccedaneo[]) ?? [],
+    daVerificare: row.daVerificare,
+    conflictFields: (row.conflictFieldsJson as unknown as string[]) ?? undefined,
+  };
+  if (!part.completezza) {
+    part.completezza = computeSpareCompleteness(part);
+  }
+  return part;
 }

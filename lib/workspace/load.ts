@@ -8,6 +8,7 @@ import {
   mapLabel,
   mapPartRequest,
   mapReport,
+  mapSparePart,
   mapSupplier,
   mapSupplierRequest,
   mapTechnician,
@@ -24,6 +25,7 @@ import type {
   TechnicianAssignment,
 } from "@/lib/technicianTypes";
 import type { SourceFile } from "@/lib/archiveTypes";
+import type { SparePart } from "@/lib/sparePartTypes";
 
 export type WorkspaceSnapshot = {
   labels: Label[];
@@ -37,6 +39,7 @@ export type WorkspaceSnapshot = {
   technicianAssignments: TechnicianAssignment[];
   interventionReports: InterventionReport[];
   archiveFiles: SourceFile[];
+  spareParts: SparePart[];
 };
 
 export async function loadCompanyWorkspace(
@@ -64,6 +67,7 @@ export async function loadCompanyWorkspace(
     technicianAssignments,
     interventionReports,
     archiveFiles,
+    spareParts,
   ] = await Promise.all([
     prisma.label.findMany({ where: { companyId }, orderBy: { name: "asc" } }),
     prisma.partRequest.findMany({
@@ -118,6 +122,10 @@ export async function loadCompanyWorkspace(
       },
       orderBy: { createdAt: "desc" },
     }),
+    prisma.sparePart.findMany({
+      where: { companyId },
+      orderBy: { codice: "asc" },
+    }),
   ]);
 
   return {
@@ -132,5 +140,6 @@ export async function loadCompanyWorkspace(
     technicianAssignments: technicianAssignments.map(mapAssignment),
     interventionReports: interventionReports.map(mapReport),
     archiveFiles: archiveFiles.map(mapArchiveFile),
+    spareParts: spareParts.map(mapSparePart),
   };
 }

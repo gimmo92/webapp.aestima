@@ -18,7 +18,10 @@ import {
 } from "@/lib/archivePersist";
 import { persistWorkspace } from "@/lib/workspace/persistClient";
 import { computeArchiveGaps } from "@/lib/archiveGaps";
+import { computeSparePartGaps } from "@/lib/sparePartGaps";
 import { setPartUnitPrice } from "@/lib/bomCatalog";
+import type { SparePart } from "@/lib/sparePartTypes";
+import { computeSpareCompleteness } from "@/lib/sparePartTypes";
 import { SourceBrowser } from "./SourceBrowser";
 import { ProcessingPipeline } from "./ProcessingPipeline";
 import { OrganizedArchive, type ArchiveViewMode } from "./OrganizedArchive";
@@ -28,9 +31,10 @@ import {
   ArchiveGapsSidebar,
   type GapUpdatePayload,
 } from "./ArchiveGapsSidebar";
+import { PartsArchive } from "./PartsArchive";
 
 type Phase = "source" | "processing" | "done";
-type ArchiveTab = "organizzato" | "sorgente" | "verificare";
+type ArchiveTab = "organizzato" | "sorgente" | "verificare" | "ricambi";
 
 function fallbackResult(f: SourceFile): ClassifyResult {
   const c = f.classification;
@@ -106,6 +110,12 @@ export function ArchiveWorkspace() {
   const [hydrated, setHydrated] = useState(false);
   const [cloudMode, setCloudMode] = useState(false);
   const [priceRevision, setPriceRevision] = useState(0);
+  const [spareParts, setSpareParts] = useState<SparePart[]>([]);
+  const [extracting, setExtracting] = useState(false);
+  const [extractProgress, setExtractProgress] = useState<{
+    label: string;
+    pct: number;
+  } | null>(null);
   const organizingRef = useRef(false);
 
   useEffect(() => {
@@ -122,6 +132,7 @@ export function ArchiveWorkspace() {
           setResults(resultsFromFiles(files));
           setResolved(resolvedSerialFromFiles(files));
           setResolvedCliente(resolvedClienteFromFiles(files));
+          setSpareParts((data.spareParts as SparePart[]) ?? []);
           setHydrated(true);
           return;
         }
@@ -136,6 +147,7 @@ export function ArchiveWorkspace() {
       setResults(resultsFromFiles(local));
       setResolved(resolvedSerialFromFiles(local));
       setResolvedCliente(resolvedClienteFromFiles(local));
+      setSpareParts([]);
       setHydrated(true);
     })();
     return () => {
@@ -355,22 +367,92 @@ export function ArchiveWorkspace() {
   );
 
   const gapReport = useMemo(
-    () => computeArchiveGaps(archived, visibleFiles),
-    // priceRevision: ricalcola lacune prezzi dopo Aggiorna
+    () =>
+      archiveTab === "ricambi"
+        ? computeSparePartGaps(spareParts)
+        : computeArchiveGaps(archived, visibleFiles),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- priceRevision intenzionale
-    [archived, visibleFiles, priceRevision]
+    [archiveTab, spareParts, archived, visibleFiles, priceRevision]
   );
 
-  const focusGap = useCallback((q: string) => {
-    setArchiveTab("organizzato");
-    setQuery(q);
-  }, []);
+  const handleExtractParts = useCallback(async () => {
+    if (extracting) return;
+    setExtracting(true);
+    setExtractProgress({ label: "Estrazione in corso…", pct: 5 });
+    try {
+      const tick = window.setInterval(() => {
+        setExtractProgress((prev) =>
+          prev
+            ? {
+                label: prev.label,
+                pct: Math.min(90, prev.pct + 7),
+              }
+            : prev
+        );
+      }, 400);
+      const res = await fetch("/api/archive/extract-parts", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      window.clearInterval(tick);
+      if (!res.ok) {
+        const err = await res.json().catch(() => null);
+        setExtractProgress({
+          label: (err as { message?: string })?.message || "Estrazione fallita",
+          pct: 100,
+        });
+        return;
+      }
+      const data = await res.json();
+      setSpareParts((data.parts as SparePart[]) ?? []);
+      setExtractProgress({
+        label: `Estratti ${data.extractedRows ?? 0} righe · ${(data.parts as SparePart[])?.length ?? 0} ricambi`,
+        pct: 100,
+      });
+      setArchiveTab("ricambi");
+    } catch {
+      setExtractProgress({ label: "Errore di rete", pct: 100 });
+    } finally {
+      setExtracting(false);
+      window.setTimeout(() => setExtractProgress(null), 4000);
+    }
+  }, [extracting]);
+
+  const handleSparePatch = useCallback(
+    (part: SparePart) => {
+      persistWorkspace("updateSparePart", part);
+    },
+    []
+  );
+
+  const focusGap = useCallback(
+    (q: string) => {
+      if (archiveTab !== "ricambi") setArchiveTab("organizzato");
+      setQuery(q);
+    },
+    [archiveTab]
+  );
 
   const handleUpdateGap = useCallback(
     (payload: GapUpdatePayload) => {
       if (payload.kind === "set_price") {
         setPartUnitPrice(payload.partCode, payload.price);
         setPriceRevision((n) => n + 1);
+        setSpareParts((prev) =>
+          prev.map((p) => {
+            if (p.codice.toUpperCase() !== payload.partCode.toUpperCase()) {
+              return p;
+            }
+            const updated = {
+              ...p,
+              prezzoListino: payload.price,
+            };
+            updated.completezza = computeSpareCompleteness(updated);
+            persistWorkspace("updateSparePart", updated);
+            return updated;
+          })
+        );
         return;
       }
 
@@ -520,17 +602,30 @@ export function ArchiveWorkspace() {
           )}
         </div>
         {visibleFiles.length > 0 && (
-          <button
-            type="button"
-            onClick={handleOrganize}
-            className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-brand px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-brand/20 transition-all hover:bg-brand-strong"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path d="M12 3v2m0 14v2m9-9h-2M5 12H3" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
-              <circle cx="12" cy="12" r="3.4" stroke="currentColor" strokeWidth="1.7" />
-            </svg>
-            Organizza con aestima
-          </button>
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => void handleExtractParts()}
+              disabled={extracting}
+              className="inline-flex items-center gap-2 rounded-xl border border-brand/40 bg-brand-soft px-4 py-2 text-sm font-semibold text-brand transition-all hover:bg-brand/20 disabled:opacity-50"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              {extracting ? "Estrazione…" : "Estrai ricambi"}
+            </button>
+            <button
+              type="button"
+              onClick={handleOrganize}
+              className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-brand px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-brand/20 transition-all hover:bg-brand-strong"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M12 3v2m0 14v2m9-9h-2M5 12H3" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+                <circle cx="12" cy="12" r="3.4" stroke="currentColor" strokeWidth="1.7" />
+              </svg>
+              Organizza con aestima
+            </button>
+          </div>
         )}
       </div>
 
@@ -554,6 +649,12 @@ export function ArchiveWorkspace() {
             badge={reviewItems.length}
             warn
           />
+          <TabBtn
+            active={archiveTab === "ricambi"}
+            onClick={() => setArchiveTab("ricambi")}
+            label="Archivio ricambi"
+            sub={`${spareParts.length}`}
+          />
         </div>
 
         <div className="min-h-[60vh] flex-1 p-3 lg:min-h-0">
@@ -575,6 +676,15 @@ export function ArchiveWorkspace() {
               onDeleteFile={deleteFile}
               onShowApiFile={showApi}
               onUploadFiles={uploadFiles}
+            />
+          ) : archiveTab === "ricambi" ? (
+            <PartsArchive
+              parts={spareParts}
+              onChange={setSpareParts}
+              onPatch={handleSparePatch}
+              extractProgress={extractProgress}
+              query={query}
+              onQueryChange={setQuery}
             />
           ) : (
             <ReviewQueue

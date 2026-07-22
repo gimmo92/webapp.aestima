@@ -471,6 +471,132 @@ export async function applyWorkspaceMutation(
       });
       return { ok: true };
     }
+    case "updateSparePart": {
+      const id = asString(p.id);
+      const data: Prisma.SparePartUpdateManyMutationInput = {};
+      if (p.codice !== undefined) data.codice = asString(p.codice);
+      if (p.codiceOEM !== undefined) {
+        data.codiceOEM = p.codiceOEM ? asString(p.codiceOEM) : null;
+      }
+      if (p.descrizione !== undefined) data.descrizione = asString(p.descrizione);
+      if (p.categoria !== undefined) {
+        data.categoria = p.categoria ? asString(p.categoria) : null;
+      }
+      if (p.um !== undefined) data.um = p.um ? asString(p.um) : null;
+      if (p.prezzoListino !== undefined) {
+        data.prezzoListino =
+          p.prezzoListino === null || p.prezzoListino === ""
+            ? null
+            : Number(p.prezzoListino);
+      }
+      if (p.fornitore !== undefined) {
+        data.fornitore = p.fornitore ? asString(p.fornitore) : null;
+      }
+      if (p.codiceFornitore !== undefined) {
+        data.codiceFornitore = p.codiceFornitore
+          ? asString(p.codiceFornitore)
+          : null;
+      }
+      if (p.leadTimeGiorni !== undefined) {
+        data.leadTimeGiorni =
+          p.leadTimeGiorni === null || p.leadTimeGiorni === ""
+            ? null
+            : Number(p.leadTimeGiorni);
+      }
+      if (p.macchinaCompatibile !== undefined) {
+        data.macchinaCompatibile = p.macchinaCompatibile
+          ? asString(p.macchinaCompatibile)
+          : null;
+      }
+      if (p.stato !== undefined) data.stato = asString(p.stato);
+      if (p.completezza !== undefined) data.completezza = Number(p.completezza);
+      if (p.daVerificare !== undefined) data.daVerificare = asBool(p.daVerificare);
+      if (p.sorgenti !== undefined) {
+        data.sorgentiJson = p.sorgenti as Prisma.InputJsonValue;
+      }
+      if (p.succedanei !== undefined) {
+        data.succedaneiJson = p.succedanei as Prisma.InputJsonValue;
+      }
+      if (p.conflictFields !== undefined) {
+        data.conflictFieldsJson = p.conflictFields as Prisma.InputJsonValue;
+      }
+      const result = await prisma.sparePart.updateMany({
+        where: { id, companyId },
+        data,
+      });
+      if (result.count === 0) {
+        return { ok: false, error: "Ricambio non trovato" };
+      }
+      return { ok: true };
+    }
+    case "upsertSpareParts": {
+      const parts = (p.parts as Array<Record<string, unknown>>) ?? [];
+      for (const part of parts) {
+        const codice = asString(part.codice);
+        if (!codice) continue;
+        await prisma.sparePart.upsert({
+          where: {
+            companyId_codice: { companyId, codice },
+          },
+          create: {
+            id: asString(part.id) || undefined,
+            companyId,
+            codice,
+            codiceOEM: part.codiceOEM ? asString(part.codiceOEM) : null,
+            descrizione: asString(part.descrizione) || codice,
+            categoria: part.categoria ? asString(part.categoria) : null,
+            um: part.um ? asString(part.um) : null,
+            prezzoListino:
+              part.prezzoListino == null ? null : Number(part.prezzoListino),
+            fornitore: part.fornitore ? asString(part.fornitore) : null,
+            codiceFornitore: part.codiceFornitore
+              ? asString(part.codiceFornitore)
+              : null,
+            leadTimeGiorni:
+              part.leadTimeGiorni == null
+                ? null
+                : Number(part.leadTimeGiorni),
+            macchinaCompatibile: part.macchinaCompatibile
+              ? asString(part.macchinaCompatibile)
+              : null,
+            stato: asString(part.stato) || "attivo",
+            completezza: Number(part.completezza ?? 0),
+            daVerificare: asBool(part.daVerificare),
+            sorgentiJson: (part.sorgenti as Prisma.InputJsonValue) ?? [],
+            succedaneiJson: (part.succedanei as Prisma.InputJsonValue) ?? [],
+            conflictFieldsJson:
+              (part.conflictFields as Prisma.InputJsonValue) ?? [],
+          },
+          update: {
+            codiceOEM: part.codiceOEM ? asString(part.codiceOEM) : null,
+            descrizione: asString(part.descrizione) || codice,
+            categoria: part.categoria ? asString(part.categoria) : null,
+            um: part.um ? asString(part.um) : null,
+            prezzoListino:
+              part.prezzoListino == null ? null : Number(part.prezzoListino),
+            fornitore: part.fornitore ? asString(part.fornitore) : null,
+            codiceFornitore: part.codiceFornitore
+              ? asString(part.codiceFornitore)
+              : null,
+            leadTimeGiorni:
+              part.leadTimeGiorni == null
+                ? null
+                : Number(part.leadTimeGiorni),
+            macchinaCompatibile: part.macchinaCompatibile
+              ? asString(part.macchinaCompatibile)
+              : null,
+            stato: asString(part.stato) || "attivo",
+            completezza: Number(part.completezza ?? 0),
+            daVerificare: asBool(part.daVerificare),
+            sorgentiJson: (part.sorgenti as Prisma.InputJsonValue) ?? [],
+            succedaneiJson: (part.succedanei as Prisma.InputJsonValue) ?? [],
+            conflictFieldsJson:
+              (part.conflictFields as Prisma.InputJsonValue) ?? [],
+          },
+        });
+      }
+      return { ok: true };
+    }
     default:
       return { ok: false, error: `Azione sconosciuta: ${action}` };
   }
