@@ -34,6 +34,7 @@ model Company {
   technicians            Technician[]
   technicianAssignments  TechnicianAssignment[]
   interventionReports    InterventionReport[]
+  archiveFiles           ArchiveFile[]
 }
 
 model User {
@@ -281,6 +282,26 @@ model InterventionReport {
   createdAt            DateTime @default(now())
   company              Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   technician           Technician @relation(fields: [technicianId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+}
+
+/** File caricati nell'archivio documentale (persistenti per company). */
+model ArchiveFile {
+  id                 String   @id @default(cuid())
+  companyId          String
+  name               String
+  ext                String
+  sizeLabel          String
+  modified           String
+  preview            String
+  mimeType           String?
+  content            Bytes?
+  classificationJson Json
+  resolvedSerial     String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  company            Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@index([companyId])
 }

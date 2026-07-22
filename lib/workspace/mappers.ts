@@ -9,6 +9,11 @@ import type {
   Technician,
   TechnicianAssignment,
 } from "@/lib/technicianTypes";
+import type {
+  FileClassification,
+  FileExt,
+  SourceFile,
+} from "@/lib/archiveTypes";
 
 type DbLabel = {
   id: string;
@@ -320,5 +325,37 @@ export function mapReport(row: {
     partsUsed: (row.partsUsedJson as string[]) ?? undefined,
     customerCompany: row.customerCompany ?? undefined,
     assignmentId: row.assignmentId ?? undefined,
+  };
+}
+
+function canPreviewExt(ext: string) {
+  return ext === "xlsx" || ext === "pdf" || ext === "jpg" || ext === "png";
+}
+
+export function mapArchiveFile(row: {
+  id: string;
+  name: string;
+  ext: string;
+  sizeLabel: string;
+  modified: string;
+  preview: string;
+  classificationJson: Prisma.JsonValue;
+  resolvedSerial: string | null;
+}): SourceFile {
+  const classification =
+    row.classificationJson as unknown as FileClassification;
+  return {
+    id: row.id,
+    name: row.name,
+    ext: row.ext as FileExt,
+    sizeLabel: row.sizeLabel,
+    modified: row.modified,
+    preview: row.preview,
+    classification,
+    correctSerial: row.resolvedSerial ?? undefined,
+    uploaded: true,
+    publicUrl: canPreviewExt(row.ext)
+      ? `/api/archive/files/${row.id}/content`
+      : undefined,
   };
 }

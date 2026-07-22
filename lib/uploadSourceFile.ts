@@ -24,31 +24,42 @@ function formatDate(ts: number): string {
   });
 }
 
-/** Converte file dal browser in documenti sorgente per l'archivio demo. */
+/** Converte un singolo File del browser in documento sorgente. */
+export function fileToSourceFile(
+  file: File,
+  opts?: { id?: string; publicUrl?: string }
+): SourceFile | null {
+  const ext = parseExt(file.name);
+  if (!ext) return null;
+
+  const canPreview =
+    ext === "xlsx" || ext === "pdf" || ext === "jpg" || ext === "png";
+  return {
+    id: opts?.id ?? `upload-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+    name: file.name,
+    ext,
+    sizeLabel: formatSize(file.size),
+    modified: formatDate(file.lastModified),
+    preview: `File caricato dall'operatore: ${file.name}`,
+    classification: inferClassificationFromName(file.name, ext),
+    uploaded: true,
+    publicUrl:
+      opts?.publicUrl ??
+      (canPreview ? URL.createObjectURL(file) : undefined),
+  };
+}
+
+/** Converte file dal browser in documenti sorgente per l'archivio. */
 export function filesToSourceFiles(files: File[]): SourceFile[] {
   const out: SourceFile[] = [];
-
   for (const file of files) {
-    const ext = parseExt(file.name);
-    if (!ext) continue;
-
-    const canPreview =
-      ext === "xlsx" || ext === "pdf" || ext === "jpg" || ext === "png";
-    out.push({
-      id: `upload-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
-      name: file.name,
-      ext,
-      sizeLabel: formatSize(file.size),
-      modified: formatDate(file.lastModified),
-      preview: `File caricato dall'operatore: ${file.name}`,
-      classification: inferClassificationFromName(file.name, ext),
-      uploaded: true,
-      publicUrl: canPreview ? URL.createObjectURL(file) : undefined,
-    });
+    const src = fileToSourceFile(file);
+    if (src) out.push(src);
   }
-
   return out;
 }
+
+export { parseExt, formatSize, formatDate };
 
 export function revokeSourceFileUrl(file: SourceFile): void {
   if (file.publicUrl?.startsWith("blob:")) {

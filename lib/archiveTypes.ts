@@ -56,9 +56,9 @@ export interface SourceFile {
    * (l'agente propone `classification.macchinaSerial`, spesso errata).
    */
   correctSerial?: string;
-  /** URL pubblico per anteprima/download (distinte Excel in /public). */
+  /** URL pubblico per anteprima/download (API archivio o /public). */
   publicUrl?: string;
-  /** File aggiunto dall'operatore via upload (solo sessione corrente). */
+  /** File aggiunto dall'operatore via upload (persistito su DB o locale). */
   uploaded?: boolean;
 }
 

@@ -437,6 +437,34 @@ export async function applyWorkspaceMutation(
       ]);
       return { ok: true, id };
     }
+    case "updateArchiveFile": {
+      const id = asString(p.id);
+      const data: Prisma.ArchiveFileUpdateManyMutationInput = {};
+      if (p.classification !== undefined) {
+        data.classificationJson = p.classification as Prisma.InputJsonValue;
+      }
+      if (p.resolvedSerial !== undefined) {
+        data.resolvedSerial =
+          p.resolvedSerial === null || p.resolvedSerial === ""
+            ? null
+            : asString(p.resolvedSerial);
+      }
+      const result = await prisma.archiveFile.updateMany({
+        where: { id, companyId },
+        data,
+      });
+      if (result.count === 0) {
+        return { ok: false, error: "File archivio non trovato" };
+      }
+      return { ok: true };
+    }
+    case "deleteArchiveFile": {
+      const id = asString(p.id);
+      await prisma.archiveFile.deleteMany({
+        where: { id, companyId },
+      });
+      return { ok: true };
+    }
     default:
       return { ok: false, error: `Azione sconosciuta: ${action}` };
   }

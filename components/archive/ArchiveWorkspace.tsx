@@ -1,10 +1,17 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { REVIEW_THRESHOLD, SOURCE_FILES } from "@/lib/archiveData";
 import type { ArchivedDoc, ClassifyResult, SourceFile } from "@/lib/archiveTypes";
-import { filesToSourceFiles, revokeSourceFileUrl } from "@/lib/uploadSourceFile";
+import { revokeSourceFileUrl } from "@/lib/uploadSourceFile";
+import {
+  deleteLocalArchiveFile,
+  loadLocalArchiveFiles,
+  updateLocalArchiveMeta,
+  uploadArchiveFiles,
+} from "@/lib/archivePersist";
+import { persistWorkspace } from "@/lib/workspace/persistClient";
 import { computeArchiveGaps } from "@/lib/archiveGaps";
 import { SourceBrowser } from "./SourceBrowser";
 import { ProcessingPipeline } from "./ProcessingPipeline";
@@ -13,17 +20,9 @@ import { ReviewQueue } from "./ReviewQueue";
 import { ArchiveApiModal } from "./ArchiveApiModal";
 import { ArchiveGapsSidebar } from "./ArchiveGapsSidebar";
 
-// Orchestratore della tab Archivio: gestisce le fasi
-// sorgente → elaborazione → archivio organizzato.
-//
-// Stato solo in memoria (React state). In PRODUZIONE l'agente si
-// collegherebbe a una cartella cloud reale (Drive/SharePoint/Dropbox)
-// e persisterebbe l'archivio su un database.
-
 type Phase = "source" | "processing" | "done";
 type ArchiveTab = "organizzato" | "sorgente" | "verificare";
 
-/** Classificazione di fallback a partire dal ground truth / euristica del file. */
 function fallbackResult(f: SourceFile): ClassifyResult {
   const c = f.classification;
   return {
@@ -53,6 +52,22 @@ function withResult(f: SourceFile, r: ClassifyResult): SourceFile {
   };
 }
 
+function resultsFromFiles(files: SourceFile[]): Map<string, ClassifyResult> {
+  return new Map(files.map((f) => [f.id, fallbackResult(f)]));
+}
+
+function resolvedFromFiles(files: SourceFile[]): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const f of files) {
+    if (f.correctSerial) out[f.id] = f.correctSerial;
+  }
+  return out;
+}
+
+function isCloudArchiveId(id: string) {
+  return !id.startsWith("upload-") && !id.startsWith("src-");
+}
+
 export function ArchiveWorkspace() {
   const searchParams = useSearchParams();
   const [phase, setPhase] = useState<Phase>("done");
@@ -66,7 +81,50 @@ export function ArchiveWorkspace() {
   const [deletedIds, setDeletedIds] = useState<Set<string>>(() => new Set());
   const [uploadedFiles, setUploadedFiles] = useState<SourceFile[]>([]);
   const [apiFile, setApiFile] = useState<SourceFile | null>(null);
+  const [hydrated, setHydrated] = useState(false);
+  const [cloudMode, setCloudMode] = useState(false);
   const organizingRef = useRef(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch("/api/workspace");
+        if (res.ok) {
+          const data = await res.json();
+          const files = (data.archiveFiles as SourceFile[]) ?? [];
+          if (cancelled) return;
+          setCloudMode(true);
+          setUploadedFiles(files);
+          setResults(resultsFromFiles(files));
+          setResolved(resolvedFromFiles(files));
+          setHydrated(true);
+          return;
+        }
+      } catch {
+        // fallback locale sotto
+      }
+      if (cancelled) return;
+      const local = await loadLocalArchiveFiles();
+      if (cancelled) return;
+      setCloudMode(false);
+      setUploadedFiles(local);
+      setResults(resultsFromFiles(local));
+      setResolved(resolvedFromFiles(local));
+      setHydrated(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const persistArchive = useCallback(
+    (action: string, payload: unknown) => {
+      if (!cloudMode) return;
+      persistWorkspace(action, payload);
+    },
+    [cloudMode]
+  );
 
   const visibleFiles = useMemo(
     () => [
@@ -76,46 +134,63 @@ export function ArchiveWorkspace() {
     [deletedIds, uploadedFiles]
   );
 
-  const runOrganize = useCallback(async (files: SourceFile[]) => {
-    if (files.length === 0 || organizingRef.current) return;
-    organizingRef.current = true;
-    setPhase("processing");
-    setApiDone(false);
-    setResolved({});
-    setArchiveTab("organizzato");
+  const runOrganize = useCallback(
+    async (files: SourceFile[]) => {
+      if (files.length === 0 || organizingRef.current) return;
+      organizingRef.current = true;
+      setPhase("processing");
+      setApiDone(false);
+      setResolved({});
+      setArchiveTab("organizzato");
 
-    try {
-      const res = await fetch("/api/classify", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          files: files.map((f) => ({
-            id: f.id,
-            name: f.name,
-            preview: f.preview,
-            ext: f.ext,
-          })),
-        }),
-      });
-      const data = res.ok ? await res.json() : null;
-      const list: ClassifyResult[] = data?.results ?? files.map(fallbackResult);
-      setResults(new Map(list.map((r) => [r.id, r])));
-      setApiSource(data?.source === "anthropic" ? "anthropic" : "mock");
+      try {
+        const res = await fetch("/api/classify", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            files: files.map((f) => ({
+              id: f.id,
+              name: f.name,
+              preview: f.preview,
+              ext: f.ext,
+            })),
+          }),
+        });
+        const data = res.ok ? await res.json() : null;
+        const list: ClassifyResult[] = data?.results ?? files.map(fallbackResult);
+        setResults(new Map(list.map((r) => [r.id, r])));
+        setApiSource(data?.source === "anthropic" ? "anthropic" : "mock");
 
-      setUploadedFiles((prev) =>
-        prev.map((f) => {
-          const r = list.find((x) => x.id === f.id);
-          return r ? withResult(f, r) : f;
-        })
-      );
-    } catch {
-      setResults(new Map(files.map((f) => [f.id, fallbackResult(f)])));
-      setApiSource("mock");
-    } finally {
-      setApiDone(true);
-      organizingRef.current = false;
-    }
-  }, []);
+        setUploadedFiles((prev) =>
+          prev.map((f) => {
+            const r = list.find((x) => x.id === f.id);
+            if (!r) return f;
+            const next = withResult(f, r);
+            if (cloudMode && isCloudArchiveId(f.id)) {
+              persistArchive("updateArchiveFile", {
+                id: f.id,
+                classification: next.classification,
+                resolvedSerial: null,
+              });
+            } else if (!cloudMode) {
+              void updateLocalArchiveMeta(f.id, {
+                classification: next.classification,
+                resolvedSerial: null,
+              });
+            }
+            return next;
+          })
+        );
+      } catch {
+        setResults(new Map(files.map((f) => [f.id, fallbackResult(f)])));
+        setApiSource("mock");
+      } finally {
+        setApiDone(true);
+        organizingRef.current = false;
+      }
+    },
+    [cloudMode, persistArchive]
+  );
 
   const handleOrganize = useCallback(() => {
     void runOrganize(visibleFiles);
@@ -123,41 +198,58 @@ export function ArchiveWorkspace() {
 
   const uploadFiles = useCallback(
     (files: File[]) => {
-      const added = filesToSourceFiles(files);
-      if (added.length === 0) return;
-      setUploadedFiles((prev) => {
-        const next = [...prev, ...added];
-        const all = [
-          ...SOURCE_FILES.filter((f) => !deletedIds.has(f.id)),
-          ...next.filter((f) => !deletedIds.has(f.id)),
-        ];
-        queueMicrotask(() => {
-          void runOrganize(all);
+      if (files.length === 0) return;
+      void (async () => {
+        const { files: added, cloud } = await uploadArchiveFiles(files);
+        if (added.length === 0) return;
+        if (cloud) setCloudMode(true);
+        setUploadedFiles((prev) => {
+          const next = [...prev, ...added];
+          const all = [
+            ...SOURCE_FILES.filter((f) => !deletedIds.has(f.id)),
+            ...next.filter((f) => !deletedIds.has(f.id)),
+          ];
+          queueMicrotask(() => {
+            void runOrganize(all);
+          });
+          return next;
         });
-        return next;
-      });
+        setResults((prev) => {
+          const next = new Map(prev);
+          for (const f of added) next.set(f.id, fallbackResult(f));
+          return next;
+        });
+      })();
     },
     [deletedIds, runOrganize]
   );
 
-  const deleteFile = useCallback((fileId: string) => {
-    setUploadedFiles((prev) => {
-      const target = prev.find((f) => f.id === fileId);
-      if (target) revokeSourceFileUrl(target);
-      return prev.filter((f) => f.id !== fileId);
-    });
-    setDeletedIds((prev) => new Set(prev).add(fileId));
-    setResolved((prev) => {
-      const next = { ...prev };
-      delete next[fileId];
-      return next;
-    });
-    setResults((prev) => {
-      const next = new Map(prev);
-      next.delete(fileId);
-      return next;
-    });
-  }, []);
+  const deleteFile = useCallback(
+    (fileId: string) => {
+      setUploadedFiles((prev) => {
+        const target = prev.find((f) => f.id === fileId);
+        if (target) revokeSourceFileUrl(target);
+        return prev.filter((f) => f.id !== fileId);
+      });
+      setDeletedIds((prev) => new Set(prev).add(fileId));
+      setResolved((prev) => {
+        const next = { ...prev };
+        delete next[fileId];
+        return next;
+      });
+      setResults((prev) => {
+        const next = new Map(prev);
+        next.delete(fileId);
+        return next;
+      });
+      if (cloudMode && isCloudArchiveId(fileId)) {
+        persistArchive("deleteArchiveFile", { id: fileId });
+      } else {
+        void deleteLocalArchiveFile(fileId);
+      }
+    },
+    [cloudMode, persistArchive]
+  );
 
   const resultFor = useCallback(
     (f: SourceFile): ClassifyResult => results.get(f.id) ?? fallbackResult(f),
@@ -213,7 +305,23 @@ export function ArchiveWorkspace() {
     const trimmed = serial.trim();
     if (!trimmed) return;
     setResolved((prev) => ({ ...prev, [fileId]: trimmed }));
+    if (cloudMode && isCloudArchiveId(fileId)) {
+      persistArchive("updateArchiveFile", {
+        id: fileId,
+        resolvedSerial: trimmed,
+      });
+    } else {
+      void updateLocalArchiveMeta(fileId, { resolvedSerial: trimmed });
+    }
   };
+
+  if (!hydrated) {
+    return (
+      <div className="flex min-h-0 flex-1 items-center justify-center p-8 text-sm text-ink-muted">
+        Caricamento archivio…
+      </div>
+    );
+  }
 
   if (phase === "source") {
     return (
