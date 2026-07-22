@@ -29,9 +29,15 @@ import {
   FINDING_KIND_META,
   HIGH_CONFIDENCE_THRESHOLD,
 } from "@/lib/catalogAnalysisTypes";
+import {
+  CatalogUploadZone,
+  type UploadedCatalogFile,
+} from "./CatalogUploadZone";
 
 // Demo proiettore: l'agente trova e propone, l'esperto conferma.
 // Stato solo in React (niente localStorage / sessionStorage).
+// I file caricati definiscono il catalogo da analizzare; l'estrazione
+// articoli resta sul dataset demo Vallmec (in produzione: parse del file).
 
 type Phase = "idle" | "analyzing" | "done";
 
@@ -75,6 +81,9 @@ export function CatalogAnalysisWorkspace() {
     {}
   );
   const [error, setError] = useState<string | null>(null);
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedCatalogFile[]>([]);
+
+  const hasCatalog = uploadedFiles.length > 0;
 
   const stage = Math.min(
     Math.floor(tick / (STAGE_TICKS / ANALYSIS_STAGES.length)),
@@ -96,7 +105,44 @@ export function CatalogAnalysisWorkspace() {
     }
   }, [phase, tick, apiDone]);
 
+  const loadDemoCatalog = useCallback(() => {
+    setUploadedFiles(
+      CATALOG_SOURCES.map((s) => ({
+        id: `demo-${s.id}`,
+        name: s.fileName,
+        sizeLabel: "esempio",
+        ext: s.fileName.split(".").pop()?.toLowerCase() ?? "xlsx",
+        demo: true,
+      }))
+    );
+    setSummary(idleSummary);
+    setError(null);
+  }, []);
+
+  const addUploadedFiles = useCallback((files: UploadedCatalogFile[]) => {
+    setUploadedFiles((prev) => {
+      const names = new Set(prev.map((f) => f.name.toLowerCase()));
+      const next = [...prev];
+      for (const f of files) {
+        if (names.has(f.name.toLowerCase())) continue;
+        next.push(f);
+        names.add(f.name.toLowerCase());
+      }
+      return next;
+    });
+    setError(null);
+  }, []);
+
+  const removeUploadedFile = useCallback((id: string) => {
+    setUploadedFiles((prev) => prev.filter((f) => f.id !== id));
+  }, []);
+
   const startAnalysis = useCallback(async () => {
+    if (uploadedFiles.length === 0) {
+      setError("Carica almeno un file di catalogo, oppure usa i dati di esempio.");
+      return;
+    }
+
     setPhase("analyzing");
     setTick(0);
     setApiDone(false);
@@ -109,7 +155,13 @@ export function CatalogAnalysisWorkspace() {
     setOpenKinds({});
 
     try {
-      const res = await fetch("/api/catalog-analyze", { method: "POST" });
+      const res = await fetch("/api/catalog-analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fileNames: uploadedFiles.map((f) => f.name),
+        }),
+      });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       setSummary(data.summary);
@@ -117,7 +169,6 @@ export function CatalogAnalysisWorkspace() {
       setImpact(data.impact ?? buildImpact(data.findings ?? []));
       setArticles(data.articles ?? DEMO_CATALOG_ARTICLES);
       setApiSource(data.source === "anthropic" ? "anthropic" : "mock");
-      // Apri le sezioni con finding
       const open: Partial<Record<FindingKind, boolean>> = {};
       for (const f of data.findings as CatalogFinding[]) {
         open[f.kind] = true;
@@ -129,7 +180,7 @@ export function CatalogAnalysisWorkspace() {
     } finally {
       setApiDone(true);
     }
-  }, []);
+  }, [uploadedFiles]);
 
   const pendingFindings = useMemo(
     () => findings.filter((f) => (decisions[f.id] ?? "pending") === "pending"),
@@ -210,61 +261,117 @@ export function CatalogAnalysisWorkspace() {
           )}
         </div>
 
-        {/* Catalogo caricato — riepilogo */}
+        {/* Caricamento catalogo */}
         <div className="mt-4 rounded-xl border border-border bg-base/70 p-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
-                Catalogo caricato (dati di esempio)
+                Catalogo da analizzare
               </p>
               <p className="mt-0.5 text-sm text-ink-muted">
-                {CATALOG_SOURCES.map((s) => s.fileName).join(" · ")}
+                {hasCatalog
+                  ? `${uploadedFiles.length} file pronti`
+                  : "Carica listino, catalogo ricambi o export gestionale"}
               </p>
             </div>
             {phase === "idle" && (
-              <button
-                type="button"
-                onClick={startAnalysis}
-                className="inline-flex items-center gap-2 rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-brand/20 transition-colors hover:bg-brand-strong sm:text-base"
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                  <path
-                    d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M5.6 18.4l2.8-2.8M15.6 8.4l2.8-2.8"
-                    stroke="currentColor"
-                    strokeWidth="1.8"
-                    strokeLinecap="round"
-                  />
-                </svg>
-                Analizza catalogo
-              </button>
+              <div className="flex flex-wrap items-center gap-2">
+                {!hasCatalog && (
+                  <button
+                    type="button"
+                    onClick={loadDemoCatalog}
+                    className="rounded-lg border border-border bg-base px-3 py-2 text-sm font-medium text-ink-muted hover:border-brand/40 hover:text-ink"
+                  >
+                    Usa dati di esempio
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={startAnalysis}
+                  disabled={!hasCatalog}
+                  className="inline-flex items-center gap-2 rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-brand/20 transition-colors hover:bg-brand-strong disabled:cursor-not-allowed disabled:opacity-40 sm:text-base"
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path
+                      d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M5.6 18.4l2.8-2.8M15.6 8.4l2.8-2.8"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                  Analizza catalogo
+                </button>
+              </div>
             )}
           </div>
 
-          <dl className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6">
-            <Stat label="Articoli" value={summary.articleCount} />
-            <Stat label="Codici unici" value={summary.uniqueCodes} />
-            <Stat label="Con prezzo" value={summary.withPrice} />
-            <Stat label="Senza prezzo" value={summary.withoutPrice} warn />
-            <Stat label="In gestionale" value={summary.inErp} />
-            <Stat label="Assenti ERP" value={summary.notInErp} warn />
-          </dl>
+          {phase === "idle" && (
+            <div className="mt-3">
+              <CatalogUploadZone onUpload={addUploadedFiles} />
+            </div>
+          )}
 
-          <div className="mt-3 flex flex-wrap gap-2">
-            {summary.sources.map((s) => (
-              <span
-                key={s.id}
-                className="rounded-full border border-border bg-surface px-2.5 py-1 text-xs font-medium text-ink-muted"
-              >
-                {s.label}
-                <span className="ml-1.5 tabular-nums text-ink">{s.count}</span>
-              </span>
-            ))}
-          </div>
+          {hasCatalog && (
+            <ul className="mt-3 space-y-1.5">
+              {uploadedFiles.map((f) => (
+                <li
+                  key={f.id}
+                  className="flex items-center gap-2 rounded-lg border border-border bg-surface/50 px-3 py-2"
+                >
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-brand-soft text-[10px] font-bold uppercase text-brand">
+                    {f.ext}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-ink">{f.name}</p>
+                    <p className="text-[11px] text-ink-faint">
+                      {f.demo ? "Catalogo di esempio" : f.sizeLabel}
+                    </p>
+                  </div>
+                  {phase === "idle" && (
+                    <button
+                      type="button"
+                      onClick={() => removeUploadedFile(f.id)}
+                      className="rounded-md px-2 py-1 text-xs font-medium text-ink-faint hover:bg-danger/10 hover:text-danger"
+                      aria-label={`Rimuovi ${f.name}`}
+                    >
+                      Rimuovi
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {hasCatalog &&
+            (phase === "done" || uploadedFiles.some((f) => f.demo)) && (
+              <>
+                <dl className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6">
+                  <Stat label="Articoli" value={summary.articleCount} />
+                  <Stat label="Codici unici" value={summary.uniqueCodes} />
+                  <Stat label="Con prezzo" value={summary.withPrice} />
+                  <Stat label="Senza prezzo" value={summary.withoutPrice} warn />
+                  <Stat label="In gestionale" value={summary.inErp} />
+                  <Stat label="Assenti ERP" value={summary.notInErp} warn />
+                </dl>
+
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {summary.sources.map((s) => (
+                    <span
+                      key={s.id}
+                      className="rounded-full border border-border bg-surface px-2.5 py-1 text-xs font-medium text-ink-muted"
+                    >
+                      {s.label}
+                      <span className="ml-1.5 tabular-nums text-ink">{s.count}</span>
+                    </span>
+                  ))}
+                </div>
+              </>
+            )}
 
           <p className="mt-3 text-[11px] leading-relaxed text-ink-faint">
-            In produzione l&apos;analisi girerebbe sul catalogo reale (PDF /
-            export gestionale) del cliente; qui usiamo il dataset demo Vallmec
-            allineato a listino 2026 e Catalogo VLM-2200.
+            In produzione l&apos;analisi gira sul file caricato (PDF / export
+            gestionale). In demo, dopo il caricamento l&apos;agente usa il
+            dataset Vallmec di riferimento — l&apos;esperto conferma sempre.
           </p>
         </div>
 
@@ -356,22 +463,12 @@ export function CatalogAnalysisWorkspace() {
         )}
 
         {phase === "idle" && (
-          <div className="flex flex-1 items-center justify-center px-5 py-16">
-            <div className="max-w-md text-center">
-              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full border border-brand/40 bg-brand-soft text-brand">
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                  <path
-                    d="M4 7h16M4 12h10M4 17h14"
-                    stroke="currentColor"
-                    strokeWidth="1.8"
-                    strokeLinecap="round"
-                  />
-                </svg>
-              </div>
+          <div className="flex flex-1 items-center justify-center px-5 py-12">
+            <div className="max-w-lg text-center">
               <p className="text-base text-ink-muted sm:text-lg">
-                Avvia l&apos;analisi per far scovare all&apos;agente duplicati,
-                obsoleti, sostituzioni e prezzi mancanti — poi valida tu le
-                proposte.
+                {hasCatalog
+                  ? "Catalogo pronto. Premi Analizza catalogo: l'agente trova e propone, l'esperto conferma."
+                  : "Carica i file sopra, oppure usa i dati di esempio Vallmec, poi avvia l'analisi."}
               </p>
             </div>
           </div>
