@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { ChatAttachmentList } from "./ChatAttachmentList";
 import { QuickReplyBubbles } from "./QuickReplyBubbles";
 import { SparePartCardList } from "./SparePartCard";
@@ -238,6 +239,27 @@ export function ServiceChatWorkspace({
       customerName,
     ]
   );
+
+  const hasActiveConversation = useMemo(
+    () =>
+      Boolean(conversationId) && messages.some((m) => m.role === "user"),
+    [conversationId, messages]
+  );
+
+  const existingTicketId = storedConversation?.ticketId ?? null;
+
+  const handleCreateTicket = useCallback(() => {
+    if (!hasActiveConversation || existingTicketId || conversationResolved) {
+      return;
+    }
+    escalateToTicket("Ticket creato manualmente da Assistenza AI", messages);
+  }, [
+    hasActiveConversation,
+    existingTicketId,
+    conversationResolved,
+    escalateToTicket,
+    messages,
+  ]);
 
   const handleKbFeedback = useCallback(
     async (
@@ -648,6 +670,60 @@ export function ServiceChatWorkspace({
           {!hideReset && (
             <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
               {!embed && <EmbedCodeButtons />}
+              {existingTicketId ? (
+                <Link
+                  href={`/ticket?id=${encodeURIComponent(existingTicketId)}`}
+                  className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-brand/40 bg-brand-soft px-3 py-2 text-xs font-semibold text-brand transition-colors hover:bg-brand/20"
+                >
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    aria-hidden="true"
+                  >
+                    <path
+                      d="M9 12h6m-6 4h3m2 5H8a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.586a1 1 0 0 1 .707.293l4.414 4.414a1 1 0 0 1 .293.707V19a2 2 0 0 1-2 2Z"
+                      stroke="currentColor"
+                      strokeWidth="1.7"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                  Vedi ticket
+                </Link>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleCreateTicket}
+                  disabled={
+                    !hasActiveConversation || loading || conversationResolved
+                  }
+                  title={
+                    hasActiveConversation
+                      ? "Apri un ticket di assistenza collegato a questa chat"
+                      : "Disponibile dopo il primo messaggio della conversazione"
+                  }
+                  className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-border bg-surface px-3 py-2 text-xs font-semibold text-ink-muted transition-colors hover:border-brand/40 hover:text-brand disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-border disabled:hover:text-ink-muted"
+                >
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    aria-hidden="true"
+                  >
+                    <path
+                      d="M9 12h6m-6 4h3m2 5H8a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.586a1 1 0 0 1 .707.293l4.414 4.414a1 1 0 0 1 .293.707V19a2 2 0 0 1-2 2Z"
+                      stroke="currentColor"
+                      strokeWidth="1.7"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                  Crea ticket
+                </button>
+              )}
               <button
                 onClick={resetChat}
                 disabled={loading}
