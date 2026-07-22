@@ -103,7 +103,7 @@ export const MOCK_CONVERSATIONS: ConversationRecord[] = [
     createdFull: "Ieri, 16:30",
     updatedFull: "Oggi, 11:45",
     visitorOnline: false,
-    machineModel: "Tornio TC-200",
+    machineModel: "Incartonatrice VLM-2200",
     messages: [
       msg(
         "m1",
@@ -114,25 +114,25 @@ export const MOCK_CONVERSATIONS: ConversationRecord[] = [
       msg(
         "m2",
         "user",
-        "Il tornio TC-200 non carica il programma CNC dopo l'ultimo aggiornamento firmware.",
+        "Sulla VLM-2200 matr. 1412 le ventose non tengono più i fustellati — produzione ferma.",
         "16:32"
       ),
       msg(
         "m3",
         "assistant",
-        "Ho verificato la knowledge base: potrebbe essere un problema di permessi USB. Può aggiungere altri dettagli? Un operatore seguirà la conversazione.",
+        "In Manuale (KB-102) è un caso ricorrente: ventose D.50 NBR VLM-300-004 e/o generatore vuoto VLM-300-005. Un operatore la segue.",
         "16:33"
       ),
       msg(
         "m4",
         "user",
-        "Sì, per favore. È urgente, la produzione è ferma.",
+        "Sì, per favore. È urgente, la linea è ferma.",
         "16:34"
       ),
       msg(
         "m5",
         "agent",
-        "Un secondo prego… Ho aumentato i privilegi del suo account. Provi a reinserire la chiavetta USB e riavviare il pannello operatore.",
+        "Un secondo prego… Ho aperto il ticket e verificato giacenza VLM-300-004. Controlli anche il vuoto sul generatore come da Catalogo VLM-2200.",
         "11:45"
       ),
     ],
@@ -154,20 +154,20 @@ export const MOCK_CONVERSATIONS: ConversationRecord[] = [
       msg(
         "m1",
         "user",
-        "Dove trovo il manuale di manutenzione del tornio TC-200?",
+        "Dove trovo il manuale di manutenzione della VLM-2200 matr. 1389?",
         "09:10"
       ),
       msg(
         "m2",
         "assistant",
-        "Il manuale è disponibile nell'archivio documenti, sezione Manutenzione > Torni TC-200.",
+        "Il manuale e il Catalogo ricambi Vallmec VLM-2200 sono in Archivio (distinta DB_VLM-2200_rev.C). Per troubleshooting apra anche Manuale → voci su cinghia AT10 e ventose.",
         "09:11"
       ),
       msg("m3", "user", "Perfetto, grazie mille per l'assistenza!", "09:12"),
       msg(
         "m4",
         "agent",
-        "Ottimo, per altri dubbi non esiti a contattarci. Buona giornata!",
+        "Ottimo, per altri dubbi sui codici listino 2026 non esiti a contattarci. Buona giornata!",
         "09:13"
       ),
     ],

@@ -57,6 +57,7 @@ export const SERVICE_MACHINES: ServiceMachine[] = MACHINES.map((m) => ({
   })),
 }));
 
+/** KB statica chat — allineata a Listino / Catalogo VLM e Manuale (knowledgeData). */
 export const TROUBLESHOOTING_KB: TroubleshootingCase[] = [
   {
     id: "kb-vlm-001",
@@ -64,7 +65,7 @@ export const TROUBLESHOOTING_KB: TroubleshootingCase[] = [
     symptom:
       "Cinghia gruppo spinta salta i denti / rumore metallico in inserimento",
     solution:
-      "Verificare usura cinghia AT10 L=2250 e allineamento pulegge. Sostituire con VLM-400-009/2 e ritensionare secondo manuale cap. 5.",
+      "Verificare usura cinghia AT10 L=2250 e allineamento pulegge. Sostituire con VLM-400-009/2 (non /1 da 1950). Ritensionare secondo Catalogo VLM-2200.",
     tags: ["cinghia", "spinta", "at10", "rumore"],
   },
   {
@@ -72,7 +73,7 @@ export const TROUBLESHOOTING_KB: TroubleshootingCase[] = [
     machineRef: "VLM-2200",
     symptom: "Ventose non tengono il fustellato / cartone cade in formazione",
     solution:
-      "Sostituire ventose soffietto D.50 NBR (VLM-300-004) ogni ~2000 h. Controllare generatore di vuoto VLM-300-005 e tubazioni.",
+      "Sostituire ventose soffietto D.50 NBR (VLM-300-004) ogni ~2000 h. Controllare generatore di vuoto VLM-300-005. Non usare VLM-300-004-SI (obsoleta).",
     tags: ["ventosa", "vuoto", "fustellato", "formazione"],
   },
   {
@@ -82,6 +83,38 @@ export const TROUBLESHOOTING_KB: TroubleshootingCase[] = [
     solution:
       "Pulire ottica, verificare allineamento e sostituire E3Z-D62 (VLM-200-040) se LED non segnala. Controllare ingresso PLC.",
     tags: ["fotocellula", "e3z", "alimentazione"],
+  },
+  {
+    id: "kb-vlm-004",
+    machineRef: "VLM-2200",
+    symptom: "Sensore finecorsa slitta / asse spinta non letto dal PLC",
+    solution:
+      "Verificare distanza di intervento. Sostituire VLM-400-030 (Pepperl+Fuchs NBB4-12GM50-E2).",
+    tags: ["finecorsa", "sensore", "m12", "plc"],
+  },
+  {
+    id: "kb-vlm-005",
+    machineRef: "VLM-2200",
+    symptom: "Tappeto modulare nastro alimentazione usurato",
+    solution:
+      "Quotare VLM-200-002 al metro (Intralox 900 SERIES, largh. 300). Distinta ~24 m. LT 30 gg.",
+    tags: ["tappeto", "alimentazione", "intralox"],
+  },
+  {
+    id: "kb-vlm-006",
+    machineRef: "VLM-1800",
+    symptom: "Cinghia gruppo spinta rotta su VLM 1800",
+    solution:
+      "Usare VLM-400-009/1 (AT10 L=1950 rinforzata), non la /2 da 2250 del 2200. VLM-400-009 è fuori produzione.",
+    tags: ["cinghia", "1950", "vlm-1800"],
+  },
+  {
+    id: "kb-vlm-007",
+    machineRef: "VLM-2200",
+    symptom: "Serratura porta protezione non dà consenso",
+    solution:
+      "Sostituire solo VLM-100-031 (Schneider XCSDMR79M12). Componente di sicurezza: niente equivalenti.",
+    tags: ["sicurezza", "serratura", "rfid"],
   },
 ];
 

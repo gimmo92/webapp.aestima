@@ -1,9 +1,11 @@
 import type { KnowledgeEntry, ProblemCategory } from "./knowledgeTypes";
 
 // =============================================================
-// DATI MOCK — knowledge base troubleshooting
-// In produzione: DB persistente, alimentato da storico interventi
-// reale e indicizzato per ricerca semantica (embedding/vector store).
+// DATI MOCK — knowledge base / Manuale troubleshooting
+// Allineata a Desktop/dummy data demo:
+//   Parco_installato_Vallmec.xlsx
+//   Listino_ricambi_Vallmec_2026.xlsx
+//   DB_VLM-2200_rev.C.xlsx / Catalogo ricambi Vallmec VLM-2200
 // =============================================================
 
 export const PROBLEM_CATEGORY_LABELS: Record<ProblemCategory, string> = {
@@ -24,362 +26,419 @@ export function newKnowledgeId(): string {
 export const MOCK_KNOWLEDGE_ENTRIES: KnowledgeEntry[] = [
   {
     id: "KB-101",
-    machineModel: "Impianto IDC 114 TCZ",
-    machineSerial: "IDC-114-084",
+    machineModel: "Incartonatrice VLM-2200",
+    machineSerial: "1389",
     problemCategory: "troubleshooting",
     symptom:
-      "Rumore metallico intermittente dalla curva di rinvio durante il sollevamento, soprattutto a carico pieno.",
+      "Cinghia gruppo spinta salta i denti / rumore metallico in fase di inserimento cartone.",
     probableCause:
-      "Usura del cuscinetto a sfere 6005 2RS sulla curva di rinvio e/o gioco sul perno curva.",
+      "Usura cinghia dentata AT10 L=2250 h.25 oltre le 4.000 h previste da listino, o disallineamento pulegge AT10 z=32.",
     solution:
-      "Ispezionare cuscinetto 6005 2RS (cod. 1002033) e perno curva 1291200130. Sostituire il cuscinetto se presenta gioco o segni di usura. Regreasing del perno e verifica allineamento curva dopo il montaggio.",
+      "Ispezionare cinghia VLM-400-009/2 e puleggia VLM-400-010. Sostituire la cinghia se denti consumati o allungamento. Ritensionare secondo Catalogo ricambi Vallmec VLM-2200 / manuale cap. gruppo spinta. Collaudo ciclo completo.",
     spareParts: [
-      { code: "1002033", description: "CUSCINETTO A SFERE 6005 2RS" },
-      { code: "1291200130", description: "PERNO CURVA 114 IC TF/TC" },
+      {
+        code: "VLM-400-009/2",
+        description: "Cinghia dentata AT10 L=2250 h.25",
+      },
+      {
+        code: "VLM-400-010",
+        description: "Puleggia dentata AT10 z=32",
+      },
     ],
-    frequency: 4,
+    frequency: 5,
     consolidated: true,
     createdLabel: "15 gen",
-    createdFull: "15 gen 2025",
-    updatedFull: "2 apr 2025",
-    tags: ["rumore", "curva rinvio", "cuscinetto", "6005", "metallico"],
+    createdFull: "15 gen 2026",
+    updatedFull: "2 apr 2026",
+    tags: ["cinghia", "spinta", "at10", "rumore", "vlm-2200"],
   },
   {
     id: "KB-102",
-    machineModel: "Impianto IDC 114 TCZ",
-    machineSerial: "IDC-114-084",
+    machineModel: "Incartonatrice VLM-2200",
+    machineSerial: "1418",
     problemCategory: "troubleshooting",
     symptom:
-      "Slittamento della fune sul semidisco di giunzione con perdita di tensione dopo pochi cicli.",
+      "Cartone si apre male sul lato destro / ventose non trattengono i fustellati in formazione.",
     probableCause:
-      "Usura del semidisco di giunzione e/o boccola di blocco danneggiata; tensione fune non conforme.",
+      "Usura ventose a soffietto D.50 NBR (sostituzione ogni ~2.000 h) e/o calo vuoto sul generatore.",
     solution:
-      "Controllare usura semidisco 1051600230 e boccola blocco 1011600070. Sostituire semidisco se solchi > 1 mm. Ritesare la fune secondo procedura IDC-114-RTP-03 (coppia 180 Nm sul tappo di blocco).",
+      "Sostituire VLM-300-004 (Festo ESS-50-SN). Verificare generatore di vuoto VLM-300-005 e tubazioni. Non usare VLM-300-004-SI (fuori produzione, solo VLM 1600 fino a matr. 0654).",
     spareParts: [
-      { code: "1051600230", description: "SEMIDISCO GIUNZIONE IDC 114" },
-      { code: "1011600070", description: "BOCCOLA DI BLOCCAGGIO IN PR 80 Zn" },
+      {
+        code: "VLM-300-004",
+        description: "Ventosa a soffietto D.50 NBR",
+      },
+      {
+        code: "VLM-300-005",
+        description: "Generatore di vuoto",
+      },
     ],
-    frequency: 2,
-    consolidated: false,
+    frequency: 4,
+    consolidated: true,
     createdLabel: "22 feb",
-    createdFull: "22 feb 2025",
-    updatedFull: "22 feb 2025",
-    tags: ["fune", "slittamento", "tensione", "semidisco"],
+    createdFull: "22 feb 2026",
+    updatedFull: "10 lug 2026",
+    tags: ["ventosa", "vuoto", "fustellato", "formazione", "fontanini"],
   },
   {
     id: "KB-103",
-    machineModel: "Impianto IDC 114 TCZ",
-    machineSerial: "IDC-114-112",
+    machineModel: "Incartonatrice VLM-2200",
+    machineSerial: "1412",
     problemCategory: "troubleshooting",
     symptom:
-      "Errore E-47 sul pannello: tensione fune fuori range dopo sostituzione cavo.",
+      "Fotocellula ingresso non rileva il prodotto / falso segnale presenza fustellato.",
     probableCause:
-      "Calibrazione sensore tensione non eseguita dopo cambio cavo; anello di blocco montato al contrario.",
+      "Fotocellula E3Z-D62 sporca, disallineata o fuori specifica ottica.",
     solution:
-      "Dopo cambio cavo D.8 (1023021-08) ricalibrare: menu Service → Fune → Calibrazione. Impostare diametro 8 mm e lunghezza effettiva. Verificare montaggio anello blocco 1011600080.",
+      "Pulire ottiche e verificare allineamento. Se persiste, sostituire VLM-200-040 (Omron E3Z-D62). Su contratto service full (fascia A) applicare netto listino 2026.",
     spareParts: [
-      { code: "1023021-08", description: "Cavo ferro zincato mm 8" },
-      { code: "1011600080", description: "ANELLO DI BLOCCAGGIO IN PN 80 Zn" },
+      {
+        code: "VLM-200-040",
+        description: "Fotocellula presenza prodotto E3Z-D62",
+      },
     ],
     frequency: 3,
     consolidated: false,
     createdLabel: "8 mar",
-    createdFull: "8 mar 2025",
-    updatedFull: "8 mar 2025",
-    tags: ["errore e-47", "tensione", "calibrazione", "fune"],
+    createdFull: "8 mar 2026",
+    updatedFull: "8 mar 2026",
+    tags: ["fotocellula", "ingresso", "e3z-d62", "nutrilab"],
   },
   {
     id: "KB-104",
-    machineModel: "Rettificatrice RX-400",
-    machineSerial: "MX-4521",
-    problemCategory: "troubleshooting",
-    symptom:
-      "Perdita olio dal mandrino con gocciolamento visibile sotto la testa rettifica.",
-    probableCause:
-      "Tenuta mandrino usurata o sede contaminata; possibile micro-righe sull'albero.",
-    solution:
-      "Sostituire anello tenuta SL-2201-VT (Viton Ø45). Pulire sede e verificare assenza di righe sull'albero mandrino prima del montaggio. Se persiste dopo 48h, ispezionare accoppiamento mandrino.",
-    spareParts: [
-      {
-        code: "SL-2201-VT",
-        description: "Anello di tenuta mandrino (guarnizione Viton Ø45)",
-      },
-    ],
-    frequency: 5,
-    consolidated: true,
-    createdLabel: "12 mar",
-    createdFull: "12 mar 2025",
-    updatedFull: "13 mar 2025",
-    tags: ["perdita olio", "mandrino", "tenuta", "guarnizione"],
-  },
-  {
-    id: "KB-105",
-    machineModel: "Rettificatrice RX-400",
-    machineSerial: "MX-4521",
-    problemCategory: "troubleshooting",
-    symptom:
-      "Vibrazione anomala del mandrino a 3000 rpm, pezzo non rettificato entro tolleranza.",
-    probableCause:
-      "Cuscinetto mandrino con gioco eccessivo e/o cinghia trasmissione usurata.",
-    solution:
-      "Verificare cuscinetto BR-1140-C4 (7014 P4) e cinghia CB-8890-A. Sostituire entrambi se usurati. Bilanciamento mandrino solo se la vibrazione persiste dopo sostituzione ricambi.",
-    spareParts: [
-      {
-        code: "BR-1140-C4",
-        description: "Cuscinetto obliquo a sfere 7014 (P4)",
-      },
-      {
-        code: "CB-8890-A",
-        description: "Cinghia trasmissione mandrino dentata HTD-8M",
-      },
-    ],
-    frequency: 2,
-    consolidated: false,
-    createdLabel: "20 mar",
-    createdFull: "20 mar 2025",
-    updatedFull: "20 mar 2025",
-    tags: ["vibrazione", "mandrino", "cuscinetto", "cinghia"],
-  },
-  {
-    id: "KB-106",
-    machineModel: "Impianto IDC 114 TCZ",
-    machineSerial: "IDC-114-084",
-    problemCategory: "troubleshooting",
-    symptom:
-      "Vibrazione anomala durante il sollevamento a metà corsa, con oscillazione visibile del carico.",
-    probableCause:
-      "Disallineamento curva di rinvio 3381200010, usura asimmetrica corona traino 1381400061D o gioco sul perno curva 1291200130.",
-    solution:
-      "Verificare allineamento curva rinvio con laser o filo a piombo. Ispezionare corona traino per denti usurati o ovalizzazione. Controllare perno curva e cuscinetto 6005 2RS (1002033). Sostituire i componenti usurati e rieseguire prova a vuoto prima del carico pieno.",
-    spareParts: [
-      { code: "3381200010", description: "CURVA RINVIO 90° 114TCZ MODELLO IC-114G" },
-      { code: "1381400061D", description: "CORONA RUOTA TRAINO 76TC/114TCZ, C45" },
-      { code: "1291200130", description: "PERNO CURVA 114 IC TF/TC" },
-      { code: "1002033", description: "CUSCINETTO A SFERE 6005 2RS" },
-    ],
-    frequency: 3,
-    sourceTicketId: "SRV-7454",
-    consolidated: true,
-    createdLabel: "28 mar",
-    createdFull: "28 mar 2025",
-    updatedFull: "15 apr 2025",
-    tags: ["vibrazione", "curva rinvio", "corona traino", "allineamento"],
-  },
-  {
-    id: "KB-107",
-    machineModel: "Impianto IDC 114 TCZ",
-    machineSerial: "IDC-114-084",
+    machineModel: "Incartonatrice VLM-2200",
+    machineSerial: "1475",
     problemCategory: "ricambio",
     symptom:
-      "Richiesta sostituzione cavo fune D.6 per raggiungimento ore di lavoro programmate.",
+      "Richiesta lame taglio nastro + kit manutenzione 2.000 ore per fermo programmato.",
     probableCause:
-      "Fine vita utile cavo secondo piano manutenzione IDC-114-RTP-03 (sostituzione ogni 18 mesi o 12.000 cicli).",
+      "Usura lame testata nastrante e scadenza tagliando 2.000 h secondo piano OEM VLM-2200.",
     solution:
-      "Ordinare cavo ferro zincato mm 6 (1023021) in metratura necessaria. Smontare semidisco giunzione, sostituire cavo seguendo schema avvolgimento dischi. Ritesare a 180 Nm e verificare conteggio giri con targa di collaudo.",
+      "Ordinare VLM-500-011 × 2 (min. consigliato) e VLM-KIT-2000H. Verificare anche testata superiore VLM-500-001 se il taglio è irregolare. LT listino: lame 10 gg, kit secondo giacenza.",
     spareParts: [
-      { code: "1023021", description: "Cavo ferro zincato mm 6 SEALE IWRC SGRASSATO" },
-      { code: "1051600230", description: "SEMIDISCO GIUNZIONE IDC 114 OLEFINICA" },
-      { code: "1011600070", description: "BOCCOLA DI BLOCCAGGIO IN PR 80 Zn" },
+      { code: "VLM-500-011", description: "Lama di taglio nastro" },
+      {
+        code: "VLM-KIT-2000H",
+        description: "Kit manutenzione 2.000 ore VLM 2200",
+      },
+      {
+        code: "VLM-500-001",
+        description: "Testata nastrante superiore 50 mm",
+      },
     ],
     frequency: 6,
     consolidated: true,
+    createdLabel: "12 mar",
+    createdFull: "12 mar 2026",
+    updatedFull: "20 giu 2026",
+    tags: ["lame", "nastratrice", "kit 2000", "serravalle"],
+  },
+  {
+    id: "KB-105",
+    machineModel: "Incartonatrice VLM-2200",
+    machineSerial: "1364",
+    problemCategory: "troubleshooting",
+    symptom:
+      "Rumore / gioco sul gruppo spinta con vibrazione in fase di inserimento.",
+    probableCause:
+      "Pattini guida lineare HGH20CA usurati e/o guida HGR20R con gioco; possibile cinghia AT10 in inizio usura.",
+    solution:
+      "Ispezionare VLM-400-004 e VLM-400-003. Sostituire pattini se gioco > specifica Hiwin. Verificare cinghia VLM-400-009/2. Macchina in contratto service base (fascia B).",
+    spareParts: [
+      {
+        code: "VLM-400-004",
+        description: "Pattino guida lineare HGH20CA",
+      },
+      {
+        code: "VLM-400-003",
+        description: "Guida lineare a ricircolo di sfere HGR20R",
+      },
+      {
+        code: "VLM-400-009/2",
+        description: "Cinghia dentata AT10 L=2250 h.25",
+      },
+    ],
+    frequency: 3,
+    consolidated: true,
+    createdLabel: "20 mar",
+    createdFull: "20 mar 2026",
+    updatedFull: "15 apr 2026",
+    tags: ["vibrazione", "spinta", "pattino", "guida", "val trebbia"],
+  },
+  {
+    id: "KB-106",
+    machineModel: "Incartonatrice VLM-2200",
+    machineSerial: "1432",
+    problemCategory: "troubleshooting",
+    symptom:
+      "Sensore finecorsa slitta / asse spinta non letto dal PLC.",
+    probableCause:
+      "Sensore induttivo M12 fuori portata, cablaggio interrotto o elemento danneggiato.",
+    solution:
+      "Verificare distanza di intervento e connettore. Sostituire VLM-400-030 (Pepperl+Fuchs NBB4-12GM50-E2). Su Lorentin (service full) applicare fascia A listino 2026.",
+    spareParts: [
+      {
+        code: "VLM-400-030",
+        description: "Sensore di finecorsa induttivo M12",
+      },
+    ],
+    frequency: 2,
+    sourceTicketId: "SRV-2847",
+    consolidated: false,
+    createdLabel: "28 mar",
+    createdFull: "28 mar 2026",
+    updatedFull: "28 mar 2026",
+    tags: ["finecorsa", "sensore", "m12", "plc", "lorentin"],
+  },
+  {
+    id: "KB-107",
+    machineModel: "Incartonatrice VLM-2200",
+    machineSerial: "1389",
+    problemCategory: "ricambio",
+    symptom:
+      "Tappeto modulare nastro alimentazione usurato — richiesta prezzo al metro.",
+    probableCause:
+      "Fine vita utile tappeto Intralox 900 SERIES (passo 25,4 acetalica, larghezza 300).",
+    solution:
+      "Quotare VLM-200-002 al metro (listino 2026). Distinta DB_VLM-2200_rev.C / BOM art. 200002 prevede ~24 m. LT 30 gg, giacenza tipica 6 m — ordinare con anticipo.",
+    spareParts: [
+      {
+        code: "VLM-200-002",
+        description: "Tappeto modulare passo 25,4 acetalica",
+      },
+    ],
+    frequency: 4,
+    consolidated: true,
     createdLabel: "5 apr",
-    createdFull: "5 apr 2025",
-    updatedFull: "5 apr 2025",
-    tags: ["cavo fune", "sostituzione programmata", "manutenzione", "d.6"],
+    createdFull: "5 apr 2026",
+    updatedFull: "5 apr 2026",
+    tags: ["tappeto", "alimentazione", "intralox", "pontenuovo"],
   },
   {
     id: "KB-108",
-    machineModel: "Impianto IDC 114 TCZ",
-    machineSerial: "IDC-114-084",
-    problemCategory: "manutenzione",
+    machineModel: "Incartonatrice VLM-2200",
+    machineSerial: "1301",
+    problemCategory: "troubleshooting",
     symptom:
-      "Pianificazione manutenzione ordinaria semestrale su curva di rinvio e punti di lubrificazione.",
+      "Cuscinetto rumoroso lato motore nastro alimentazione.",
     probableCause:
-      "Intervento preventivo secondo checklist OEM IDC-114-MNT-01 — non legato a guasto attivo.",
+      "Cuscinetto 6205-2RS1 del tamburo motrice in fine vita; possibile gioco sul supporto flangiato UCF 205.",
     solution:
-      "Eseguire ingrassaggio perno curva (grasso EP2), controllo visivo cuscinetto 6005 2RS, verifica fissaggio bulloneria curva 3381200010. Annotare ore macchina e prossima scadenza su registro manutenzione.",
-    spareParts: [{ code: "1002033", description: "CUSCINETTO A SFERE 6005 2RS (riserva)" }],
-    frequency: 2,
+      "Sostituire VLM-CU-6205 (×4 tipico). Se gioco sul supporto, aggiungere VLM-200-011. Contratto service full su matr. 1301 (Bobbio).",
+    spareParts: [
+      {
+        code: "VLM-CU-6205",
+        description: "Cuscinetto rigido a sfere 6205-2RS1",
+      },
+      {
+        code: "VLM-200-011",
+        description: "Supporto flangiato UCF 205",
+      },
+    ],
+    frequency: 3,
     consolidated: false,
     createdLabel: "18 apr",
-    createdFull: "18 apr 2025",
-    updatedFull: "18 apr 2025",
-    tags: ["manutenzione ordinaria", "lubrificazione", "preventiva", "curva rinvio"],
+    createdFull: "18 apr 2026",
+    updatedFull: "18 apr 2026",
+    tags: ["cuscinetto", "6205", "nastro", "alimentazione"],
   },
   {
     id: "KB-109",
-    machineModel: "Impianto IDC 114 TCZ",
-    machineSerial: "IDC-114-112",
+    machineModel: "Incartonatrice VLM-2200",
+    machineSerial: "1441",
     problemCategory: "troubleshooting",
     symptom:
-      "Allarme surriscaldamento motore principale dopo 20 minuti di utilizzo continuo.",
+      "Testata nastrante superiore non taglia più bene il nastro.",
     probableCause:
-      "Ventilazione motore ostruita da polvere, carico eccessivo per tensione fune non calibrata, o cuscinetto motore in fase di usura.",
+      "Usura testata Siat AS-50-U e/o lame LM-50-INOX consumate.",
     solution:
-      "Pulire griglia ventilazione e verificare assorbimento a vuoto. Controllare calibrazione tensione fune (menu Service → Fune). Se assorbimento > 15% rispetto a targa, ispezionare cuscinetti motore e riduttore. Ripristinare ventilazione prima di riavvio.",
-    spareParts: [],
-    frequency: 1,
+      "Valutare sostituzione VLM-500-001. Sempre affiancare VLM-500-011 (min. 2 pz). Optional visione artificiale sulla 1441 non influenza il ricambio testata.",
+    spareParts: [
+      {
+        code: "VLM-500-001",
+        description: "Testata nastrante superiore 50 mm",
+      },
+      { code: "VLM-500-011", description: "Lama di taglio nastro" },
+    ],
+    frequency: 2,
     consolidated: false,
     createdLabel: "2 mag",
-    createdFull: "2 mag 2025",
-    updatedFull: "2 mag 2025",
-    tags: ["surriscaldamento", "motore", "allarme", "ventilazione"],
+    createdFull: "2 mag 2026",
+    updatedFull: "2 mag 2026",
+    tags: ["testata", "nastrante", "siat", "torrefazione sud"],
   },
   {
     id: "KB-110",
-    machineModel: "Impianto IDC 114 TCZ",
-    machineSerial: "IDC-114-112",
+    machineModel: "Incartonatrice VLM-2200",
+    machineSerial: "1462",
     problemCategory: "troubleshooting",
     symptom:
-      "Rumore sordo e battito ritmico dalla curva di rinvio in fase di discesa del carico.",
+      "Serratura porta protezione non dà consenso / macchina in emergenza sicurezza.",
     probableCause:
-      "Dente corona traino 1381400061D danneggiato o corpo estraneo incastrato tra corona e fune.",
+      "Serratura RFID XCSDMR79M12 guasta o cablaggio interrotto — componente di sicurezza non sostituibile con equivalenti.",
     solution:
-      "Fermare impianto e ispezionare corona traino e canalina fune. Rimuovere eventuali detriti. Se dente corona presenta scheggiature, sostituire corona 1381400061D e verificare accoppiamento con ruota motrice prima della messa in servizio.",
+      "Sostituire solo VLM-100-031 (Schneider). Non accettare equivalenti. LT listino 25 gg, giacenza tipica 3. Verificare consenso porte dopo montaggio.",
     spareParts: [
-      { code: "1381400061D", description: "CORONA RUOTA TRAINO 76TC/114TCZ, C45" },
+      {
+        code: "VLM-100-031",
+        description: "Serratura di sicurezza porta con RFID",
+      },
     ],
     frequency: 2,
-    sourceTicketId: "SRV-7312",
     consolidated: false,
     createdLabel: "14 mag",
-    createdFull: "14 mag 2025",
-    updatedFull: "14 mag 2025",
-    tags: ["rumore", "corona traino", "discesa", "battito"],
+    createdFull: "14 mag 2026",
+    updatedFull: "14 mag 2026",
+    tags: ["sicurezza", "serratura", "rfid", "consenso", "lorentin"],
   },
   {
     id: "KB-111",
-    machineModel: "Impianto IDC 114 TCZ",
-    machineSerial: "IDC-114-112",
+    machineModel: "Incartonatrice VLM-1800",
+    machineSerial: "0944",
     problemCategory: "ricambio",
     symptom:
-      "Necessità di ordinare semidisco giunzione RT D.100 per usura visibile dei solchi.",
+      "Pattino di spinta consumato — ne servono 2 pezzi.",
     probableCause:
-      "Solchi semidisco oltre 1,2 mm di profondità — limite massimo ammesso da procedura IDC-114-RT-02.",
+      "Usura pattino POM su gruppo spinta (identico a VLM 1600 / 1800 — verificare a ogni tagliando).",
     solution:
-      "Sostituire semidisco 1051600240 e boccola/anello blocco 1011600080 se deformati. Ritesare fune D.8 dopo montaggio. Eseguire 10 cicli a vuoto prima del carico nominale.",
+      "Ordinare VLM-400-022 × 2. Su VLM 1800 il gruppo spinta segue distinta VLM 1600 (nota parco: gr. spinta invariato). Contratto service base su matr. 0944 (Marenghi).",
     spareParts: [
-      { code: "1051600240", description: "SEMIDISCO GIUNZIONE IDC 114 RT — D.100" },
-      { code: "1011600080", description: "ANELLO DI BLOCCAGGIO IN PN 80 Zn" },
+      {
+        code: "VLM-400-022",
+        description: "Pattino di spinta in POM",
+      },
     ],
     frequency: 4,
     consolidated: true,
     createdLabel: "22 mag",
-    createdFull: "22 mag 2025",
-    updatedFull: "3 giu 2025",
-    tags: ["semidisco", "giunzione", "usura", "rt d.100"],
+    createdFull: "22 mag 2026",
+    updatedFull: "3 giu 2026",
+    tags: ["pattino", "spinta", "pom", "vlm-1800", "marenghi"],
   },
   {
     id: "KB-112",
-    machineModel: "Rettificatrice RX-400",
-    machineSerial: "MX-4521",
-    problemCategory: "troubleshooting",
-    symptom:
-      "Pompa refrigerante mandrino non carica pressione, messaggio 'Flusso insufficiente' sul display.",
-    probableCause:
-      "Filtro olio FL-3301-AB intasato, livello refrigerante basso, o pompa PM-8800-RX con girante ostruita.",
-    solution:
-      "Verificare livello serbatoio refrigerante. Sostituire filtro FL-3301-AB. Se pressione < 2 bar, smontare e pulire pre-filtro aspirazione pompa PM-8800-RX. In caso di persistenza, sostituire pompa.",
-    spareParts: [
-      { code: "FL-3301-AB", description: "Filtro olio mandrino cartuccia 10 µm" },
-      { code: "PM-8800-RX", description: "Pompa refrigerante mandrino 0,55 kW" },
-    ],
-    frequency: 3,
-    consolidated: false,
-    createdLabel: "6 giu",
-    createdFull: "6 giu 2025",
-    updatedFull: "6 giu 2025",
-    tags: ["pompa", "refrigerante", "pressione", "flusso insufficiente"],
-  },
-  {
-    id: "KB-113",
-    machineModel: "Rettificatrice RX-400",
-    machineSerial: "MX-4521",
+    machineModel: "Incartonatrice VLM-2200",
+    machineSerial: "1412",
     problemCategory: "manutenzione",
     symptom:
-      "Sostituzione programmata filtro olio mandrino e controllo livello refrigerante trimestrale.",
+      "Pianificazione kit manutenzione 8.000 ore / fermo estivo.",
     probableCause:
-      "Manutenzione preventiva secondo piano RX-400-MNT-Q — non sintomo di guasto.",
+      "Intervento preventivo secondo piano OEM — non guasto attivo.",
     solution:
-      "Sostituire cartuccia FL-3301-AB, verificare assenza acqua nel refrigerante (test kit RX-CHK-01), rabboccare se necessario. Registrare intervento nel registro macchina.",
+      "Proporre VLM-KIT-8000H. Se il cliente rifiuta (storico OFF/persa), annotare e riproporsi al prossimo fermo. Alternativa: kit 2.000 h VLM-KIT-2000H + pezzi usura prioritari (ventose, cinghia, lame).",
     spareParts: [
-      { code: "FL-3301-AB", description: "Filtro olio mandrino cartuccia 10 µm" },
+      {
+        code: "VLM-KIT-8000H",
+        description: "Kit manutenzione 8.000 ore VLM 2200",
+      },
+      {
+        code: "VLM-KIT-2000H",
+        description: "Kit manutenzione 2.000 ore VLM 2200",
+      },
     ],
     frequency: 5,
     consolidated: true,
+    createdLabel: "6 giu",
+    createdFull: "6 giu 2026",
+    updatedFull: "24 giu 2026",
+    tags: ["kit 8000", "manutenzione", "preventiva", "nutrilab"],
+  },
+  {
+    id: "KB-113",
+    machineModel: "Incartonatrice VLM-1800",
+    machineSerial: "1187",
+    problemCategory: "troubleshooting",
+    symptom:
+      "Cinghia gruppo spinta rotta su VLM 1800 (lunghezza 1950, non 2250).",
+    probableCause:
+      "Usura cinghia AT10 L=1950 — su 1600/1800 usare VLM-400-009/1 (rinforzata), non la /2 da 2250 del 2200.",
+    solution:
+      "Non quotare VLM-400-009 (fuori produzione). Usare VLM-400-009/1 che sostituisce il vecchio codice. Verificare matricola sul Parco_installato prima di ordinare.",
+    spareParts: [
+      {
+        code: "VLM-400-009/1",
+        description: "Cinghia dentata AT10 L=1950 h.25 rinforzata",
+      },
+    ],
+    frequency: 3,
+    consolidated: true,
     createdLabel: "12 giu",
-    createdFull: "12 giu 2025",
-    updatedFull: "12 giu 2025",
-    tags: ["manutenzione", "filtro olio", "preventiva", "refrigerante"],
+    createdFull: "12 giu 2026",
+    updatedFull: "12 giu 2026",
+    tags: ["cinghia", "1950", "vlm-1800", "sostitutivo"],
   },
   {
     id: "KB-114",
-    machineModel: "Rettificatrice RX-400",
-    machineSerial: "MX-4521",
-    problemCategory: "troubleshooting",
+    machineModel: "Incartonatrice VLM-2200",
+    machineSerial: "1432",
+    problemCategory: "manutenzione",
     symptom:
-      "Mandrino non raggiunge la velocità nominale, rampa di accelerazione anomala con ronzio.",
+      "Motoriduttore nastro alimentazione rumoroso / gioco in avviamento.",
     probableCause:
-      "Cinghia CB-8890-A allentata o usurata, tensione cinghia fuori specifica, variatore frequenza in derating termico.",
+      "Usura motoriduttore Bonfiglioli 0,37 kW i=25 (MVF 49/P).",
     solution:
-      "Misurare tensione cinghia HTD-8M (valore nominale 280 N). Sostituire cinghia CB-8890-A se denti consumati o allungamento > 3%. Verificare ventilazione quadro e temperatura ambiente < 35 °C.",
+      "Sostituire VLM-200-019. LT listino 20 gg, giacenza tipica 2. Dopo montaggio verificare senso di rotazione e tensionamento tappeto.",
     spareParts: [
       {
-        code: "CB-8890-A",
-        description: "Cinghia trasmissione mandrino dentata HTD-8M",
+        code: "VLM-200-019",
+        description: "Motoriduttore 0,37 kW i=25",
       },
     ],
     frequency: 2,
     consolidated: false,
     createdLabel: "20 giu",
-    createdFull: "20 giu 2025",
-    updatedFull: "20 giu 2025",
-    tags: ["mandrino", "velocità", "cinghia", "accelerazione"],
+    createdFull: "20 giu 2026",
+    updatedFull: "20 giu 2026",
+    tags: ["motoriduttore", "bonfiglioli", "alimentazione"],
   },
   {
     id: "KB-115",
-    machineModel: "Impianto IDC 114 TCZ",
-    machineSerial: "IDC-114-084",
+    machineModel: "Incartonatrice VLM-2200",
+    machineSerial: "1389",
     problemCategory: "altro",
     symptom:
-      "Richiesta documentazione procedura di collaudo post-intervento su curva di rinvio sostituita.",
+      "Cliente chiede conferma codice ricambio cinghia spinta dal Catalogo / Listino 2026.",
     probableCause:
-      "Necessità operativa post-sostituzione componente critico — non guasto meccanico.",
+      "Confusione tra VLM-400-009 (obsoleta), /1 (1950 per 1600/1800) e /2 (2250 per 2200).",
     solution:
-      "Fornire al cliente checklist IDC-114-COL-04: prova a vuoto 50 cicli, verifica allineamento, misura tensione fune, firma tecnico abilitato. Archiviare report in cartella intervento.",
-    spareParts: [],
-    frequency: 1,
-    consolidated: false,
-    createdLabel: "25 giu",
-    createdFull: "25 giu 2025",
-    updatedFull: "25 giu 2025",
-    tags: ["documentazione", "collaudo", "procedura", "post-intervento"],
-  },
-  {
-    id: "KB-116",
-    machineModel: "Rettificatrice RX-400",
-    machineSerial: "MX-4521",
-    problemCategory: "altro",
-    symptom:
-      "Cliente segnala difficoltà nell'identificare il codice ricambio per la tenuta mandrino.",
-    probableCause:
-      "Distinta macchina non consultata — codice tenuta standard per variante mandrino 400 mm.",
-    solution:
-      "Comunicare codice SL-2201-VT (anello tenuta Viton Ø45) dalla distinta RX-400. Verificare matricola MX-4521 per conferma compatibilità. Proporre ordine con disponibilità a magazzino (6 pz).",
+      "Per VLM 2200 quotare solo VLM-400-009/2. Citare Listino_ricambi_Vallmec_2026 e distinta DB VLM-2200 rev.C. Non proporre equivalenti Gates non a listino.",
     spareParts: [
       {
-        code: "SL-2201-VT",
-        description: "Anello di tenuta mandrino (guarnizione Viton Ø45)",
+        code: "VLM-400-009/2",
+        description: "Cinghia dentata AT10 L=2250 h.25",
       },
     ],
     frequency: 7,
     consolidated: true,
-    mergedFromIds: ["KB-104"],
+    mergedFromIds: ["KB-101"],
     createdLabel: "1 lug",
-    createdFull: "1 lug 2025",
-    updatedFull: "10 lug 2025",
-    tags: ["codice ricambio", "tenuta", "identificazione", "distinta"],
+    createdFull: "1 lug 2026",
+    updatedFull: "15 lug 2026",
+    tags: ["codice ricambio", "identificazione", "listino", "cinghia"],
+  },
+  {
+    id: "KB-116",
+    machineModel: "Incartonatrice VLM-2200",
+    machineSerial: "1418",
+    problemCategory: "altro",
+    symptom:
+      "Follow-up Offerta_2026-0417_Fontanini — allineamento prezzi listino 2026 fascia C.",
+    probableCause:
+      "Nessun contratto service sulla 1418 (fascia C) — prezzi da aggiornare rispetto a offerta precedente.",
+    solution:
+      "Ricalcolare righe offerta con Listino ricambi Vallmec 2026 (netto fascia C). Per ventose VLM-300-004 usare prezzo usura aggiornato. Confermare disponibilità magazzino prima di reinvio PDF.",
+    spareParts: [
+      {
+        code: "VLM-300-004",
+        description: "Ventosa a soffietto D.50 NBR",
+      },
+    ],
+    frequency: 1,
+    consolidated: false,
+    createdLabel: "15 lug",
+    createdFull: "15 lug 2026",
+    updatedFull: "15 lug 2026",
+    tags: ["offerta", "listino 2026", "fontanini", "fascia c"],
   },
 ];
 
@@ -406,5 +465,8 @@ export function formatKnowledgeForPrompt(entries: KnowledgeEntry[]): string {
       ].join("\n");
     })
     .join("\n\n")
-    .replace(/^/, "=== BASE DI CONOSCENZA TROUBLESHOOTING (appresa dagli interventi) ===\n");
+    .replace(
+      /^/,
+      "=== BASE DI CONOSCENZA TROUBLESHOOTING VALLMEC / VLM (appresa dagli interventi) ===\n"
+    );
 }
