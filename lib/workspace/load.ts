@@ -114,6 +114,7 @@ export async function loadCompanyWorkspace(
         preview: true,
         classificationJson: true,
         resolvedSerial: true,
+        resolvedCliente: true,
       },
       orderBy: { createdAt: "desc" },
     }),

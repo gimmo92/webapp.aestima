@@ -449,6 +449,12 @@ export async function applyWorkspaceMutation(
             ? null
             : asString(p.resolvedSerial);
       }
+      if (p.resolvedCliente !== undefined) {
+        data.resolvedCliente =
+          p.resolvedCliente === null || p.resolvedCliente === ""
+            ? null
+            : asString(p.resolvedCliente);
+      }
       const result = await prisma.archiveFile.updateMany({
         where: { id, companyId },
         data,

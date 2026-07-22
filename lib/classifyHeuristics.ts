@@ -1,4 +1,5 @@
 import { MACHINES } from "./mockData";
+import { clienteForSerial } from "./archiveData";
 import type { DocType, FileClassification, FileExt } from "./archiveTypes";
 
 const EXT_TO_TIPO: Record<FileExt, DocType> = {
@@ -12,7 +13,7 @@ const EXT_TO_TIPO: Record<FileExt, DocType> = {
 
 /**
  * Classificazione euristica da nome file (upload operatore).
- * Estrae tipo, revisione, anno e — se possibile — collegamento macchina.
+ * Estrae tipo, revisione, anno e — se possibile — collegamento macchina/cliente.
  */
 export function inferClassificationFromName(
   name: string,
@@ -81,6 +82,7 @@ export function inferClassificationFromName(
   return {
     tipo,
     macchinaSerial,
+    cliente: clienteForSerial(macchinaSerial),
     revisione,
     data,
     confidence,

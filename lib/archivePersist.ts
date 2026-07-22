@@ -128,6 +128,7 @@ export async function updateLocalArchiveMeta(
   patch: {
     classification?: FileClassification;
     resolvedSerial?: string | null;
+    resolvedCliente?: string | null;
   }
 ): Promise<void> {
   if (typeof indexedDB === "undefined") return;
@@ -138,6 +139,9 @@ export async function updateLocalArchiveMeta(
     if (patch.classification) row.classification = patch.classification;
     if (patch.resolvedSerial !== undefined) {
       row.correctSerial = patch.resolvedSerial ?? undefined;
+    }
+    if (patch.resolvedCliente !== undefined) {
+      row.correctCliente = patch.resolvedCliente ?? undefined;
     }
     await idbPut(row);
   } catch (err) {

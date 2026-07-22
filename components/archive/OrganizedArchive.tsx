@@ -22,7 +22,12 @@ import { ArchiveFileActions } from "./ArchiveFileActions";
 // VISTA ARCHIVIO ORGANIZZATO — raggruppamento configurabile:
 // per tipo macchina (default), tipo documento, tipo file o anno.
 
-export type ArchiveViewMode = "macchina" | "documento" | "file" | "anno";
+export type ArchiveViewMode =
+  | "macchina"
+  | "cliente"
+  | "documento"
+  | "file"
+  | "anno";
 
 const TYPE_ORDER: DocType[] = [
   "disegno",
@@ -35,10 +40,14 @@ const TYPE_ORDER: DocType[] = [
 
 const VIEW_MODES: { id: ArchiveViewMode; label: string }[] = [
   { id: "macchina", label: "Tipo macchina" },
+  { id: "cliente", label: "Cliente" },
   { id: "documento", label: "Tipo documento" },
   { id: "file", label: "Tipo file" },
   { id: "anno", label: "Anno" },
 ];
+
+const NO_MACHINE = "__nessuna_macchina__";
+const NO_CLIENTE = "Senza cliente";
 
 interface Props {
   docs: ArchivedDoc[];
@@ -87,6 +96,7 @@ export function OrganizedArchive({
         DOC_TYPES[d.tipo].label,
         machineLabel(d.macchinaSerial),
         machineCategory(d.macchinaSerial),
+        d.cliente ?? "",
         docYear(d),
         d.revisione ?? "",
       ]
@@ -123,7 +133,7 @@ export function OrganizedArchive({
           <input
             value={query}
             onChange={(e) => onQueryChange(e.target.value)}
-            placeholder="Cerca un ricambio, una macchina, un codice…"
+            placeholder="Cerca un ricambio, una macchina, un cliente…"
             className="w-full rounded-lg border border-border bg-base py-2 pl-9 pr-3 text-sm text-ink placeholder:text-ink-faint outline-none transition-colors focus:border-brand focus:ring-2 focus:ring-brand/20"
           />
         </div>
@@ -156,6 +166,13 @@ export function OrganizedArchive({
           </div>
         ) : viewMode === "macchina" ? (
           <ByMachineView
+            docs={filtered}
+            onOpenFile={openFile}
+            onDeleteFile={onDeleteFile}
+            onShowApiFile={onShowApiFile}
+          />
+        ) : viewMode === "cliente" ? (
+          <ByClienteView
             docs={filtered}
             onOpenFile={openFile}
             onDeleteFile={onDeleteFile}
@@ -202,12 +219,13 @@ function ByMachineView({
   const byCategory = useMemo(() => {
     const map = new Map<string, Map<string, ArchivedDoc[]>>();
     for (const d of docs) {
+      const serialKey = d.macchinaSerial ?? NO_MACHINE;
       const cat = machineCategory(d.macchinaSerial);
       if (!map.has(cat)) map.set(cat, new Map());
       const machines = map.get(cat)!;
-      const arr = machines.get(d.macchinaSerial) ?? [];
+      const arr = machines.get(serialKey) ?? [];
       arr.push(d);
-      machines.set(d.macchinaSerial, arr);
+      machines.set(serialKey, arr);
     }
     return Array.from(map.entries());
   }, [docs]);
@@ -223,10 +241,70 @@ function ByMachineView({
             <p className="text-sm font-semibold text-ink">{category}</p>
           </div>
           <div className="space-y-3 p-3">
-            {Array.from(machines.entries()).map(([serial, machineDocs]) => (
+            {Array.from(machines.entries()).map(([serialKey, machineDocs]) => (
               <MachineBlock
-                key={serial}
-                serial={serial}
+                key={serialKey}
+                serial={serialKey === NO_MACHINE ? null : serialKey}
+                docs={machineDocs}
+                onOpenFile={onOpenFile}
+                onDeleteFile={onDeleteFile}
+                onShowApiFile={onShowApiFile}
+              />
+            ))}
+          </div>
+        </div>
+      ))}
+    </>
+  );
+}
+
+/** Cliente → macchina → file */
+function ByClienteView({
+  docs,
+  onOpenFile,
+  onDeleteFile,
+  onShowApiFile,
+}: {
+  docs: ArchivedDoc[];
+  onOpenFile: (doc: ArchivedDoc) => void;
+} & FileActions) {
+  const byCliente = useMemo(() => {
+    const map = new Map<string, ArchivedDoc[]>();
+    for (const d of docs) {
+      const key = d.cliente?.trim() || NO_CLIENTE;
+      const arr = map.get(key) ?? [];
+      arr.push(d);
+      map.set(key, arr);
+    }
+    return Array.from(map.entries()).sort(([a], [b]) => {
+      if (a === NO_CLIENTE) return 1;
+      if (b === NO_CLIENTE) return -1;
+      return a.localeCompare(b, "it");
+    });
+  }, [docs]);
+
+  return (
+    <>
+      {byCliente.map(([cliente, clienteDocs]) => (
+        <div key={cliente} className="overflow-hidden rounded-xl border border-border bg-base/50">
+          <div className="flex items-center gap-2 border-b border-border bg-surface-2/50 px-4 py-2.5">
+            <span className="flex h-7 w-7 items-center justify-center rounded-md bg-brand-soft text-brand">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-semibold text-ink">{cliente}</p>
+              <p className="text-[11px] text-ink-faint">
+                {clienteDocs.length} documenti
+              </p>
+            </div>
+          </div>
+          <div className="space-y-3 p-3">
+            {groupByMachine(clienteDocs).map(([serialKey, machineDocs]) => (
+              <MachineBlock
+                key={serialKey}
+                serial={serialKey === NO_MACHINE ? null : serialKey}
                 docs={machineDocs}
                 onOpenFile={onOpenFile}
                 onDeleteFile={onDeleteFile}
@@ -269,10 +347,10 @@ function ByDocumentView({
             <span className="text-[11px] text-ink-faint">{typeDocs.length} file</span>
           </div>
           <div className="space-y-3 p-3">
-            {groupByMachine(typeDocs).map(([serial, machineDocs]) => (
+            {groupByMachine(typeDocs).map(([serialKey, machineDocs]) => (
               <MachineBlock
-                key={serial}
-                serial={serial}
+                key={serialKey}
+                serial={serialKey === NO_MACHINE ? null : serialKey}
                 docs={machineDocs}
                 showTypeGroups={false}
                 onOpenFile={onOpenFile}
@@ -327,6 +405,7 @@ function ByFileView({
                 key={d.file.id}
                 doc={d}
                 showMachine
+                showCliente
                 showDocType
                 onOpenFile={onOpenFile}
                 onDeleteFile={onDeleteFile}
@@ -371,10 +450,10 @@ function ByYearView({
             <p className="text-[11px] text-ink-faint">{yearDocs.length} documenti</p>
           </div>
           <div className="space-y-3 p-3">
-            {groupByMachine(yearDocs).map(([serial, machineDocs]) => (
+            {groupByMachine(yearDocs).map(([serialKey, machineDocs]) => (
               <MachineBlock
-                key={serial}
-                serial={serial}
+                key={serialKey}
+                serial={serialKey === NO_MACHINE ? null : serialKey}
                 docs={machineDocs}
                 onOpenFile={onOpenFile}
                 onDeleteFile={onDeleteFile}
@@ -391,9 +470,10 @@ function ByYearView({
 function groupByMachine(docs: ArchivedDoc[]): [string, ArchivedDoc[]][] {
   const map = new Map<string, ArchivedDoc[]>();
   for (const d of docs) {
-    const arr = map.get(d.macchinaSerial) ?? [];
+    const key = d.macchinaSerial ?? NO_MACHINE;
+    const arr = map.get(key) ?? [];
     arr.push(d);
-    map.set(d.macchinaSerial, arr);
+    map.set(key, arr);
   }
   return Array.from(map.entries());
 }
@@ -406,7 +486,7 @@ function MachineBlock({
   onDeleteFile,
   onShowApiFile,
 }: {
-  serial: string;
+  serial: string | null;
   docs: ArchivedDoc[];
   showTypeGroups?: boolean;
   onOpenFile: (doc: ArchivedDoc) => void;
@@ -415,6 +495,8 @@ function MachineBlock({
     tipo,
     items: docs.filter((d) => d.tipo === tipo),
   })).filter((g) => g.items.length > 0);
+
+  const clienteHint = docs.find((d) => d.cliente)?.cliente;
 
   return (
     <div className="rounded-lg border border-border/80 bg-surface/30">
@@ -426,7 +508,9 @@ function MachineBlock({
         </span>
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold text-ink">{machineLabel(serial)}</p>
-          <p className="text-[11px] text-ink-faint">{docs.length} documenti</p>
+          <p className="truncate text-[11px] text-ink-faint">
+            {[clienteHint, `${docs.length} documenti`].filter(Boolean).join(" · ")}
+          </p>
         </div>
       </div>
 
@@ -443,6 +527,7 @@ function MachineBlock({
                     key={d.file.id}
                     doc={d}
                     showFileType
+                    showCliente={!clienteHint}
                     onOpenFile={onOpenFile}
                     onDeleteFile={onDeleteFile}
                     onShowApiFile={onShowApiFile}
@@ -460,6 +545,7 @@ function MachineBlock({
               doc={d}
               showFileType
               showDocType
+              showCliente
               onOpenFile={onOpenFile}
               onDeleteFile={onDeleteFile}
               onShowApiFile={onShowApiFile}
@@ -474,6 +560,7 @@ function MachineBlock({
 function DocRow({
   doc,
   showMachine,
+  showCliente,
   showDocType,
   showFileType,
   onOpenFile,
@@ -482,6 +569,7 @@ function DocRow({
 }: {
   doc: ArchivedDoc;
   showMachine?: boolean;
+  showCliente?: boolean;
   showDocType?: boolean;
   showFileType?: boolean;
   onOpenFile: (doc: ArchivedDoc) => void;
@@ -508,6 +596,7 @@ function DocRow({
         <p className="truncate text-[11px] text-ink-faint">
           {[
             showMachine ? machineLabel(doc.macchinaSerial) : null,
+            showCliente ? doc.cliente : null,
             showDocType ? DOC_TYPES[doc.tipo].label : null,
             showFileType ? (FILE_EXT_LABELS[doc.file.ext] ?? doc.file.ext.toUpperCase()) : null,
             doc.codice ? `Cod. ${doc.codice}` : null,

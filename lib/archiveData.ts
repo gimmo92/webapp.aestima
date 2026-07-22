@@ -14,15 +14,41 @@ export const DOC_TYPES: Record<DocType, { label: string; color: string }> = {
   foto: { label: "Foto componente", color: "#ec4899" },
 };
 
+/** Cliente installato per matricola (parco Vallmec demo). */
+export const MACHINE_CUSTOMERS: Record<string, string> = {
+  "1389": "Salumificio Ponte Nuovo S.p.A.",
+  "1418": "Dolciaria Fontanini S.r.l.",
+  "1412": "Nutrilab Integratori S.r.l.",
+  "1475": "Molino Serravalle S.p.A.",
+  "1364": "Caseificio Val Trebbia S.r.l.",
+  "1432": "Farmaceutici Lorentin S.p.A.",
+  "1301": "Caseificio Val Trebbia S.r.l.",
+  "1441": "Caffè Torrefazione Sud S.r.l.",
+};
+
+/** Elenco clienti noti (per assegnazione manuale). */
+export const KNOWN_CLIENTI = Array.from(
+  new Set(Object.values(MACHINE_CUSTOMERS))
+).sort((a, b) => a.localeCompare(b, "it"));
+
+/** Cliente collegato a una matricola, se noto. */
+export function clienteForSerial(
+  serial: string | null | undefined
+): string | null {
+  if (!serial) return null;
+  return MACHINE_CUSTOMERS[serial] ?? null;
+}
+
 /** Nome leggibile della macchina a partire dalla matricola. */
 export function machineLabel(serial: string | null): string {
-  if (!serial) return "Non assegnato";
+  if (!serial) return "Senza macchina";
   const m = MACHINES.find((x) => x.serial === serial);
   return m ? `${m.model} · ${m.serial}` : serial;
 }
 
 /** Categoria/tipo macchina (famiglia) a partire dalla matricola. */
-export function machineCategory(serial: string): string {
+export function machineCategory(serial: string | null): string {
+  if (!serial) return "Senza macchina";
   const m = MACHINES.find((x) => x.serial === serial);
   return m?.category ?? "Altro";
 }
@@ -55,6 +81,7 @@ export function docYear(doc: {
 export const KNOWN_MACHINES = MACHINES.map((m) => ({
   serial: m.serial,
   label: `${m.model} · ${m.serial}`,
+  cliente: MACHINE_CUSTOMERS[m.serial] ?? null,
 }));
 
 /**

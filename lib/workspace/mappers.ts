@@ -341,6 +341,7 @@ export function mapArchiveFile(row: {
   preview: string;
   classificationJson: Prisma.JsonValue;
   resolvedSerial: string | null;
+  resolvedCliente: string | null;
 }): SourceFile {
   const classification =
     row.classificationJson as unknown as FileClassification;
@@ -353,6 +354,7 @@ export function mapArchiveFile(row: {
     preview: row.preview,
     classification,
     correctSerial: row.resolvedSerial ?? undefined,
+    correctCliente: row.resolvedCliente ?? undefined,
     uploaded: true,
     publicUrl: canPreviewExt(row.ext)
       ? `/api/archive/files/${row.id}/content`

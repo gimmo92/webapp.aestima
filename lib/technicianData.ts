@@ -183,7 +183,7 @@ export const MOCK_TECHNICIAN_ASSIGNMENTS: TechnicianAssignment[] = [
     status: "contattato",
     subject: "Disponibilità intervento — VLM-400-009/2",
     body:
-      "Ciao Luca, abbiamo una richiesta urgente per sostituzione cinghia dentata AT10 su VLM-2200 (matr. 1389, Salumificio Ponte Nuovo). Puoi confermare disponibilità per un intervento in settimana?",
+      "Ciao Luca, richiesta urgente: cinghia gruppo spinta rotta su VLM 2200 matr. 1389 (Salumificio Ponte Nuovo, Langhirano). Codice listino VLM-400-009/2. Puoi confermare disponibilità intervento in settimana?",
     machineModel: "Incartonatrice VLM-2200",
     machineSerial: "1389",
     componentCode: "VLM-400-009/2",

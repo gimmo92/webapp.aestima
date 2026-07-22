@@ -51,16 +51,17 @@ export const MOCK_TICKETS: ServiceTicketRecord[] = [
     priority: "alta",
     source: "chat_ai",
     category: "ricambio",
-    summary: "Cinghia AT10 gruppo spinta — VLM-2200 1389",
+    summary: "Cinghia AT10 gruppo spinta — VLM 2200 1389",
     description:
-      "Cliente Salumificio Ponte Nuovo: cinghia dentata gruppo spinta usurata su VLM-2200 matr. 1389. Urgente, linea quasi ferma.",
+      "Salumificio Ponte Nuovo (Langhirano): cinghia gruppo spinta rotta su VLM 2200 matr. 1389. Codice listino VLM-400-009/2. Urgente, linea quasi ferma.",
     machineModel: "Incartonatrice VLM-2200",
     machineSerial: "1389",
     assignedTechnicianId: "tech-001",
     createdLabel: "09:12",
     createdFull: "Oggi, 09:12",
     updatedFull: "Oggi, 10:05",
-    internalNotes: "Codice listino VLM-400-009/2 — verificare giacenza magazzino.",
+    internalNotes:
+      "Listino 2026 VLM-400-009/2 — LT 15 gg, giacenza 5. Distinta DB VLM-2200 rev.C.",
   },
   {
     id: "SRV-2751",
@@ -68,9 +69,9 @@ export const MOCK_TICKETS: ServiceTicketRecord[] = [
     priority: "normale",
     source: "manuale",
     category: "troubleshooting",
-    summary: "Ventose non tengono fustellati — matr. 1418",
+    summary: "Ventose D.50 — matr. 1418 (Offerta 2026-0417)",
     description:
-      "Dolciaria Fontanini: ventose soffietto D.50 del gruppo formazione non trattengono i cartoni. Possibile usura o calo vuoto.",
+      "Dolciaria Fontanini: cartone si apre male, ventose soffietto D.50 NBR (VLM-300-004) su VLM 2200 matr. 1418. Rif. Offerta_2026-0417_Fontanini.",
     machineModel: "Incartonatrice VLM-2200",
     machineSerial: "1418",
     createdLabel: "Ieri",

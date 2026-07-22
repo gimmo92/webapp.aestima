@@ -19,6 +19,8 @@ export interface FileClassification {
   tipo: DocType;
   /** Matricola della macchina a cui il documento è collegato (null se incerto). */
   macchinaSerial: string | null;
+  /** Cliente a cui il documento è collegato (null se incerto). */
+  cliente?: string | null;
   /** Codice ricambio estratto, se presente. */
   codice?: string;
   /** Revisione del documento, se presente. */
@@ -56,6 +58,8 @@ export interface SourceFile {
    * (l'agente propone `classification.macchinaSerial`, spesso errata).
    */
   correctSerial?: string;
+  /** Cliente confermato dall'operatore (override). */
+  correctCliente?: string;
   /** URL pubblico per anteprima/download (API archivio o /public). */
   publicUrl?: string;
   /** File aggiunto dall'operatore via upload (persistito su DB o locale). */
@@ -63,13 +67,14 @@ export interface SourceFile {
 }
 
 /**
- * Documento ormai archiviato e collegato a una macchina.
+ * Documento ormai archiviato e collegato a macchina e/o cliente.
  * È l'unità mostrata nella vista "Archivio organizzato".
  */
 export interface ArchivedDoc {
   file: SourceFile;
   tipo: DocType;
-  macchinaSerial: string;
+  macchinaSerial: string | null;
+  cliente: string | null;
   codice?: string;
   revisione?: string;
   data?: string;
@@ -77,11 +82,18 @@ export interface ArchivedDoc {
   source: "anthropic" | "mock";
 }
 
+/** Assegnazione manuale in revisione. */
+export type ArchiveAssignment = {
+  serial: string | null;
+  cliente: string | null;
+};
+
 /** Risposta della route /api/classify per un singolo file. */
 export interface ClassifyResult {
   id: string;
   tipo: DocType;
   macchinaSerial: string | null;
+  cliente?: string | null;
   codice?: string;
   revisione?: string;
   data?: string;

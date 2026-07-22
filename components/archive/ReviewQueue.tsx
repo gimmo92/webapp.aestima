@@ -1,8 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { DOC_TYPES, KNOWN_MACHINES, machineLabel } from "@/lib/archiveData";
-import type { FileExt, SourceFile } from "@/lib/archiveTypes";
+import {
+  DOC_TYPES,
+  KNOWN_CLIENTI,
+  KNOWN_MACHINES,
+  clienteForSerial,
+  machineLabel,
+} from "@/lib/archiveData";
+import type { ArchiveAssignment, FileExt, SourceFile } from "@/lib/archiveTypes";
 import { FileIcon } from "./FileIcon";
 import { ConfidenceBadge } from "./ConfidenceBadge";
 import { ArchiveFileActions } from "./ArchiveFileActions";
@@ -12,12 +18,9 @@ import {
   canPreviewArchiveFile,
 } from "./ArchiveFileViewer";
 
-// CODA DI REVISIONE (human-in-the-loop) — file a bassa confidenza dove
-// l'operatore conferma o corregge la classificazione proposta dall'agente.
-
 interface Props {
   items: SourceFile[];
-  onResolve: (fileId: string, serial: string) => void;
+  onResolve: (fileId: string, assignment: ArchiveAssignment) => void;
   /** Vista dentro il tab dell'archivio (senza bordo esterno). */
   embedded?: boolean;
   onDeleteFile?: (fileId: string) => void;
@@ -103,7 +106,7 @@ export function ReviewQueue({
         <section className="flex h-full min-h-0 flex-col overflow-y-auto rounded-xl border border-border bg-base/40">
           <div className="border-b border-border px-4 py-3">
             <p className="text-xs text-ink-muted">
-              File a bassa confidenza: conferma o correggi la macchina assegnata dall&apos;agente.
+              File a bassa confidenza: conferma o correggi macchina e/o cliente.
             </p>
           </div>
           <div className="flex-1 space-y-2 p-3">{inner}</div>
@@ -125,22 +128,56 @@ function ReviewItem({
   onOpen,
 }: {
   file: SourceFile;
-  onResolve: (fileId: string, serial: string) => void;
+  onResolve: (fileId: string, assignment: ArchiveAssignment) => void;
   onDeleteFile?: (fileId: string) => void;
   onShowApiFile?: (file: SourceFile) => void;
   onOpen: (file: SourceFile) => void;
 }) {
-  const suggested = file.classification.macchinaSerial;
-  const suggestedKnown = KNOWN_MACHINES.some((m) => m.serial === suggested);
+  const suggestedSerial = file.classification.macchinaSerial;
+  const suggestedCliente =
+    file.classification.cliente ??
+    clienteForSerial(suggestedSerial) ??
+    null;
+  const suggestedKnown = KNOWN_MACHINES.some((m) => m.serial === suggestedSerial);
   const [correcting, setCorrecting] = useState(false);
   const [selected, setSelected] = useState<string>(
-    file.correctSerial ?? suggested ?? KNOWN_MACHINES[0]?.serial ?? ""
+    file.correctSerial ?? suggestedSerial ?? ""
   );
-  const [customSerial, setCustomSerial] = useState(suggested ?? "");
+  const [customSerial, setCustomSerial] = useState(suggestedSerial ?? "");
+  const [cliente, setCliente] = useState(
+    file.correctCliente ?? suggestedCliente ?? ""
+  );
+  const [customCliente, setCustomCliente] = useState("");
 
   const tipoLabel = DOC_TYPES[file.classification.tipo].label.toLowerCase();
   const hasKnownMachines = KNOWN_MACHINES.length > 0;
   const canPreview = canPreviewArchiveFile(file);
+
+  const pickSerial = () => {
+    const raw = hasKnownMachines ? selected : customSerial.trim();
+    return raw || null;
+  };
+
+  const pickCliente = () => {
+    if (cliente === "__custom__") return customCliente.trim() || null;
+    return cliente.trim() || null;
+  };
+
+  const canAssign = Boolean(pickSerial() || pickCliente());
+
+  const submit = (serial: string | null, cli: string | null) => {
+    const resolvedCliente = cli || clienteForSerial(serial);
+    onResolve(file.id, {
+      serial,
+      cliente: resolvedCliente,
+    });
+  };
+
+  const onMachineChange = (serial: string) => {
+    setSelected(serial);
+    const linked = clienteForSerial(serial);
+    if (linked) setCliente(linked);
+  };
 
   return (
     <div className="rounded-xl border border-border bg-base/60 p-3">
@@ -162,67 +199,143 @@ function ReviewItem({
             <ConfidenceBadge confidence={file.classification.confidence} showLabel />
           </div>
           <p className="mt-1 text-xs text-ink-muted">
-            {suggested ? (
+            {suggestedSerial || suggestedCliente ? (
               <>
-                Questo {tipoLabel} sembra appartenere a{" "}
-                <span className="font-medium text-ink">
-                  {machineLabel(suggested)}
-                </span>
-                {hasKnownMachines && !suggestedKnown && (
-                  <span className="text-warn"> (matricola non in anagrafica)</span>
-                )}
+                Questo {tipoLabel} sembra appartenere
+                {suggestedSerial ? (
+                  <>
+                    {" "}
+                    a{" "}
+                    <span className="font-medium text-ink">
+                      {machineLabel(suggestedSerial)}
+                    </span>
+                    {hasKnownMachines && !suggestedKnown && (
+                      <span className="text-warn"> (matricola non in anagrafica)</span>
+                    )}
+                  </>
+                ) : null}
+                {suggestedCliente ? (
+                  <>
+                    {suggestedSerial ? " · " : " a "}
+                    cliente{" "}
+                    <span className="font-medium text-ink">{suggestedCliente}</span>
+                  </>
+                ) : null}
                 , confermi?
               </>
             ) : (
-              <>Non sono riuscito a collegare questo {tipoLabel} a una macchina con certezza.</>
+              <>
+                Non sono riuscito a collegare questo {tipoLabel} a una macchina o
+                a un cliente con certezza.
+              </>
             )}
           </p>
 
           {correcting ? (
-            <div className="mt-2.5 flex flex-wrap items-center gap-2">
-              {hasKnownMachines ? (
+            <div className="mt-2.5 space-y-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <label className="text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
+                  Macchina
+                </label>
+                {hasKnownMachines ? (
+                  <select
+                    value={selected}
+                    onChange={(e) => onMachineChange(e.target.value)}
+                    className="rounded-lg border border-border bg-base px-2.5 py-1.5 text-sm text-ink outline-none focus:border-brand"
+                  >
+                    <option value="">Nessuna macchina</option>
+                    {KNOWN_MACHINES.map((m) => (
+                      <option key={m.serial} value={m.serial}>
+                        {m.label}
+                        {m.cliente ? ` · ${m.cliente}` : ""}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    value={customSerial}
+                    onChange={(e) => setCustomSerial(e.target.value)}
+                    placeholder="Matricola o modello"
+                    className="min-w-[200px] rounded-lg border border-border bg-base px-2.5 py-1.5 text-sm text-ink outline-none placeholder:text-ink-faint focus:border-brand"
+                  />
+                )}
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <label className="text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
+                  Cliente
+                </label>
                 <select
-                  value={selected}
-                  onChange={(e) => setSelected(e.target.value)}
+                  value={
+                    cliente &&
+                    (KNOWN_CLIENTI.includes(cliente) || cliente === "__custom__")
+                      ? cliente
+                      : cliente
+                        ? "__custom__"
+                        : ""
+                  }
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    if (v === "__custom__") {
+                      setCliente("__custom__");
+                      if (cliente && !KNOWN_CLIENTI.includes(cliente)) {
+                        setCustomCliente(cliente);
+                      }
+                    } else {
+                      setCliente(v);
+                      setCustomCliente("");
+                    }
+                  }}
                   className="rounded-lg border border-border bg-base px-2.5 py-1.5 text-sm text-ink outline-none focus:border-brand"
                 >
-                  {KNOWN_MACHINES.map((m) => (
-                    <option key={m.serial} value={m.serial}>
-                      {m.label}
+                  <option value="">Nessun cliente</option>
+                  {KNOWN_CLIENTI.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
                     </option>
                   ))}
+                  <option value="__custom__">Altro…</option>
                 </select>
-              ) : (
-                <input
-                  type="text"
-                  value={customSerial}
-                  onChange={(e) => setCustomSerial(e.target.value)}
-                  placeholder="Matricola o modello macchina"
-                  className="min-w-[220px] rounded-lg border border-border bg-base px-2.5 py-1.5 text-sm text-ink outline-none placeholder:text-ink-faint focus:border-brand"
-                />
-              )}
-              <button
-                onClick={() =>
-                  onResolve(file.id, hasKnownMachines ? selected : customSerial)
-                }
-                disabled={!(hasKnownMachines ? selected : customSerial.trim())}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-3 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-brand-strong disabled:opacity-40"
-              >
-                Assegna e archivia
-              </button>
-              <button
-                onClick={() => setCorrecting(false)}
-                className="rounded-lg px-2 py-1.5 text-sm text-ink-faint transition-colors hover:text-ink"
-              >
-                Annulla
-              </button>
+                {(cliente === "__custom__" ||
+                  (cliente && !KNOWN_CLIENTI.includes(cliente))) && (
+                  <input
+                    type="text"
+                    value={
+                      cliente === "__custom__" ? customCliente : cliente
+                    }
+                    onChange={(e) => {
+                      setCliente("__custom__");
+                      setCustomCliente(e.target.value);
+                    }}
+                    placeholder="Ragione sociale cliente"
+                    className="min-w-[220px] rounded-lg border border-border bg-base px-2.5 py-1.5 text-sm text-ink outline-none placeholder:text-ink-faint focus:border-brand"
+                  />
+                )}
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  onClick={() => submit(pickSerial(), pickCliente())}
+                  disabled={!canAssign}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-3 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-brand-strong disabled:opacity-40"
+                >
+                  Assegna e archivia
+                </button>
+                <button
+                  onClick={() => setCorrecting(false)}
+                  className="rounded-lg px-2 py-1.5 text-sm text-ink-faint transition-colors hover:text-ink"
+                >
+                  Annulla
+                </button>
+              </div>
             </div>
           ) : (
             <div className="mt-2.5 flex flex-wrap items-center gap-2">
               {canPreview && <ArchiveOpenButton onClick={() => onOpen(file)} />}
-              {suggested && (
+              {(suggestedSerial || suggestedCliente) && (
                 <button
-                  onClick={() => onResolve(file.id, suggested)}
+                  onClick={() =>
+                    submit(suggestedSerial, suggestedCliente)
+                  }
                   className="inline-flex items-center gap-1.5 rounded-lg bg-ok px-3 py-1.5 text-sm font-semibold text-white transition-all hover:brightness-110"
                 >
                   <svg width="15" height="15" viewBox="0 0 20 20" fill="none" aria-hidden="true">
@@ -238,7 +351,9 @@ function ReviewItem({
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                   <path d="M4 20h4L18.5 9.5a2.1 2.1 0 0 0-3-3L5 17v3Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
                 </svg>
-                {suggested ? "Correggi" : "Assegna macchina"}
+                {suggestedSerial || suggestedCliente
+                  ? "Correggi"
+                  : "Assegna macchina / cliente"}
               </button>
             </div>
           )}

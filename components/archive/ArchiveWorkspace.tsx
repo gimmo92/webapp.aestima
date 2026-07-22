@@ -2,8 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { REVIEW_THRESHOLD, SOURCE_FILES } from "@/lib/archiveData";
-import type { ArchivedDoc, ClassifyResult, SourceFile } from "@/lib/archiveTypes";
+import { REVIEW_THRESHOLD, SOURCE_FILES, clienteForSerial } from "@/lib/archiveData";
+import type {
+  ArchiveAssignment,
+  ArchivedDoc,
+  ClassifyResult,
+  SourceFile,
+} from "@/lib/archiveTypes";
 import { revokeSourceFileUrl } from "@/lib/uploadSourceFile";
 import {
   deleteLocalArchiveFile,
@@ -29,6 +34,7 @@ function fallbackResult(f: SourceFile): ClassifyResult {
     id: f.id,
     tipo: c.tipo,
     macchinaSerial: c.macchinaSerial,
+    cliente: c.cliente ?? clienteForSerial(c.macchinaSerial),
     codice: c.codice,
     revisione: c.revisione,
     data: c.data,
@@ -43,6 +49,7 @@ function withResult(f: SourceFile, r: ClassifyResult): SourceFile {
     classification: {
       tipo: r.tipo,
       macchinaSerial: r.macchinaSerial,
+      cliente: r.cliente ?? clienteForSerial(r.macchinaSerial),
       codice: r.codice,
       revisione: r.revisione,
       data: r.data,
@@ -56,10 +63,18 @@ function resultsFromFiles(files: SourceFile[]): Map<string, ClassifyResult> {
   return new Map(files.map((f) => [f.id, fallbackResult(f)]));
 }
 
-function resolvedFromFiles(files: SourceFile[]): Record<string, string> {
+function resolvedSerialFromFiles(files: SourceFile[]): Record<string, string> {
   const out: Record<string, string> = {};
   for (const f of files) {
     if (f.correctSerial) out[f.id] = f.correctSerial;
+  }
+  return out;
+}
+
+function resolvedClienteFromFiles(files: SourceFile[]): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const f of files) {
+    if (f.correctCliente) out[f.id] = f.correctCliente;
   }
   return out;
 }
@@ -78,6 +93,9 @@ export function ArchiveWorkspace() {
   const [archiveTab, setArchiveTab] = useState<ArchiveTab>("organizzato");
   const [viewMode, setViewMode] = useState<ArchiveViewMode>("macchina");
   const [resolved, setResolved] = useState<Record<string, string>>({});
+  const [resolvedCliente, setResolvedCliente] = useState<Record<string, string>>(
+    {}
+  );
   const [deletedIds, setDeletedIds] = useState<Set<string>>(() => new Set());
   const [uploadedFiles, setUploadedFiles] = useState<SourceFile[]>([]);
   const [apiFile, setApiFile] = useState<SourceFile | null>(null);
@@ -97,7 +115,8 @@ export function ArchiveWorkspace() {
           setCloudMode(true);
           setUploadedFiles(files);
           setResults(resultsFromFiles(files));
-          setResolved(resolvedFromFiles(files));
+          setResolved(resolvedSerialFromFiles(files));
+          setResolvedCliente(resolvedClienteFromFiles(files));
           setHydrated(true);
           return;
         }
@@ -110,7 +129,8 @@ export function ArchiveWorkspace() {
       setCloudMode(false);
       setUploadedFiles(local);
       setResults(resultsFromFiles(local));
-      setResolved(resolvedFromFiles(local));
+      setResolved(resolvedSerialFromFiles(local));
+      setResolvedCliente(resolvedClienteFromFiles(local));
       setHydrated(true);
     })();
     return () => {
@@ -141,6 +161,7 @@ export function ArchiveWorkspace() {
       setPhase("processing");
       setApiDone(false);
       setResolved({});
+      setResolvedCliente({});
       setArchiveTab("organizzato");
 
       try {
@@ -171,11 +192,13 @@ export function ArchiveWorkspace() {
                 id: f.id,
                 classification: next.classification,
                 resolvedSerial: null,
+                resolvedCliente: null,
               });
             } else if (!cloudMode) {
               void updateLocalArchiveMeta(f.id, {
                 classification: next.classification,
                 resolvedSerial: null,
+                resolvedCliente: null,
               });
             }
             return next;
@@ -237,6 +260,11 @@ export function ArchiveWorkspace() {
         delete next[fileId];
         return next;
       });
+      setResolvedCliente((prev) => {
+        const next = { ...prev };
+        delete next[fileId];
+        return next;
+      });
       setResults((prev) => {
         const next = new Map(prev);
         next.delete(fileId);
@@ -262,10 +290,17 @@ export function ArchiveWorkspace() {
 
     for (const f of visibleFiles) {
       const r = resultFor(f);
-      const toDoc = (serial: string, confidence: number): ArchivedDoc => ({
+      const autoCliente =
+        r.cliente ?? clienteForSerial(r.macchinaSerial) ?? null;
+      const toDoc = (
+        serial: string | null,
+        cliente: string | null,
+        confidence: number
+      ): ArchivedDoc => ({
         file: f,
         tipo: r.tipo,
         macchinaSerial: serial,
+        cliente,
         codice: r.codice,
         revisione: r.revisione,
         data: r.data,
@@ -273,21 +308,44 @@ export function ArchiveWorkspace() {
         source: r.source,
       });
 
+      const hasResolved =
+        Boolean(resolved[f.id]) || Boolean(resolvedCliente[f.id]);
+
       if (r.confidence >= REVIEW_THRESHOLD && r.macchinaSerial) {
-        archived.push(toDoc(r.macchinaSerial, r.confidence));
-      } else if (resolved[f.id]) {
-        archived.push(toDoc(resolved[f.id], 1));
+        archived.push(
+          toDoc(
+            r.macchinaSerial,
+            autoCliente ?? resolvedCliente[f.id] ?? null,
+            r.confidence
+          )
+        );
+      } else if (hasResolved) {
+        const serial = resolved[f.id] ?? null;
+        const cliente =
+          resolvedCliente[f.id] ??
+          clienteForSerial(serial) ??
+          autoCliente;
+        archived.push(toDoc(serial, cliente, 1));
       } else {
         reviewItems.push(withResult(f, r));
       }
     }
     return { archived, reviewItems };
-  }, [resultFor, resolved, visibleFiles]);
+  }, [resultFor, resolved, resolvedCliente, visibleFiles]);
 
   const showApi = useCallback((file: SourceFile) => setApiFile(file), []);
 
   const machineCount = useMemo(
-    () => new Set(archived.map((d) => d.macchinaSerial)).size,
+    () =>
+      new Set(
+        archived.map((d) => d.macchinaSerial).filter(Boolean) as string[]
+      ).size,
+    [archived]
+  );
+
+  const clienteCount = useMemo(
+    () =>
+      new Set(archived.map((d) => d.cliente).filter(Boolean) as string[]).size,
     [archived]
   );
 
@@ -301,17 +359,36 @@ export function ArchiveWorkspace() {
     setQuery(q);
   }, []);
 
-  const onResolve = (fileId: string, serial: string) => {
-    const trimmed = serial.trim();
-    if (!trimmed) return;
-    setResolved((prev) => ({ ...prev, [fileId]: trimmed }));
+  const onResolve = (fileId: string, assignment: ArchiveAssignment) => {
+    const serial = assignment.serial?.trim() || null;
+    const cliente =
+      assignment.cliente?.trim() || clienteForSerial(serial) || null;
+    if (!serial && !cliente) return;
+
+    setResolved((prev) => {
+      const next = { ...prev };
+      if (serial) next[fileId] = serial;
+      else delete next[fileId];
+      return next;
+    });
+    setResolvedCliente((prev) => {
+      const next = { ...prev };
+      if (cliente) next[fileId] = cliente;
+      else delete next[fileId];
+      return next;
+    });
+
     if (cloudMode && isCloudArchiveId(fileId)) {
       persistArchive("updateArchiveFile", {
         id: fileId,
-        resolvedSerial: trimmed,
+        resolvedSerial: serial,
+        resolvedCliente: cliente,
       });
     } else {
-      void updateLocalArchiveMeta(fileId, { resolvedSerial: trimmed });
+      void updateLocalArchiveMeta(fileId, {
+        resolvedSerial: serial,
+        resolvedCliente: cliente,
+      });
     }
   };
 
@@ -375,6 +452,9 @@ export function ArchiveWorkspace() {
           <Arrow />
           <Stat value={archived.length} label="documenti collegati" accent />
           <Stat value={machineCount} label="macchine" />
+          {clienteCount > 0 && (
+            <Stat value={clienteCount} label="clienti" />
+          )}
           {reviewItems.length > 0 && (
             <Stat value={reviewItems.length} label="da verificare" warn />
           )}

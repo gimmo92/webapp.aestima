@@ -50,6 +50,7 @@ export function computeArchiveGaps(
   const distinteBySerial = new Map<string, ArchivedDoc[]>();
   for (const doc of archived) {
     if (doc.tipo !== "distinta") continue;
+    if (!doc.macchinaSerial) continue;
     const list = distinteBySerial.get(doc.macchinaSerial) ?? [];
     list.push(doc);
     distinteBySerial.set(doc.macchinaSerial, list);
@@ -216,10 +217,10 @@ export function computeArchiveGaps(
       id: gapId(["catalog-pdf", doc.file.id]),
       category: "data",
       severity: "warning",
-      machineSerial: doc.macchinaSerial,
+      machineSerial: doc.macchinaSerial ?? "—",
       title: "Catalogo non strutturato",
       detail: `${doc.file.name}: PDF catalogo senza tabella prezzi/ricambi collegata.`,
-      searchQuery: doc.macchinaSerial,
+      searchQuery: doc.macchinaSerial ?? doc.cliente ?? doc.file.name,
     });
   }
 
