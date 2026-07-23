@@ -230,19 +230,28 @@ export function CatalogAnalysisWorkspace() {
     return map;
   }, [findings]);
 
+  const showSummaryStrip =
+    hasCatalog && (phase === "done" || uploadedFiles.some((f) => f.demo));
+
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-      {/* Header */}
-      <header className="shrink-0 border-b border-border bg-surface/40 px-5 py-4">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="min-w-0">
-            <h1 className="text-xl font-bold tracking-tight text-ink sm:text-2xl">
+      {/* Header — compatto in fase risultati per lasciare spazio alla coda */}
+      <header className="shrink-0 border-b border-border bg-surface/40 px-4 py-2.5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-0.5">
+            <h1 className="text-lg font-bold tracking-tight text-ink">
               Analisi catalogo
             </h1>
-            <p className="mt-1 max-w-2xl text-sm text-ink-muted sm:text-base">
-              L&apos;agente trova e propone, l&apos;esperto conferma. Niente viene
-              applicato in automatico.
-            </p>
+            {phase !== "done" && (
+              <p className="text-xs text-ink-muted">
+                L&apos;agente trova e propone, l&apos;esperto conferma.
+              </p>
+            )}
+            {phase === "done" && hasCatalog && (
+              <p className="truncate text-xs text-ink-muted">
+                {uploadedFiles.map((f) => f.name).join(" · ")}
+              </p>
+            )}
           </div>
           {phase === "done" && (
             <button
@@ -254,33 +263,55 @@ export function CatalogAnalysisWorkspace() {
                 setDecisions({});
                 setSummary(idleSummary);
               }}
-              className="rounded-lg border border-border bg-base px-3 py-2 text-sm font-medium text-ink-muted hover:border-border-strong hover:text-ink"
+              className="rounded-lg border border-border bg-base px-2.5 py-1.5 text-xs font-medium text-ink-muted hover:border-border-strong hover:text-ink"
             >
               Nuova analisi
             </button>
           )}
         </div>
 
-        {/* Caricamento catalogo */}
-        <div className="mt-4 rounded-xl border border-border bg-base/70 p-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
-                Catalogo da analizzare
-              </p>
-              <p className="mt-0.5 text-sm text-ink-muted">
-                {hasCatalog
-                  ? `${uploadedFiles.length} file pronti`
-                  : "Carica listino, catalogo ricambi o export gestionale"}
-              </p>
-            </div>
-            {phase === "idle" && (
+        {/* Riepilogo compatto (post-analisi) */}
+        {phase === "done" && showSummaryStrip && (
+          <dl className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-border bg-base/70 px-3 py-1.5">
+            <StatCompact label="Articoli" value={summary.articleCount} />
+            <StatCompact label="Codici" value={summary.uniqueCodes} />
+            <StatCompact label="Con prezzo" value={summary.withPrice} />
+            <StatCompact label="Senza prezzo" value={summary.withoutPrice} warn />
+            <StatCompact label="In ERP" value={summary.inErp} />
+            <StatCompact label="Assenti ERP" value={summary.notInErp} warn />
+            {impact && (
+              <>
+                <span className="hidden h-4 w-px bg-border sm:block" />
+                <StatCompact label="Incoerenze" value={impact.totalFindings} warn />
+                <StatCompact
+                  label="Alta conf."
+                  value={impact.highConfidence}
+                />
+              </>
+            )}
+          </dl>
+        )}
+
+        {/* Caricamento — solo idle / analyzing prep */}
+        {phase === "idle" && (
+          <div className="mt-2 rounded-xl border border-border bg-base/70 p-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-ink-faint">
+                  Catalogo da analizzare
+                </p>
+                <p className="text-xs text-ink-muted">
+                  {hasCatalog
+                    ? `${uploadedFiles.length} file pronti`
+                    : "Carica listino, catalogo o export gestionale"}
+                </p>
+              </div>
               <div className="flex flex-wrap items-center gap-2">
                 {!hasCatalog && (
                   <button
                     type="button"
                     onClick={loadDemoCatalog}
-                    className="rounded-lg border border-border bg-base px-3 py-2 text-sm font-medium text-ink-muted hover:border-brand/40 hover:text-ink"
+                    className="rounded-lg border border-border bg-base px-2.5 py-1.5 text-xs font-medium text-ink-muted hover:border-brand/40 hover:text-ink"
                   >
                     Usa dati di esempio
                   </button>
@@ -289,94 +320,62 @@ export function CatalogAnalysisWorkspace() {
                   type="button"
                   onClick={startAnalysis}
                   disabled={!hasCatalog}
-                  className="inline-flex items-center gap-2 rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-brand/20 transition-colors hover:bg-brand-strong disabled:cursor-not-allowed disabled:opacity-40 sm:text-base"
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-3 py-1.5 text-sm font-semibold text-white shadow-md shadow-brand/20 transition-colors hover:bg-brand-strong disabled:cursor-not-allowed disabled:opacity-40"
                 >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                    <path
-                      d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M5.6 18.4l2.8-2.8M15.6 8.4l2.8-2.8"
-                      stroke="currentColor"
-                      strokeWidth="1.8"
-                      strokeLinecap="round"
-                    />
-                  </svg>
                   Analizza catalogo
                 </button>
               </div>
-            )}
-          </div>
+            </div>
 
-          {phase === "idle" && (
-            <div className="mt-3">
+            <div className="mt-2">
               <CatalogUploadZone onUpload={addUploadedFiles} />
             </div>
-          )}
 
-          {hasCatalog && (
-            <ul className="mt-3 space-y-1.5">
-              {uploadedFiles.map((f) => (
-                <li
-                  key={f.id}
-                  className="flex items-center gap-2 rounded-lg border border-border bg-surface/50 px-3 py-2"
-                >
-                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-brand-soft text-[10px] font-bold uppercase text-brand">
-                    {f.ext}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-ink">{f.name}</p>
-                    <p className="text-[11px] text-ink-faint">
-                      {f.demo ? "Catalogo di esempio" : f.sizeLabel}
-                    </p>
-                  </div>
-                  {phase === "idle" && (
+            {hasCatalog && (
+              <ul className="mt-2 flex flex-wrap gap-1.5">
+                {uploadedFiles.map((f) => (
+                  <li
+                    key={f.id}
+                    className="inline-flex max-w-full items-center gap-1.5 rounded-md border border-border bg-surface/50 px-2 py-1"
+                  >
+                    <span className="text-[10px] font-bold uppercase text-brand">
+                      {f.ext}
+                    </span>
+                    <span className="truncate text-xs font-medium text-ink">
+                      {f.name}
+                    </span>
                     <button
                       type="button"
                       onClick={() => removeUploadedFile(f.id)}
-                      className="rounded-md px-2 py-1 text-xs font-medium text-ink-faint hover:bg-danger/10 hover:text-danger"
+                      className="text-[11px] text-ink-faint hover:text-danger"
                       aria-label={`Rimuovi ${f.name}`}
                     >
-                      Rimuovi
+                      ×
                     </button>
-                  )}
-                </li>
-              ))}
-            </ul>
-          )}
-
-          {hasCatalog &&
-            (phase === "done" || uploadedFiles.some((f) => f.demo)) && (
-              <>
-                <dl className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6">
-                  <Stat label="Articoli" value={summary.articleCount} />
-                  <Stat label="Codici unici" value={summary.uniqueCodes} />
-                  <Stat label="Con prezzo" value={summary.withPrice} />
-                  <Stat label="Senza prezzo" value={summary.withoutPrice} warn />
-                  <Stat label="In gestionale" value={summary.inErp} />
-                  <Stat label="Assenti ERP" value={summary.notInErp} warn />
-                </dl>
-
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {summary.sources.map((s) => (
-                    <span
-                      key={s.id}
-                      className="rounded-full border border-border bg-surface px-2.5 py-1 text-xs font-medium text-ink-muted"
-                    >
-                      {s.label}
-                      <span className="ml-1.5 tabular-nums text-ink">{s.count}</span>
-                    </span>
-                  ))}
-                </div>
-              </>
+                  </li>
+                ))}
+              </ul>
             )}
 
-          <p className="mt-3 text-[11px] leading-relaxed text-ink-faint">
-            In produzione l&apos;analisi gira sul file caricato (PDF / export
-            gestionale). In demo, dopo il caricamento l&apos;agente usa il
-            dataset Vallmec di riferimento — l&apos;esperto conferma sempre.
-          </p>
-        </div>
+            {showSummaryStrip && (
+              <dl className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border pt-2">
+                <StatCompact label="Articoli" value={summary.articleCount} />
+                <StatCompact label="Codici" value={summary.uniqueCodes} />
+                <StatCompact label="Con prezzo" value={summary.withPrice} />
+                <StatCompact
+                  label="Senza prezzo"
+                  value={summary.withoutPrice}
+                  warn
+                />
+                <StatCompact label="In ERP" value={summary.inErp} />
+                <StatCompact label="Assenti ERP" value={summary.notInErp} warn />
+              </dl>
+            )}
+          </div>
+        )}
 
         {error && (
-          <p className="mt-3 rounded-lg border border-danger/30 bg-danger/5 px-3 py-2 text-sm text-danger">
+          <p className="mt-2 rounded-lg border border-danger/30 bg-danger/5 px-3 py-1.5 text-xs text-danger">
             {error}
           </p>
         )}
@@ -388,13 +387,23 @@ export function CatalogAnalysisWorkspace() {
         )}
 
         {phase === "done" && impact && (
-          <div className="mx-auto max-w-5xl space-y-5 px-5 py-5">
-            <ImpactBanner
-              impact={impact}
-              validatedCount={validatedCount}
-              total={findings.length}
-              source={apiSource}
-            />
+          <div className="mx-auto max-w-5xl space-y-3 px-4 py-3">
+            <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-ink-muted">
+              <p>
+                Validati{" "}
+                <span className="font-semibold tabular-nums text-ink">
+                  {validatedCount}/{findings.length}
+                </span>
+                {" · "}
+                ~{(impact.estimatedMinutesSaved / 60).toFixed(1)}h stimati
+                risparmiati
+                {" · "}
+                {apiSource === "anthropic" ? "Claude + regole" : "Mock + regole"}
+              </p>
+              <p className="font-medium text-ink-faint">
+                L&apos;agente trova e propone, l&apos;esperto conferma.
+              </p>
+            </div>
 
             {/* Coda di revisione umana — elemento centrale */}
             <ReviewQueuePanel
@@ -478,7 +487,7 @@ export function CatalogAnalysisWorkspace() {
   );
 }
 
-function Stat({
+function StatCompact({
   label,
   value,
   warn,
@@ -488,13 +497,13 @@ function Stat({
   warn?: boolean;
 }) {
   return (
-    <div className="rounded-lg border border-border bg-surface/60 px-3 py-2.5">
-      <dt className="text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
+    <div className="inline-flex items-baseline gap-1.5">
+      <dt className="text-[10px] font-semibold uppercase tracking-wider text-ink-faint">
         {label}
       </dt>
       <dd
         className={[
-          "mt-0.5 text-2xl font-bold tabular-nums",
+          "text-sm font-bold tabular-nums",
           warn && value > 0 ? "text-warn" : "text-ink",
         ].join(" ")}
       >
@@ -600,53 +609,6 @@ function AnalysisStages({
   );
 }
 
-function ImpactBanner({
-  impact,
-  validatedCount,
-  total,
-  source,
-}: {
-  impact: ImpactSummary;
-  validatedCount: number;
-  total: number;
-  source: "anthropic" | "mock";
-}) {
-  const hours = (impact.estimatedMinutesSaved / 60).toFixed(1);
-  return (
-    <section className="rounded-xl border border-brand/30 bg-brand-soft/40 p-4 sm:p-5">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-lg font-bold text-ink">Impatto dell&apos;analisi</h2>
-        <span className="rounded-full bg-base/80 px-2.5 py-0.5 text-xs font-medium text-ink-muted">
-          {source === "anthropic" ? "Claude + regole" : "Mock + regole"}
-        </span>
-      </div>
-      <dl className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Stat label="Incoerenze" value={impact.totalFindings} />
-        <Stat label="Alta confidenza" value={impact.highConfidence} />
-        <Stat label="Da verificare" value={impact.needsReview} warn />
-        <div className="rounded-lg border border-border bg-base/70 px-3 py-2.5">
-          <dt className="text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
-            Tempo stimato risparmiato
-          </dt>
-          <dd className="mt-0.5 text-2xl font-bold tabular-nums text-ok">
-            ~{hours}h
-          </dd>
-          <p className="text-[11px] text-ink-faint">
-            vs ~{impact.estimatedMinutesSaved} min a mano
-          </p>
-        </div>
-      </dl>
-      <p className="mt-3 text-sm text-ink-muted">
-        Validati{" "}
-        <span className="font-semibold tabular-nums text-ink">
-          {validatedCount}/{total}
-        </span>
-        . L&apos;agente trova e propone, l&apos;esperto conferma.
-      </p>
-    </section>
-  );
-}
-
 function ReviewQueuePanel({
   pending,
   highConfidenceCount,
@@ -677,42 +639,25 @@ function ReviewQueuePanel({
   onSubmitCorrection: (id: string) => void;
 }) {
   return (
-    <section className="rounded-2xl border border-warn/40 bg-warn/5 p-4 sm:p-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="flex h-7 w-7 items-center justify-center rounded-md bg-warn/15 text-warn">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <path
-                  d="M12 8v5m0 3h.01M10.3 3.9 2.4 18a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"
-                  stroke="currentColor"
-                  strokeWidth="1.7"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </span>
-            <h2 className="text-lg font-bold text-ink">Coda di revisione</h2>
-            <span className="rounded-full bg-warn/15 px-2.5 py-0.5 text-xs font-semibold tabular-nums text-warn">
-              {pending.length} in coda
-            </span>
-            <span className="rounded-full bg-ok/15 px-2.5 py-0.5 text-xs font-semibold tabular-nums text-ok">
-              {validatedCount} validati
-            </span>
-          </div>
-          <p className="mt-1 text-sm text-ink-muted">
-            Dall&apos;esperto che corregge a cucchiaino a chi conferma in blocco
-            le proposte ad alta confidenza.
-          </p>
+    <section className="rounded-xl border border-warn/40 bg-warn/5 p-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <h2 className="text-base font-bold text-ink">Coda di revisione</h2>
+          <span className="rounded-full bg-warn/15 px-2 py-0.5 text-[11px] font-semibold tabular-nums text-warn">
+            {pending.length} in coda
+          </span>
+          <span className="rounded-full bg-ok/15 px-2 py-0.5 text-[11px] font-semibold tabular-nums text-ok">
+            {validatedCount} validati
+          </span>
         </div>
         <button
           type="button"
           disabled={highConfidenceCount === 0}
           onClick={onConfirmHigh}
-          className="inline-flex items-center gap-2 rounded-lg bg-brand px-3.5 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-strong disabled:cursor-not-allowed disabled:opacity-40"
+          className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-brand-strong disabled:cursor-not-allowed disabled:opacity-40"
         >
           Conferma alta confidenza
-          <span className="rounded-md bg-white/20 px-1.5 py-0.5 text-xs tabular-nums">
+          <span className="rounded-md bg-white/20 px-1.5 py-0.5 tabular-nums">
             {highConfidenceCount}
           </span>
         </button>
@@ -727,11 +672,11 @@ function ReviewQueuePanel({
           </p>
         </div>
       ) : (
-        <ul className="mt-4 space-y-2">
+        <ul className="mt-2.5 space-y-1.5">
           {pending.map((f) => (
             <li
               key={f.id}
-              className="rounded-xl border border-border bg-base/70 p-3 sm:p-4"
+              className="rounded-lg border border-border bg-base/70 p-2.5"
             >
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div className="min-w-0 flex-1">

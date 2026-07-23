@@ -95,14 +95,14 @@ export function CatalogUploadZone({ disabled, onUpload }: Props) {
           pick(e.dataTransfer.files);
         }}
         className={[
-          "flex w-full flex-col items-center justify-center rounded-xl border-2 border-dashed px-4 py-7 text-center transition-colors disabled:cursor-not-allowed disabled:opacity-50",
+          "flex w-full flex-col items-center justify-center rounded-xl border-2 border-dashed px-3 py-4 text-center transition-colors disabled:cursor-not-allowed disabled:opacity-50",
           dragOver
             ? "border-brand bg-brand-soft/40"
             : "border-border-strong bg-surface/50 hover:border-brand/40 hover:bg-brand-soft/20",
         ].join(" ")}
       >
-        <span className="mb-2 flex h-11 w-11 items-center justify-center rounded-full bg-brand-soft text-brand">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <span className="mb-1.5 flex h-9 w-9 items-center justify-center rounded-full bg-brand-soft text-brand">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <path
               d="M12 16V8m0 0 4 4m-4-4-4 4M4 16.5V18a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-1.5"
               stroke="currentColor"
@@ -112,12 +112,12 @@ export function CatalogUploadZone({ disabled, onUpload }: Props) {
             />
           </svg>
         </span>
-        <p className="text-sm font-semibold text-ink sm:text-base">
+        <p className="text-sm font-semibold text-ink">
           Trascina qui il catalogo oppure{" "}
           <span className="text-brand">scegli i file</span>
         </p>
-        <p className="mt-1 text-xs text-ink-faint sm:text-sm">
-          PDF, Excel (.xlsx / .xls), CSV — listino, catalogo ricambi o export gestionale
+        <p className="mt-0.5 text-[11px] text-ink-faint">
+          PDF, Excel (.xlsx / .xls), CSV — listino, catalogo o export gestionale
         </p>
       </button>
     </div>
