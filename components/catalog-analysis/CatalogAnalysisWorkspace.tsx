@@ -562,6 +562,7 @@ function AnalysisStages({
         {ANALYSIS_STAGES.map((s, i) => {
           const done = i < stage || (i === stage && tick >= STAGE_TICKS);
           const current = i === stage && tick < STAGE_TICKS;
+          const pending = !done && !current;
           return (
             <li
               key={s.label}
@@ -571,11 +572,11 @@ function AnalysisStages({
                   ? "border-border bg-surface-2/50"
                   : current
                     ? "border-brand/50 bg-brand-soft animate-fade-up"
-                    : "border-transparent opacity-40",
+                    : "border-transparent bg-transparent",
               ].join(" ")}
             >
               {done ? (
-                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand/20 text-brand">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand/20 text-brand">
                   <svg width="14" height="14" viewBox="0 0 20 20" fill="none" aria-hidden="true">
                     <path
                       d="M4 10.5 8 14.5 16 5.5"
@@ -587,19 +588,26 @@ function AnalysisStages({
                   </svg>
                 </span>
               ) : current ? (
-                <span className="h-5 w-5 animate-spin rounded-full border-2 border-brand/30 border-t-brand" />
+                <span className="h-5 w-5 shrink-0 animate-spin rounded-full border-2 border-brand/30 border-t-brand" />
               ) : (
-                <span className="h-2.5 w-2.5 rounded-full bg-ink-faint" />
+                <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-[#a8bdd4]" />
               )}
               <div className="min-w-0">
+                {/* Colore esplicito: text-ink* risultava illeggibile su questi step */}
                 <p
-                  className={`text-sm font-semibold sm:text-base ${
-                    current ? "text-ink" : "text-ink-muted"
-                  }`}
+                  className="text-sm font-semibold sm:text-base"
+                  style={{
+                    color: pending ? "#7a8fa6" : "#0f1b2d",
+                  }}
                 >
                   {s.label}
                 </p>
-                <p className="text-xs text-ink-faint sm:text-sm">{s.hint}</p>
+                <p
+                  className="text-xs sm:text-sm"
+                  style={{ color: "#4a5d73" }}
+                >
+                  {s.hint}
+                </p>
               </div>
             </li>
           );
