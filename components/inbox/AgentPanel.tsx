@@ -23,7 +23,7 @@ import { useInbox } from "./InboxProvider";
 import type { AnalysisResult, MatchResult, Quote } from "@/lib/types";
 import type { PartRequest } from "@/lib/inboxTypes";
 
-// Pannello "Analisi aestima": esegue l'analisi della richiesta (via API
+// Pannello "Analisi aftercore": esegue l'analisi della richiesta (via API)
 // Anthropic con fallback mock), identifica il ricambio e prepara le bozze.
 // Le bozze (mail al cliente e richiesta fornitore) sono MODIFICABILI
 // dall'operatore prima dell'invio.
@@ -138,7 +138,7 @@ export function AgentPanel({ request, onApproveSend }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [request.id, request.body]);
 
-  // Ripristina la bozza originale generata da aestima.
+  // Ripristina la bozza originale generata da aftercore.
   const resetReply = () => {
     if (match?.machine && match?.component && quote) {
       setReplyText(buildCustomerReply(request, match.machine, match.component, quote));
@@ -189,7 +189,7 @@ export function AgentPanel({ request, onApproveSend }: Props) {
             <path d="M12 3v2m0 14v2m9-9h-2M5 12H3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
           </svg>
         </span>
-        <h3 className="text-sm font-semibold text-ink">Analisi aestima</h3>
+        <h3 className="text-sm font-semibold text-ink">Analisi aftercore</h3>
         {analysis && <SourceBadge source={analysis.source} />}
       </div>
 
@@ -586,7 +586,7 @@ function DraftBox({
             <button
               onClick={onReset}
               className="inline-flex items-center gap-1 text-xs text-ink-faint transition-colors hover:text-ink"
-              title="Ripristina la bozza generata da aestima"
+              title="Ripristina la bozza generata da aftercore"
             >
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                 <path d="M3 12a9 9 0 1 0 3-6.7L3 8m0-5v5h5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />

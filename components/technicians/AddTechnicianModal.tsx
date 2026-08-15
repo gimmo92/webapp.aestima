@@ -73,7 +73,7 @@ export function AddTechnicianModal({ onClose, onSave }: Props) {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full rounded-lg border border-border bg-base px-3 py-2 text-sm text-ink outline-none focus:border-brand"
-              placeholder="l.moretti@aestima.demo"
+              placeholder="l.moretti@aftercore.demo"
             />
           </Field>
           <Field label="Telefono WhatsApp *">

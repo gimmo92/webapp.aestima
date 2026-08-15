@@ -546,7 +546,7 @@ function AnalysisStages({
       </div>
 
       <h2 className="text-center text-xl font-bold text-ink sm:text-2xl">
-        aestima sta analizzando il catalogo…
+        aftercore sta analizzando il catalogo…
       </h2>
       <p className="mt-1 text-center text-sm text-ink-muted sm:text-base">
         {source === "anthropic"

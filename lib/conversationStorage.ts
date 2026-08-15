@@ -1,7 +1,7 @@
 import type { ConversationRecord } from "./conversationTypes";
 
 // Persistenza locale conversazioni (ospite / stessa origine).
-export const CONVERSATIONS_STORAGE_KEY = "aestima:conversations:v1";
+export const CONVERSATIONS_STORAGE_KEY = "aftercore:conversations:v1";
 
 function isConversationRecord(value: unknown): value is ConversationRecord {
   if (!value || typeof value !== "object") return false;

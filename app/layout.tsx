@@ -12,7 +12,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "aestima",
+  title: "aftercore",
   description: "Gestione richieste ricambi, preventivi e archivio documentale after-sales.",
 };
 

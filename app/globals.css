@@ -1,26 +1,26 @@
 @import "tailwindcss";
 
 /* =============================================================
-   Tema aestima — light, professionale
-   Sfondo bianco con accenti blu. Definita via @theme (Tailwind v4).
+   Tema aftercore — light, professionale
+   Sfondo bianco con accento cyan del lockup. Definita via @theme (Tailwind v4).
    ============================================================= */
 @theme {
   /* Sfondi */
   --color-base: #ffffff;
-  --color-surface: #f4f8fc;
-  --color-surface-2: #e8f0f8;
-  --color-border: #d5e0ec;
-  --color-border-strong: #a8bdd4;
+  --color-surface: #f3f8fb;
+  --color-surface-2: #e4eef5;
+  --color-border: #d2dee8;
+  --color-border-strong: #9fb4c6;
 
   /* Testo */
   --color-ink: #0f1b2d;
   --color-ink-muted: #4a5d73;
   --color-ink-faint: #7a8fa6;
 
-  /* Accento blu (brand aestima) */
-  --color-brand: #2563eb;
-  --color-brand-strong: #1d4ed8;
-  --color-brand-soft: #dbeafe;
+  /* Accento cyan (brand aftercore) */
+  --color-brand: #0096d6;
+  --color-brand-strong: #007eb4;
+  --color-brand-soft: #d6f1fb;
 
   /* Semantici */
   --color-ok: #16a34a;
@@ -50,8 +50,8 @@ body {
 /* Griglia tecnica di sfondo, sottile — richiama un ambiente industriale/CAD */
 .bg-grid {
   background-image:
-    linear-gradient(to right, rgba(37, 99, 235, 0.07) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(37, 99, 235, 0.07) 1px, transparent 1px);
+    linear-gradient(to right, rgba(0, 150, 214, 0.08) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0, 150, 214, 0.08) 1px, transparent 1px);
   background-size: 32px 32px;
 }
 

@@ -72,7 +72,7 @@ async function enrichWithAnthropic(
   );
   const uniqueCodes = [...codeIndex.values()];
 
-  const prompt = `Sei l'agente di pulizia catalogo ricambi di aestima (macchine packaging / Vallmec).
+  const prompt = `Sei l'agente di pulizia catalogo ricambi di aftercore (macchine packaging / Vallmec).
 Analizza questi articoli e proponi SOLO:
 1) possibili sostituzioni vecchio→nuovo (stesso pezzo in versioni diverse / fuori produzione)
 2) categoria per articoli senza categoria

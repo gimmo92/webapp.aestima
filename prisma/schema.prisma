@@ -1,4 +1,4 @@
-// Prisma schema — aestima multi-tenant (company-scoped)
+// Prisma schema — aftercore multi-tenant (company-scoped)
 
 generator client {
   provider = "prisma-client"

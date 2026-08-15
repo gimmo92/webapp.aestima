@@ -19,10 +19,10 @@ export function RegisterForm() {
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-md flex-col justify-center px-5 py-10">
       <div className="mb-8 text-center">
-        <Logo className="justify-center" />
+        <Logo className="justify-center" height={40} />
         <h1 className="mt-6 text-2xl font-bold text-ink">Crea la tua company</h1>
         <p className="mt-2 text-sm text-ink-muted">
-          Registra l&apos;azienda e diventa owner del workspace aestima.
+          Registra l&apos;azienda e diventa owner del workspace aftercore.
         </p>
       </div>
 

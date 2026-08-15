@@ -122,7 +122,7 @@ export const MOCK_TECHNICIANS: Technician[] = [
   {
     id: "tech-001",
     name: "Luca Moretti",
-    email: "l.moretti@aestima.demo",
+    email: "l.moretti@aftercore.demo",
     phone: "393471234567",
     capabilities: ["sollevamento", "montaggio"],
     region: "Veneto · Nord-Est",
@@ -131,7 +131,7 @@ export const MOCK_TECHNICIANS: Technician[] = [
   {
     id: "tech-002",
     name: "Marco Ferretti",
-    email: "m.ferretti@aestima.demo",
+    email: "m.ferretti@aftercore.demo",
     phone: "393489876543",
     capabilities: ["sollevamento", "idraulica"],
     region: "Veneto · Lombardia",
@@ -139,7 +139,7 @@ export const MOCK_TECHNICIANS: Technician[] = [
   {
     id: "tech-003",
     name: "Andrea Bassi",
-    email: "a.bassi@aestima.demo",
+    email: "a.bassi@aftercore.demo",
     phone: "393331112233",
     capabilities: ["rettifica", "montaggio"],
     region: "Emilia-Romagna",
@@ -148,7 +148,7 @@ export const MOCK_TECHNICIANS: Technician[] = [
   {
     id: "tech-004",
     name: "Silvia Conti",
-    email: "s.conti@aestima.demo",
+    email: "s.conti@aftercore.demo",
     phone: "393345678901",
     capabilities: ["cnc", "elettrica"],
     region: "Veneto · Triveneto",
@@ -157,7 +157,7 @@ export const MOCK_TECHNICIANS: Technician[] = [
   {
     id: "tech-005",
     name: "Giuseppe Riva",
-    email: "g.riva@aestima.demo",
+    email: "g.riva@aftercore.demo",
     phone: "393356789012",
     capabilities: ["fresatura", "montaggio", "idraulica"],
     region: "Nord Italia",
@@ -166,7 +166,7 @@ export const MOCK_TECHNICIANS: Technician[] = [
   {
     id: "tech-006",
     name: "Laura Santi",
-    email: "l.santi@aestima.demo",
+    email: "l.santi@aftercore.demo",
     phone: "393367890123",
     capabilities: ["elettrica", "cnc", "idraulica"],
     region: "Italia centrale",

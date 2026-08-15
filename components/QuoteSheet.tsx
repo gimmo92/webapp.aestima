@@ -26,8 +26,8 @@ export function QuoteSheet({ quote, customerName, serial }: Props) {
       {/* Intestazione */}
       <div className="flex flex-col gap-4 border-b-2 border-slate-200 bg-slate-50 px-8 py-6 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <div className="mb-2 [&_span]:!text-slate-900">
-            <Logo />
+          <div className="mb-2">
+            <Logo height={36} />
           </div>
           <p className="text-sm font-medium text-slate-500">{COMPANY.tagline}</p>
           <div className="mt-2 text-xs leading-relaxed text-slate-500">

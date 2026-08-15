@@ -30,7 +30,7 @@ const DOC_TYPES: DocType[] = [
   "foto",
 ];
 
-const SYSTEM_PROMPT = `Sei l'agente di organizzazione documentale di "aestima" per il settore ricambi industriali after-sales.
+const SYSTEM_PROMPT = `Sei l'agente di organizzazione documentale di "aftercore" per il settore ricambi industriali after-sales.
 Ricevi un elenco di file (nome + breve anteprima del contenuto) e devi classificare il TIPO di ciascun documento.
 
 Tipi ammessi (usa esattamente queste stringhe): "disegno", "distinta", "catalogo", "offerta", "manuale", "foto".

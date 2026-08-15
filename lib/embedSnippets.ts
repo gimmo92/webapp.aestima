@@ -14,12 +14,12 @@ export function buildEmbedSnippet(baseUrl: string, mode: EmbedMode): string {
   async
 ></script>`;
   }
-  return `<div id="aestima-chat-wide"></div>
+  return `<div id="aftercore-chat-wide"></div>
 <script
   src="${baseUrl}/embed.js"
   data-mode="wide"
   data-base-url="${baseUrl}"
-  data-container="aestima-chat-wide"
+  data-container="aftercore-chat-wide"
   data-height="640"
   async
 ></script>`;

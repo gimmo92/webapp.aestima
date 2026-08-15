@@ -1,8 +1,8 @@
 {
-  "name": "aestima-demo",
+  "name": "aftercore-demo",
   "version": "0.1.0",
   "private": true,
-  "description": "Demo commerciale di aestima: un agente AI che trasforma una richiesta di ricambio in un preventivo pronto.",
+  "description": "Demo commerciale di aftercore: un agente AI che trasforma una richiesta di ricambio in un preventivo pronto.",
   "scripts": {
     "dev": "next dev",
     "build": "prisma generate && next build",

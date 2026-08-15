@@ -1,5 +1,5 @@
 // =============================================================
-// Tipi condivisi della demo aestima
+// Tipi condivisi della demo aftercore
 // =============================================================
 
 /** Disponibilità simulata a magazzino di un componente. */

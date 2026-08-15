@@ -40,7 +40,7 @@ function buildSystemPrompt(
   kbSearchBlock: string
 ): string {
   const kbContext = formatKnowledgeForPrompt(knowledgeBase);
-  return `Sei l'agente di assistenza service after-sales di "aestima".
+  return `Sei l'agente di assistenza service after-sales di "aftercore".
 Parli in italiano, tono professionale e chiaro, come un tecnico esperto ma accessibile.
 
 ## FLUSSO OBBLIGATORIO

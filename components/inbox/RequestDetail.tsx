@@ -19,7 +19,7 @@ import { TechnicianPickerModal } from "@/components/technicians/TechnicianPicker
 import { TechnicianAssignmentStatusPill } from "@/components/technicians/TechnicianBadges";
 import { TechnicianContactButtons } from "@/components/technicians/TechnicianContactButtons";
 
-// COLONNA DESTRA — dettaglio richiesta + pannello agente aestima.
+// COLONNA DESTRA — dettaglio richiesta + pannello agente aftercore.
 
 interface Props {
   request: PartRequest | null;

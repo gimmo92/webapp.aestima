@@ -47,7 +47,7 @@ const WELCOME: DisplayMessage = {
   id: "welcome",
   role: "assistant",
   content:
-    "Buongiorno, sono l'assistente service di aestima. Posso aiutarti a identificare ricambi nella distinta della tua macchina o a trovare soluzioni a malfunzionamenti già risoliti in passato.\n\nScegli un'opzione qui sotto, allega foto o documenti, oppure scrivi liberamente.",
+    "Buongiorno, sono l'assistente service di aftercore. Posso aiutarti a identificare ricambi nella distinta della tua macchina o a trovare soluzioni a malfunzionamenti già risoliti in passato.\n\nScegli un'opzione qui sotto, allega foto o documenti, oppure scrivi liberamente.",
   quickReplies: WELCOME_QUICK_REPLIES,
 };
 
@@ -988,7 +988,7 @@ function MessageBubble({
               ? "Sistema"
               : message.isOperatorReply
                 ? "Operatore"
-                : "Assistente aestima"}
+                : "Assistente aftercore"}
           </p>
         )}
         {message.content && (
@@ -1045,7 +1045,7 @@ function TypingIndicator({ kbSearch = false }: { kbSearch?: boolean }) {
         ].join(" ")}
       >
         <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-brand">
-          Assistente aestima
+          Assistente aftercore
         </p>
         <div className="flex items-center gap-1.5">
           {[0, 1, 2].map((i) => (

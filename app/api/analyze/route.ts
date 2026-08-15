@@ -21,7 +21,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 // System prompt: istruisce Claude a fare estrazione strutturata.
-const SYSTEM_PROMPT = `Sei l'agente di analisi di "aestima", un sistema che aiuta i tecnici del ricambistica industriale.
+const SYSTEM_PROMPT = `Sei l'agente di analisi di "aftercore", un sistema che aiuta i tecnici del ricambistica industriale.
 Ricevi una richiesta di ricambio scritta da un cliente in linguaggio naturale (spesso vaga, senza codici).
 Il tuo compito è ESTRARRE le informazioni chiave e restituirle in JSON.
 

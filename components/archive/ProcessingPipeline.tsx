@@ -61,7 +61,7 @@ export function ProcessingPipeline({ files, apiDone, onComplete, source }: Props
         </div>
       </div>
 
-      <h2 className="text-xl font-bold text-ink">aestima sta organizzando l&apos;archivio…</h2>
+      <h2 className="text-xl font-bold text-ink">aftercore sta organizzando l&apos;archivio…</h2>
       <p className="mt-1 text-sm text-ink-muted">
         {source === "anthropic"
           ? "Classificazione in corso con Claude (Anthropic)"

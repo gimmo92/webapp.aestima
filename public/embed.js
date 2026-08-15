@@ -1,5 +1,5 @@
 /**
- * aestima — loader embed assistenza service
+ * aftercore — loader embed assistenza service
  * Modalità: data-mode="bubble" | "wide"
  *
  * In produzione impostare data-base-url al dominio di deploy del cliente.
@@ -16,7 +16,7 @@
     try {
       baseUrl = new URL(script.src).origin;
     } catch (e) {
-      console.error("[aestima embed] data-base-url mancante");
+      console.error("[aftercore embed] data-base-url mancante");
       return;
     }
   }
@@ -29,9 +29,9 @@
   var height = parseInt(script.getAttribute("data-height") || "640", 10);
   var position = script.getAttribute("data-position") || "bottom-right";
   var zIndex = script.getAttribute("data-z-index") || "999999";
-  var brandColor = script.getAttribute("data-color") || "#2f81f7";
+  var brandColor = script.getAttribute("data-color") || "#0096d6";
 
-  var iframeTitle = "Assistenza service aestima";
+  var iframeTitle = "Assistenza service aftercore";
 
   function createIframe(extraStyle) {
     var iframe = document.createElement("iframe");
@@ -60,7 +60,7 @@
 
     if (!container) {
       container = document.createElement("div");
-      container.id = containerId || "aestima-chat-wide";
+      container.id = containerId || "aftercore-chat-wide";
       script.parentNode.insertBefore(container, script.nextSibling);
     }
 
@@ -104,7 +104,7 @@
     "font-family:system-ui,sans-serif;font-size:12px;font-weight:600;";
 
   var panelTitle = document.createElement("span");
-  panelTitle.textContent = "Assistenza aestima";
+  panelTitle.textContent = "Assistenza aftercore";
 
   var closeBtn = document.createElement("button");
   closeBtn.type = "button";
@@ -134,7 +134,7 @@
     brandColor +
     ";color:#fff;font-size:22px;z-index:" +
     zIndex +
-    ";box-shadow:0 8px 24px rgba(47,129,247,0.35);display:flex;align-items:center;justify-content:center;";
+    ";box-shadow:0 8px 24px rgba(0,150,214,0.35);display:flex;align-items:center;justify-content:center;";
 
   launcher.innerHTML =
     '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">' +

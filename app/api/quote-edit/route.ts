@@ -24,7 +24,7 @@ import type { Quote, QuoteLine } from "@/lib/types";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const SYSTEM_PROMPT = `Sei l'agente di "aestima" che aiuta un tecnico a modificare un PREVENTIVO di ricambi industriali.
+const SYSTEM_PROMPT = `Sei l'agente di "aftercore" che aiuta un tecnico a modificare un PREVENTIVO di ricambi industriali.
 Ricevi il preventivo attuale in JSON e un'istruzione in italiano dell'operatore.
 Applica l'istruzione e restituisci SOLO i campi editabili aggiornati.
 

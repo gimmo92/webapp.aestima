@@ -1,6 +1,6 @@
 import type { FileClassification, FileExt, SourceFile } from "./archiveTypes";
 
-const IDB_NAME = "aestima-archive";
+const IDB_NAME = "aftercore-archive";
 const IDB_STORE = "files";
 const IDB_VERSION = 1;
 

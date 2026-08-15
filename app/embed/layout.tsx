@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 // Layout embed: consentito in iframe su siti esterni (demo / widget cliente).
 export const metadata: Metadata = {
-  title: "Embed assistenza — aestima",
+  title: "Embed assistenza — aftercore",
   robots: { index: false, follow: false },
 };
 

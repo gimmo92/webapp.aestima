@@ -72,7 +72,7 @@ export const MOCK_CONVERSATIONS: ConversationRecord[] = [
       msg(
         "m1",
         "assistant",
-        "Buongiorno, sono l'assistente service di aestima. Posso aiutarti a identificare ricambi o risolvere malfunzionamenti. Come posso aiutarti?",
+        "Buongiorno, sono l'assistente service di aftercore. Posso aiutarti a identificare ricambi o risolvere malfunzionamenti. Come posso aiutarti?",
         "14:18"
       ),
       msg(

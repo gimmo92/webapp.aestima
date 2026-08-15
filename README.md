@@ -1,11 +1,11 @@
-# aestima — Demo
+# aftercore — Demo
 
 > Un agente AI che trasforma una **richiesta di ricambio in linguaggio naturale** in un **preventivo pronto**.
 > Prototipo per **demo commerciali** (non è il prodotto di produzione).
 
 Design **dark, professionale, industriale**. Costruito con **Next.js 15 (App Router) + TypeScript + Tailwind CSS**, pronto per il deploy su **Vercel**.
 
-> **L'approvazione finale resta al tecnico** / **aestima prepara, l'operatore approva e invia.** Nessun invio automatico.
+> **L'approvazione finale resta al tecnico** / **aftercore prepara, l'operatore approva e invia.** Nessun invio automatico.
 
 ## Due viste della demo
 
@@ -26,7 +26,7 @@ Layout a **tre colonne**, in stile inbox unificata (ispirato a Instantly) ma per
 
 - **Sinistra — Stati & labeling.** Gli 8 stati della richiesta (_Nuova, Da identificare, Identificata, Preventivo pronto, Inviata al cliente, In attesa fornitore, Chiusa/Vinta, Persa_) con contatore e colore, cliccabili per filtrare. Sotto: filtro per **etichette custom** e casella di **ricerca**.
 - **Centro — Lista richieste.** Elenco stile email (cliente, oggetto, anteprima, data, indicatore di stato, etichette) con tab **Primarie / Altre**.
-- **Destra — Dettaglio + agente.** Email originale, dropdown per **cambiare stato**, pulsanti **Sposta / Etichetta / Altro**, la sezione **"Analisi aestima"** (ricambio identificato, disponibilità, prezzo; se il pezzo manca → **bozza richiesta fornitore**) e una **bozza di risposta al cliente** in stato _da approvare_ con **"Approva e invia"** (azione dell'operatore).
+- **Destra — Dettaglio + agente.** Email originale, dropdown per **cambiare stato**, pulsanti **Sposta / Etichetta / Altro**, la sezione **"Analisi aftercore"** (ricambio identificato, disponibilità, prezzo; se il pezzo manca → **bozza richiesta fornitore**) e una **bozza di risposta al cliente** in stato _da approvare_ con **"Approva e invia"** (azione dell'operatore).
 
 **Labeling** (cuore della dashboard): assegnare/cambiare stato, applicare **più etichette**, **crearne di nuove** al volo; i contatori si aggiornano in tempo reale.
 
@@ -38,10 +38,10 @@ Layout a **tre colonne**, in stile inbox unificata (ispirato a Instantly) ma per
 
 L'agente di **organizzazione documentale** trasforma una cartella cloud disordinata in un archivio strutturato e interrogabile — mostra il **prima → dopo**:
 
-- **Sorgente** — file browser con file dai nomi caotici (`scan_0042.pdf`, `distinta_rev_finale_OK.xlsx`, `IMG_20190312.jpg`, `disegno vecchio.dwg`, …) con tipo, dimensione, data e pulsante **"Organizza con aestima"**.
+- **Sorgente** — file browser con file dai nomi caotici (`scan_0042.pdf`, `distinta_rev_finale_OK.xlsx`, `IMG_20190312.jpg`, `disegno vecchio.dwg`, …) con tipo, dimensione, data e pulsante **"Organizza con aftercore"**.
 - **Elaborazione** — pipeline a 4 stadi (_Classificazione → Estrazione metadati → Collegamento → Indicizzazione_) con il tipo riconosciuto che appare accanto a ogni file. Se `ANTHROPIC_API_KEY` è impostata, il **tipo** è classificato davvero da Claude (route `POST /api/classify`); altrimenti fallback mock.
 - **Archivio organizzato** — documenti raggruppati per **Macchina** e, dentro ogni macchina, per **tipo** (disegni, distinta, manuale, offerte, foto…), con metadati estratti (codice, revisione) e **badge di confidenza**. Barra di **ricerca** per interrogare l'archivio.
-- **Coda "Da verificare"** (human-in-the-loop) — 1-2 file a bassa confidenza dove l'agente non è sicuro (es. _"Questo disegno sembra appartenere a MX-450, confermi?"_) con **Conferma / Correggi**. Messaggio: _"aestima propone, l'operatore conferma — e il sistema impara."_
+- **Coda "Da verificare"** (human-in-the-loop) — 1-2 file a bassa confidenza dove l'agente non è sicuro (es. _"Questo disegno sembra appartenere a MX-450, confermi?"_) con **Conferma / Correggi**. Messaggio: _"aftercore propone, l'operatore conferma — e il sistema impara."_
 
 > **Mock, in memoria.** I file di esempio sono in `lib/archiveData.ts` (12 file, 2-3 macchine, 2 a bassa confidenza). In produzione l'agente si collegherebbe a una **cartella cloud reale** (Google Drive / SharePoint / Dropbox via API) e l'archivio sarebbe persistito su database.
 
@@ -152,7 +152,7 @@ vercel --prod     # deploy in produzione
 │   └── demo/page.tsx            # Demo flusso: orchestrazione dei 4 step
 ├── components/
 │   ├── Header.tsx               # Barra superiore (demo flusso) con link alla dashboard
-│   ├── Logo.tsx                 # Logo aestima placeholder (SVG)
+│   ├── Logo.tsx                 # Lockup aftercore (PNG ufficiale)
 │   ├── Stepper.tsx              # Indicatore di avanzamento
 │   ├── RequestInput.tsx         # Step 1 — input richiesta + allegato simulato
 │   ├── ProcessingAnimation.tsx  # Step 2 — animazione agente
@@ -165,7 +165,7 @@ vercel --prod     # deploy in produzione
 │       ├── StatusSidebar.tsx    # Colonna sx — stati, etichette, ricerca
 │       ├── RequestList.tsx      # Colonna centro — lista richieste + tab
 │       ├── RequestDetail.tsx    # Colonna dx — dettaglio, stato, etichette
-│       ├── AgentPanel.tsx       # Analisi aestima + bozze modificabili
+│       ├── AgentPanel.tsx       # Analisi aftercore + bozze modificabili
 │       ├── PipelineBoard.tsx    # Board Kanban delle offerte (drag & drop)
 │       ├── StatusPill.tsx       # Badge/dot di stato (colori inline)
 │       └── LabelChip.tsx        # Chip etichetta custom

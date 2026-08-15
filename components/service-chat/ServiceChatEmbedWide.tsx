@@ -44,7 +44,7 @@ export function ServiceChatEmbedWide({
   return (
     <iframe
       src={iframeSrc}
-      title="Assistenza service aestima"
+      title="Assistenza service aftercore"
       className={["w-full border-0", className].join(" ")}
       style={{ height }}
       allow="clipboard-write"

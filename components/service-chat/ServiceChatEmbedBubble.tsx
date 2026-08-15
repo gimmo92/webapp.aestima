@@ -65,11 +65,11 @@ export function ServiceChatEmbedBubble({
             maxHeight: "calc(100vh - 6rem)",
           }}
           role="dialog"
-          aria-label="Assistenza service aestima"
+          aria-label="Assistenza service aftercore"
         >
           <div className="flex items-center justify-between border-b border-border bg-surface px-3 py-2">
             <span className="text-xs font-semibold text-ink">
-              Assistenza aestima
+              Assistenza aftercore
             </span>
             <button
               type="button"
@@ -93,7 +93,7 @@ export function ServiceChatEmbedBubble({
             ) : (
               <iframe
                 src={iframeSrc}
-                title="Chat assistenza aestima"
+                title="Chat assistenza aftercore"
                 className="h-full w-full border-0"
                 allow="clipboard-write"
               />

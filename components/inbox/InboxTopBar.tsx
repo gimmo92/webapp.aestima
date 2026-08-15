@@ -229,7 +229,7 @@ export function InboxTopBar({
   return (
     <header className="flex shrink-0 items-center justify-between gap-4 border-b border-border bg-surface/70 px-5 py-3 backdrop-blur-md">
       <div className="flex min-w-0 flex-1 items-center gap-5">
-        <Logo />
+        <Logo height={28} />
         <nav className="flex items-center gap-1 overflow-x-auto">
           {NAV.map((item) => {
             const active =

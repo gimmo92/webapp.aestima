@@ -73,7 +73,7 @@ export function SourceBrowser({
               <path d="M12 3v2m0 14v2m9-9h-2M5 12H3" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
               <circle cx="12" cy="12" r="3.4" stroke="currentColor" strokeWidth="1.7" />
             </svg>
-            Organizza con aestima
+            Organizza con aftercore
           </button>
         )}
         {compact && !onOrganize && (
