@@ -33,7 +33,7 @@ export function TicketBanner({ ticket }: { ticket: ServiceTicket }) {
           <p className="mt-2 text-xs text-ink-faint">
             Tempo medio di risposta: entro 4 ore lavorative ·{" "}
             <Link
-              href={`/ticket?id=${encodeURIComponent(ticket.id)}`}
+              href={`/ticket/lista?id=${encodeURIComponent(ticket.id)}`}
               className="font-medium text-brand hover:underline"
             >
               Vedi ticket →

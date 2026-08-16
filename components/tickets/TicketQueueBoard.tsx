@@ -88,7 +88,7 @@ export function TicketQueueBoard() {
                         }}
                         onClick={() =>
                           router.push(
-                            `/ticket?id=${encodeURIComponent(t.id)}`
+                            `/ticket/lista?id=${encodeURIComponent(t.id)}`
                           )
                         }
                         className={[

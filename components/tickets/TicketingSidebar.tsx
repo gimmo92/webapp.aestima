@@ -6,8 +6,24 @@ import { usePathname } from "next/navigation";
 const ITEMS = [
   {
     href: "/ticket",
-    label: "Lista ticket",
+    label: "Dashboard",
     match: (path: string) => path === "/ticket",
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path
+          d="M4 4h7v7H4zM13 4h7v4h-7zM13 10h7v10h-7zM4 13h7v7H4z"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinejoin="round"
+        />
+      </svg>
+    ),
+  },
+  {
+    href: "/ticket/lista",
+    label: "Lista ticket",
+    match: (path: string) =>
+      path === "/ticket/lista" || path.startsWith("/ticket/lista/"),
     icon: (
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
         <path

@@ -126,7 +126,7 @@ export function RequestDetail({
         },
       ],
     });
-    router.push(`/ticket?id=${encodeURIComponent(ticketId)}`);
+    router.push(`/ticket/lista?id=${encodeURIComponent(ticketId)}`);
   };
 
   if (!request) {

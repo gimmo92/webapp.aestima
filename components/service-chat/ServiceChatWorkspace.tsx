@@ -672,7 +672,7 @@ export function ServiceChatWorkspace({
               {!embed && <EmbedCodeButtons />}
               {existingTicketId ? (
                 <Link
-                  href={`/ticket?id=${encodeURIComponent(existingTicketId)}`}
+                  href={`/ticket/lista?id=${encodeURIComponent(existingTicketId)}`}
                   className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-brand/40 bg-brand-soft px-3 py-2 text-xs font-semibold text-brand transition-colors hover:bg-brand/20"
                 >
                   <svg

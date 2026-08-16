@@ -490,7 +490,7 @@ function ConversationPanel({
         <div className="flex shrink-0 items-center gap-2">
           {conversation.ticketId ? (
             <Link
-              href={`/ticket?id=${encodeURIComponent(conversation.ticketId)}`}
+              href={`/ticket/lista?id=${encodeURIComponent(conversation.ticketId)}`}
               className="inline-flex items-center gap-1.5 rounded-lg border border-brand/40 bg-brand-soft px-2.5 py-1.5 text-xs font-semibold text-brand hover:bg-brand/20"
             >
               {conversation.ticketId}
