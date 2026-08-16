@@ -20,6 +20,16 @@ function asOptString(v: unknown) {
   return t ? t : null;
 }
 
+async function asCompanyUserId(companyId: string, v: unknown) {
+  const id = asOptString(v);
+  if (!id) return null;
+  const user = await prisma.user.findFirst({
+    where: { id, companyId },
+    select: { id: true },
+  });
+  return user?.id ?? null;
+}
+
 /** Applica una mutazione workspace scoped alla company. */
 export async function applyWorkspaceMutation(
   companyId: string,
@@ -259,6 +269,7 @@ export async function applyWorkspaceMutation(
           name: asString(p.name),
           email: asString(p.email),
           contact: asOptString(p.contact),
+          contactUserId: await asCompanyUserId(companyId, p.contactUserId),
           phone: asOptString(p.phone),
           categories: (p.categories as string[]) ?? [],
           notes: asOptString(p.notes),
@@ -274,6 +285,7 @@ export async function applyWorkspaceMutation(
           name: asString(p.name),
           email: asString(p.email),
           contact: asOptString(p.contact),
+          contactUserId: await asCompanyUserId(companyId, p.contactUserId),
           phone: asOptString(p.phone),
           categories: (p.categories as string[]) ?? [],
           notes: asOptString(p.notes),
@@ -294,6 +306,7 @@ export async function applyWorkspaceMutation(
           companyId,
           name: asString(p.name),
           contactName: asOptString(p.contactName),
+          contactUserId: await asCompanyUserId(companyId, p.contactUserId),
           email: asOptString(p.email),
           phone: asOptString(p.phone),
           vat: asOptString(p.vat),
@@ -310,6 +323,7 @@ export async function applyWorkspaceMutation(
         data: {
           name: asString(p.name),
           contactName: asOptString(p.contactName),
+          contactUserId: await asCompanyUserId(companyId, p.contactUserId),
           email: asOptString(p.email),
           phone: asOptString(p.phone),
           vat: asOptString(p.vat),

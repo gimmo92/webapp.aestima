@@ -24,6 +24,7 @@ export interface Supplier {
   email: string;
   /** Referente commerciale / tecnico. */
   contact?: string;
+  contactUserId?: string;
   phone?: string;
   /** Categorie o specializzazioni (es. "Pneumatica", "Cuscinetti"). */
   categories: string[];

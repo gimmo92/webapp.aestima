@@ -1,3 +1,5 @@
+import type { CompanyUserOption } from "@/lib/companyUsers";
+
 export function Field({
   label,
   children,
@@ -15,3 +17,28 @@ export function Field({
 
 export const inputClass =
   "w-full rounded-xl border border-border bg-base px-3 py-2.5 text-sm text-ink outline-none focus:border-brand focus:ring-2 focus:ring-brand/20 disabled:opacity-60";
+
+export function UserContactSelect({
+  users,
+  value,
+  onChange,
+}: {
+  users: CompanyUserOption[];
+  value: string;
+  onChange: (userId: string) => void;
+}) {
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className={inputClass}
+    >
+      <option value="">Nessun referente</option>
+      {users.map((u) => (
+        <option key={u.id} value={u.id}>
+          {u.name} · {u.email}
+        </option>
+      ))}
+    </select>
+  );
+}

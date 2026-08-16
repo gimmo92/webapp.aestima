@@ -2,6 +2,7 @@ export interface Customer {
   id: string;
   name: string;
   contactName?: string;
+  contactUserId?: string;
   email?: string;
   phone?: string;
   vat?: string;

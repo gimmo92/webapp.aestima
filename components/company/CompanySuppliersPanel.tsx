@@ -3,7 +3,12 @@
 import { useMemo, useState } from "react";
 import { useInbox } from "@/components/inbox/InboxProvider";
 import type { Supplier, SupplierInput } from "@/lib/supplierTypes";
-import { Field, inputClass } from "./formFields";
+import {
+  resolveContactUserId,
+  userContactLabel,
+  type CompanyUserOption,
+} from "@/lib/companyUsers";
+import { Field, inputClass, UserContactSelect } from "./formFields";
 
 const EMPTY: SupplierInput = {
   name: "",
@@ -14,7 +19,13 @@ const EMPTY: SupplierInput = {
   notes: "",
 };
 
-export function CompanySuppliersPanel({ canManage }: { canManage: boolean }) {
+export function CompanySuppliersPanel({
+  canManage,
+  users,
+}: {
+  canManage: boolean;
+  users: CompanyUserOption[];
+}) {
   const { suppliers, addSupplier, updateSupplier, deleteSupplier } = useInbox();
   const [query, setQuery] = useState("");
   const [editing, setEditing] = useState<Supplier | "new" | null>(null);
@@ -23,11 +34,18 @@ export function CompanySuppliersPanel({ canManage }: { canManage: boolean }) {
     const q = query.trim().toLowerCase();
     if (!q) return suppliers;
     return suppliers.filter((s) =>
-      [s.name, s.email, s.contact, s.phone, s.notes, ...(s.categories ?? [])]
+      [
+        s.name,
+        s.email,
+        userContactLabel(users, s.contactUserId, s.contact),
+        s.phone,
+        s.notes,
+        ...(s.categories ?? []),
+      ]
         .filter(Boolean)
         .some((v) => v!.toLowerCase().includes(q))
     );
-  }, [suppliers, query]);
+  }, [suppliers, query, users]);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -78,7 +96,9 @@ export function CompanySuppliersPanel({ canManage }: { canManage: boolean }) {
                     <p className="mt-0.5 line-clamp-1 text-xs text-ink-faint">{s.notes}</p>
                   )}
                 </td>
-                <td className="px-5 py-3 text-ink-muted">{s.contact || "—"}</td>
+                <td className="px-5 py-3 text-ink-muted">
+                  {userContactLabel(users, s.contactUserId, s.contact) || "—"}
+                </td>
                 <td className="px-5 py-3 text-ink-muted">
                   <div>{s.email}</div>
                   {s.phone && <div className="text-xs text-ink-faint">{s.phone}</div>}
@@ -138,6 +158,7 @@ export function CompanySuppliersPanel({ canManage }: { canManage: boolean }) {
       {editing && (
         <SupplierFormModal
           supplier={editing === "new" ? null : editing}
+          users={users}
           onClose={() => setEditing(null)}
           onSave={(input) => {
             if (editing === "new") addSupplier(input);
@@ -152,10 +173,12 @@ export function CompanySuppliersPanel({ canManage }: { canManage: boolean }) {
 
 function SupplierFormModal({
   supplier,
+  users,
   onClose,
   onSave,
 }: {
   supplier: Supplier | null;
+  users: CompanyUserOption[];
   onClose: () => void;
   onSave: (input: SupplierInput) => void;
 }) {
@@ -164,7 +187,11 @@ function SupplierFormModal({
       ? {
           name: supplier.name,
           email: supplier.email,
-          contact: supplier.contact ?? "",
+          contactUserId: resolveContactUserId(
+            users,
+            supplier.contactUserId,
+            supplier.contact
+          ),
           phone: supplier.phone ?? "",
           categories: supplier.categories.join("; "),
           notes: supplier.notes ?? "",
@@ -172,7 +199,7 @@ function SupplierFormModal({
       : {
           name: EMPTY.name,
           email: EMPTY.email,
-          contact: "",
+          contactUserId: "",
           phone: "",
           categories: "",
           notes: "",
@@ -181,10 +208,13 @@ function SupplierFormModal({
 
   const save = () => {
     if (!form.name.trim() || !form.email.trim()) return;
+    const contactUserId = form.contactUserId.trim() || undefined;
+    const contact = userContactLabel(users, contactUserId) || undefined;
     onSave({
       name: form.name.trim(),
       email: form.email.trim(),
-      contact: form.contact.trim() || undefined,
+      contact,
+      contactUserId,
       phone: form.phone.trim() || undefined,
       categories: form.categories
         .split(/[;,]/)
@@ -237,10 +267,10 @@ function SupplierFormModal({
             />
           </Field>
           <Field label="Referente">
-            <input
-              value={form.contact}
-              onChange={(e) => setForm((p) => ({ ...p, contact: e.target.value }))}
-              className={inputClass}
+            <UserContactSelect
+              users={users}
+              value={form.contactUserId}
+              onChange={(id) => setForm((p) => ({ ...p, contactUserId: id }))}
             />
           </Field>
           <Field label="Categorie (separate da ; )">

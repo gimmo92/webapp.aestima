@@ -3,11 +3,17 @@
 import { useMemo, useState } from "react";
 import { useInbox } from "@/components/inbox/InboxProvider";
 import type { Customer, CustomerInput } from "@/lib/customerTypes";
-import { Field, inputClass } from "./formFields";
+import {
+  resolveContactUserId,
+  userContactLabel,
+  type CompanyUserOption,
+} from "@/lib/companyUsers";
+import { Field, inputClass, UserContactSelect } from "./formFields";
 
 const EMPTY: CustomerInput = {
   name: "",
   contactName: "",
+  contactUserId: "",
   email: "",
   phone: "",
   vat: "",
@@ -16,7 +22,13 @@ const EMPTY: CustomerInput = {
   notes: "",
 };
 
-export function CompanyCustomersPanel({ canManage }: { canManage: boolean }) {
+export function CompanyCustomersPanel({
+  canManage,
+  users,
+}: {
+  canManage: boolean;
+  users: CompanyUserOption[];
+}) {
   const { customers, addCustomer, updateCustomer, deleteCustomer } = useInbox();
   const [query, setQuery] = useState("");
   const [editing, setEditing] = useState<Customer | "new" | null>(null);
@@ -25,11 +37,18 @@ export function CompanyCustomersPanel({ canManage }: { canManage: boolean }) {
     const q = query.trim().toLowerCase();
     if (!q) return customers;
     return customers.filter((c) =>
-      [c.name, c.contactName, c.email, c.phone, c.vat, c.city]
+      [
+        c.name,
+        userContactLabel(users, c.contactUserId, c.contactName),
+        c.email,
+        c.phone,
+        c.vat,
+        c.city,
+      ]
         .filter(Boolean)
         .some((v) => v!.toLowerCase().includes(q))
     );
-  }, [customers, query]);
+  }, [customers, query, users]);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -81,7 +100,9 @@ export function CompanyCustomersPanel({ canManage }: { canManage: boolean }) {
                     <p className="mt-0.5 line-clamp-1 text-xs text-ink-faint">{c.notes}</p>
                   )}
                 </td>
-                <td className="px-5 py-3 text-ink-muted">{c.contactName || "—"}</td>
+                <td className="px-5 py-3 text-ink-muted">
+                  {userContactLabel(users, c.contactUserId, c.contactName) || "—"}
+                </td>
                 <td className="px-5 py-3 text-ink-muted">
                   <div>{c.email || "—"}</div>
                   {c.phone && <div className="text-xs text-ink-faint">{c.phone}</div>}
@@ -130,6 +151,7 @@ export function CompanyCustomersPanel({ canManage }: { canManage: boolean }) {
       {editing && (
         <CustomerFormModal
           customer={editing === "new" ? null : editing}
+          users={users}
           onClose={() => setEditing(null)}
           onSave={(input) => {
             if (editing === "new") addCustomer(input);
@@ -144,10 +166,12 @@ export function CompanyCustomersPanel({ canManage }: { canManage: boolean }) {
 
 function CustomerFormModal({
   customer,
+  users,
   onClose,
   onSave,
 }: {
   customer: Customer | null;
+  users: CompanyUserOption[];
   onClose: () => void;
   onSave: (input: CustomerInput) => void;
 }) {
@@ -156,6 +180,11 @@ function CustomerFormModal({
       ? {
           name: customer.name,
           contactName: customer.contactName ?? "",
+          contactUserId: resolveContactUserId(
+            users,
+            customer.contactUserId,
+            customer.contactName
+          ),
           email: customer.email ?? "",
           phone: customer.phone ?? "",
           vat: customer.vat ?? "",
@@ -171,9 +200,12 @@ function CustomerFormModal({
 
   const save = () => {
     if (!form.name.trim()) return;
+    const contactUserId = form.contactUserId?.trim() || undefined;
+    const contactName = userContactLabel(users, contactUserId) || undefined;
     onSave({
       name: form.name.trim(),
-      contactName: form.contactName?.trim() || undefined,
+      contactName,
+      contactUserId,
       email: form.email?.trim() || undefined,
       phone: form.phone?.trim() || undefined,
       vat: form.vat?.trim() || undefined,
@@ -211,10 +243,10 @@ function CustomerFormModal({
             </Field>
           </div>
           <Field label="Referente">
-            <input
-              value={form.contactName ?? ""}
-              onChange={(e) => set("contactName", e.target.value)}
-              className={inputClass}
+            <UserContactSelect
+              users={users}
+              value={form.contactUserId ?? ""}
+              onChange={(id) => set("contactUserId", id)}
             />
           </Field>
           <Field label="P.IVA">

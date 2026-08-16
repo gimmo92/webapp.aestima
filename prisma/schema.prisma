@@ -48,6 +48,8 @@ model User {
   role         CompanyRole @default(MEMBER)
   companyId    String
   company      Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customerContacts Customer[] @relation("CustomerContact")
+  supplierContacts Supplier[] @relation("SupplierContact")
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
 
@@ -55,10 +57,12 @@ model User {
 }
 
 model Customer {
-  id          String   @id @default(cuid())
-  companyId   String
-  name        String
-  contactName String?
+  id            String   @id @default(cuid())
+  companyId     String
+  name          String
+  contactName   String?
+  contactUserId String?
+  contactUser   User?    @relation("CustomerContact", fields: [contactUserId], references: [id], onDelete: SetNull)
   email       String?
   phone       String?
   vat         String?
@@ -210,9 +214,11 @@ model Supplier {
   id           String   @id @default(cuid())
   companyId    String
   name         String
-  email        String
-  contact      String?
-  phone        String?
+  email         String
+  contact       String?
+  contactUserId String?
+  contactUser   User?    @relation("SupplierContact", fields: [contactUserId], references: [id], onDelete: SetNull)
+  phone         String?
   categories   String[] @default([])
   notes        String?
   company      Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)

@@ -207,6 +207,7 @@ export function mapSupplier(row: {
   name: string;
   email: string;
   contact: string | null;
+  contactUserId?: string | null;
   phone?: string | null;
   categories: string[];
   notes: string | null;
@@ -216,6 +217,7 @@ export function mapSupplier(row: {
     name: row.name,
     email: row.email,
     contact: row.contact ?? undefined,
+    contactUserId: row.contactUserId ?? undefined,
     phone: row.phone ?? undefined,
     categories: row.categories,
     notes: row.notes ?? undefined,
@@ -226,6 +228,7 @@ export function mapCustomer(row: {
   id: string;
   name: string;
   contactName: string | null;
+  contactUserId?: string | null;
   email: string | null;
   phone: string | null;
   vat: string | null;
@@ -237,6 +240,7 @@ export function mapCustomer(row: {
     id: row.id,
     name: row.name,
     contactName: row.contactName ?? undefined,
+    contactUserId: row.contactUserId ?? undefined,
     email: row.email ?? undefined,
     phone: row.phone ?? undefined,
     vat: row.vat ?? undefined,
