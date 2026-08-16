@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { TicketEmbedForm } from "@/components/tickets/TicketEmbedForm";
+import { normalizeTicketForm } from "@/lib/ticketForm";
 
 export default async function EmbedTicketPage({
   searchParams,
@@ -10,7 +11,7 @@ export default async function EmbedTicketPage({
   const company = slug
     ? await prisma.company.findUnique({
         where: { slug },
-        select: { name: true, slug: true },
+        select: { name: true, slug: true, settingsJson: true },
       })
     : null;
 
@@ -26,7 +27,13 @@ export default async function EmbedTicketPage({
 
   return (
     <div className="min-h-dvh bg-base">
-      <TicketEmbedForm companySlug={company.slug} companyName={company.name} />
+      <TicketEmbedForm
+        companySlug={company.slug}
+        companyName={company.name}
+        config={normalizeTicketForm(
+          (company.settingsJson as { ticketForm?: unknown } | null)?.ticketForm
+        )}
+      />
     </div>
   );
 }

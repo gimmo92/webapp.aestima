@@ -60,6 +60,11 @@ import type {
   TicketStage,
   UpdateTicketInput,
 } from "@/lib/ticketTypes";
+import {
+  DEFAULT_TICKET_FORM,
+  normalizeTicketForm,
+  type TicketFormConfig,
+} from "@/lib/ticketForm";
 
 const TICKET_STAGES_STORAGE_KEY = "aftercore:ticket-stages:v1";
 
@@ -144,6 +149,10 @@ interface InboxContextValue {
   tickets: ServiceTicketRecord[];
   ticketStages: TicketStage[];
   setTicketStages: (stages: TicketStage[]) => void;
+  ticketForm: TicketFormConfig;
+  setTicketForm: (
+    config: TicketFormConfig | ((prev: TicketFormConfig) => TicketFormConfig)
+  ) => void;
   createTicket: (input: CreateTicketInput) => string;
   updateTicket: (id: string, input: UpdateTicketInput) => void;
   getTicketById: (id: string) => ServiceTicketRecord | undefined;
@@ -223,9 +232,15 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
   const [ticketStages, setTicketStagesState] = useState<TicketStage[]>(
     DEFAULT_TICKET_STAGES
   );
+  const [ticketForm, setTicketFormState] = useState<TicketFormConfig>(
+    DEFAULT_TICKET_FORM
+  );
   const [conversations, setConversations] = useState<ConversationRecord[]>([]);
   const conversationsHydratedRef = useRef(false);
   const cloudModeRef = useRef(false);
+  const ticketFormPersistTimer = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
   const [knowledgeBase, setKnowledgeBase] = useState<KnowledgeEntry[]>([]);
 
   useEffect(() => {
@@ -253,6 +268,7 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
         setKnowledgeBase(data.knowledgeBase ?? []);
         setTickets(data.tickets ?? []);
         setTicketStagesState(normalizeTicketStages(data.ticketStages));
+        setTicketFormState(normalizeTicketForm(data.ticketForm));
         setSuppliers(data.suppliers ?? []);
         setCustomers(data.customers ?? []);
         setCompanyUsers(data.companyUsers ?? []);
@@ -313,6 +329,25 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
           JSON.stringify(next)
         );
       }
+    },
+    [persist]
+  );
+
+  const setTicketForm = useCallback(
+    (
+      config: TicketFormConfig | ((prev: TicketFormConfig) => TicketFormConfig)
+    ) => {
+      setTicketFormState((prev) => {
+        const raw = typeof config === "function" ? config(prev) : config;
+        const next = normalizeTicketForm(raw);
+        if (ticketFormPersistTimer.current) {
+          clearTimeout(ticketFormPersistTimer.current);
+        }
+        ticketFormPersistTimer.current = setTimeout(() => {
+          persist("updateTicketForm", { config: next });
+        }, 400);
+        return next;
+      });
     },
     [persist]
   );
@@ -874,6 +909,8 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
         tickets,
         ticketStages,
         setTicketStages,
+        ticketForm,
+        setTicketForm,
         createTicket,
         updateTicket,
         getTicketById,

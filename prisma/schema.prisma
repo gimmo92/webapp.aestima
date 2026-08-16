@@ -217,6 +217,7 @@ model ServiceTicket {
   customerEmail        String?
   customerPhone        String?
   customerCompany      String?
+  formExtraJson        Json?
   createdLabel         String
   createdFull          String
   updatedFull          String

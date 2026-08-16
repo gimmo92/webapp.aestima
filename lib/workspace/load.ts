@@ -20,6 +20,10 @@ import type { ConversationRecord } from "@/lib/conversationTypes";
 import type { KnowledgeEntry } from "@/lib/knowledgeTypes";
 import type { ServiceTicketRecord, TicketStage } from "@/lib/ticketTypes";
 import { normalizeTicketStages } from "@/lib/ticketData";
+import {
+  normalizeTicketForm,
+  type TicketFormConfig,
+} from "@/lib/ticketForm";
 import type { Supplier, SupplierRequest } from "@/lib/supplierTypes";
 import type { Customer } from "@/lib/customerTypes";
 import type { CompanyUserOption } from "@/lib/companyUsers";
@@ -45,6 +49,7 @@ export type WorkspaceSnapshot = {
   archiveFiles: SourceFile[];
   spareParts: SparePart[];
   ticketStages: TicketStage[];
+  ticketForm: TicketFormConfig;
   customers: Customer[];
   companyUsers: CompanyUserOption[];
 };
@@ -180,6 +185,9 @@ export async function loadCompanyWorkspace(
     spareParts: spareParts.map(mapSparePart),
     ticketStages: normalizeTicketStages(
       (company.settingsJson as { ticketStages?: unknown } | null)?.ticketStages
+    ),
+    ticketForm: normalizeTicketForm(
+      (company.settingsJson as { ticketForm?: unknown } | null)?.ticketForm
     ),
     customers: customers.map(mapCustomer),
     companyUsers,

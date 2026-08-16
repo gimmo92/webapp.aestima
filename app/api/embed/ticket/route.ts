@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
+import type { Prisma } from "@/lib/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { firstOpenStageId, newTicketId, normalizeTicketStages } from "@/lib/ticketData";
+import { fieldByKey, normalizeTicketForm } from "@/lib/ticketForm";
 import { formatSize } from "@/lib/uploadSourceFile";
 
 export const runtime = "nodejs";
@@ -26,12 +28,18 @@ export async function GET(req: Request) {
   }
   const company = await prisma.company.findUnique({
     where: { slug },
-    select: { name: true, slug: true },
+    select: { name: true, slug: true, settingsJson: true },
   });
   if (!company) {
     return NextResponse.json({ error: "Company non trovata" }, { status: 404 });
   }
-  return NextResponse.json({ name: company.name, slug: company.slug });
+  return NextResponse.json({
+    name: company.name,
+    slug: company.slug,
+    form: normalizeTicketForm(
+      (company.settingsJson as { ticketForm?: unknown } | null)?.ticketForm
+    ),
+  });
 }
 
 export async function POST(req: Request) {
@@ -43,36 +51,7 @@ export async function POST(req: Request) {
   }
 
   const slug = String(form.get("company") ?? "").trim();
-  const customerName = String(form.get("customerName") ?? "").trim();
-  const customerEmail = String(form.get("customerEmail") ?? "").trim().toLowerCase();
-  const customerPhone = String(form.get("customerPhone") ?? "").trim();
-  const customerCompany = String(form.get("customerCompany") ?? "").trim();
-  const summary = String(form.get("summary") ?? "").trim();
-  const description = String(form.get("description") ?? "").trim();
-  const machineModel = String(form.get("machineModel") ?? "").trim();
-  const machineSerial = String(form.get("machineSerial") ?? "").trim();
-  const categoryRaw = String(form.get("category") ?? "altro");
-  const priorityRaw = String(form.get("priority") ?? "normale");
-
   if (!slug) return NextResponse.json({ error: "Company mancante" }, { status: 400 });
-  if (customerName.length < 2) {
-    return NextResponse.json({ error: "Inserisci il tuo nome." }, { status: 400 });
-  }
-  if (!customerEmail.includes("@")) {
-    return NextResponse.json({ error: "Email non valida." }, { status: 400 });
-  }
-  if (summary.length < 3) {
-    return NextResponse.json({ error: "Inserisci un oggetto." }, { status: 400 });
-  }
-  if (description.length < 8) {
-    return NextResponse.json({ error: "Descrivi il problema con più dettaglio." }, { status: 400 });
-  }
-
-  const category =
-    categoryRaw === "ricambio" || categoryRaw === "troubleshooting"
-      ? categoryRaw
-      : "altro";
-  const priority = priorityRaw === "alta" ? "alta" : "normale";
 
   const company = await prisma.company.findUnique({
     where: { slug },
@@ -82,9 +61,65 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Company non trovata" }, { status: 404 });
   }
 
+  const ticketForm = normalizeTicketForm(
+    (company.settingsJson as { ticketForm?: unknown } | null)?.ticketForm
+  );
+  const valueOf = (key: string) => String(form.get(key) ?? "").trim();
+
+  for (const field of ticketForm.fields) {
+    if (!field.enabled || field.type === "files") continue;
+    const value = valueOf(field.key);
+    if (field.required && !value) {
+      return NextResponse.json(
+        { error: `Compila il campo "${field.label.trim() || field.key}".` },
+        { status: 400 }
+      );
+    }
+    if (field.type === "email" && value && !value.includes("@")) {
+      return NextResponse.json({ error: "Email non valida." }, { status: 400 });
+    }
+  }
+
+  const customerName = valueOf("customerName");
+  const customerEmail = valueOf("customerEmail").toLowerCase();
+  const customerPhone = valueOf("customerPhone");
+  const customerCompany = valueOf("customerCompany");
+  let summary = valueOf("summary");
+  let description = valueOf("description");
+  const machineModel = valueOf("machineModel");
+  const machineSerial = valueOf("machineSerial");
+  const categoryRaw = valueOf("category") || "altro";
+  const priorityRaw = valueOf("priority") || "normale";
+
+  if (!summary) summary = description.slice(0, 80) || "Richiesta da form";
+  if (!description) description = summary;
+
+  const category =
+    categoryRaw === "ricambio" || categoryRaw === "troubleshooting"
+      ? categoryRaw
+      : "altro";
+  const priority = priorityRaw === "alta" ? "alta" : "normale";
+
+  const formExtra: Record<string, string> = {};
+  for (const field of ticketForm.fields) {
+    if (field.builtIn || !field.enabled || field.type === "files") continue;
+    const value = valueOf(field.key);
+    if (value) formExtra[field.label] = value;
+  }
+
   const files = form
     .getAll("files")
     .filter((v): v is File => v instanceof File && v.size > 0);
+  const attachmentsField = fieldByKey(ticketForm, "attachments");
+  if (attachmentsField?.enabled && attachmentsField.required && files.length === 0) {
+    return NextResponse.json(
+      { error: `Allega almeno un file in "${attachmentsField.label}".` },
+      { status: 400 }
+    );
+  }
+  if (!attachmentsField?.enabled && files.length > 0) {
+    return NextResponse.json({ error: "Allegati non previsti." }, { status: 400 });
+  }
   if (files.length > MAX_FILES) {
     return NextResponse.json(
       { error: `Puoi allegare al massimo ${MAX_FILES} file.` },
@@ -163,6 +198,10 @@ export async function POST(req: Request) {
       customerEmail,
       customerPhone: customerPhone || null,
       customerCompany: customerCompany || null,
+      formExtraJson:
+        Object.keys(formExtra).length > 0
+          ? (formExtra as Prisma.InputJsonValue)
+          : undefined,
       createdLabel,
       createdFull,
       updatedFull: createdFull,

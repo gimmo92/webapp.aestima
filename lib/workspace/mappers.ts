@@ -182,6 +182,7 @@ export function mapTicket(row: {
   customerEmail?: string | null;
   customerPhone?: string | null;
   customerCompany?: string | null;
+  formExtraJson?: unknown;
   createdLabel: string;
   createdFull: string;
   updatedFull: string;
@@ -211,6 +212,12 @@ export function mapTicket(row: {
     customerEmail: row.customerEmail ?? undefined,
     customerPhone: row.customerPhone ?? undefined,
     customerCompany: row.customerCompany ?? undefined,
+    formExtra:
+      row.formExtraJson &&
+      typeof row.formExtraJson === "object" &&
+      !Array.isArray(row.formExtraJson)
+        ? (row.formExtraJson as Record<string, string>)
+        : undefined,
     attachments: row.attachments?.map((a) => ({
       id: a.id,
       name: a.name,

@@ -433,6 +433,16 @@ function TicketDetail({
         <MetaField label="Tecnico assegnato" className="sm:col-span-2">
           {assignedName ?? "Non assegnato"}
         </MetaField>
+        {ticket.formExtra && Object.keys(ticket.formExtra).length > 0 && (
+          <MetaField label="Campi extra" className="sm:col-span-2">
+            {Object.entries(ticket.formExtra).map(([label, value]) => (
+              <span key={label} className="block">
+                <span className="text-ink-faint">{label}: </span>
+                {value}
+              </span>
+            ))}
+          </MetaField>
+        )}
         {(ticket.customerName || ticket.customerEmail) && (
           <MetaField label="Richiedente" className="sm:col-span-2">
             {[ticket.customerName, ticket.customerCompany]

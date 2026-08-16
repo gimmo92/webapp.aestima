@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@/lib/generated/prisma/client";
+import { normalizeTicketForm } from "@/lib/ticketForm";
 
 type MutateBody = {
   action: string;
@@ -680,6 +681,26 @@ export async function applyWorkspaceMutation(
           },
         });
       }
+      return { ok: true };
+    }
+    case "updateTicketForm": {
+      const company = await prisma.company.findUnique({
+        where: { id: companyId },
+        select: { settingsJson: true },
+      });
+      const prev =
+        company?.settingsJson && typeof company.settingsJson === "object"
+          ? (company.settingsJson as Record<string, unknown>)
+          : {};
+      await prisma.company.update({
+        where: { id: companyId },
+        data: {
+          settingsJson: {
+            ...prev,
+            ticketForm: normalizeTicketForm(p.config),
+          } as Prisma.InputJsonValue,
+        },
+      });
       return { ok: true };
     }
     case "updateTicketStages": {

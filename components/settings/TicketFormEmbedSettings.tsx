@@ -5,12 +5,14 @@ import {
   buildTicketFormIframeSnippet,
   buildTicketFormScriptSnippet,
 } from "@/lib/embedSnippets";
+import { TicketFormFieldsEditor } from "./TicketFormFieldsEditor";
 
 export function TicketFormEmbedSettings() {
   const [slug, setSlug] = useState<string | null>(null);
   const [companyName, setCompanyName] = useState("");
   const [copied, setCopied] = useState<"iframe" | "script" | null>(null);
   const [mode, setMode] = useState<"iframe" | "script">("iframe");
+  const [previewKey, setPreviewKey] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -75,6 +77,15 @@ export function TicketFormEmbedSettings() {
             </span>
           </div>
 
+          <TicketFormFieldsEditor />
+          <button
+            type="button"
+            onClick={() => setPreviewKey((n) => n + 1)}
+            className="mt-4 text-xs font-medium text-brand hover:underline"
+          >
+            Aggiorna anteprima
+          </button>
+
           <div className="mt-5 mb-3 flex rounded-lg border border-border bg-base p-1">
             <button
               type="button"
@@ -116,6 +127,7 @@ export function TicketFormEmbedSettings() {
               Anteprima
             </p>
             <iframe
+              key={previewKey}
               src={previewUrl}
               title="Anteprima form ticket"
               className="h-[720px] w-full border-0 bg-base"
