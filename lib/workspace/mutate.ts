@@ -14,6 +14,12 @@ function asBool(v: unknown) {
   return Boolean(v);
 }
 
+function asOptString(v: unknown) {
+  if (typeof v !== "string") return null;
+  const t = v.trim();
+  return t ? t : null;
+}
+
 /** Applica una mutazione workspace scoped alla company. */
 export async function applyWorkspaceMutation(
   companyId: string,
@@ -252,10 +258,71 @@ export async function applyWorkspaceMutation(
           companyId,
           name: asString(p.name),
           email: asString(p.email),
-          contact: p.contact ? asString(p.contact) : null,
+          contact: asOptString(p.contact),
+          phone: asOptString(p.phone),
           categories: (p.categories as string[]) ?? [],
-          notes: p.notes ? asString(p.notes) : null,
+          notes: asOptString(p.notes),
         },
+      });
+      return { ok: true };
+    }
+    case "updateSupplier": {
+      const id = asString(p.id);
+      await prisma.supplier.updateMany({
+        where: { id, companyId },
+        data: {
+          name: asString(p.name),
+          email: asString(p.email),
+          contact: asOptString(p.contact),
+          phone: asOptString(p.phone),
+          categories: (p.categories as string[]) ?? [],
+          notes: asOptString(p.notes),
+        },
+      });
+      return { ok: true };
+    }
+    case "deleteSupplier": {
+      await prisma.supplier.deleteMany({
+        where: { id: asString(p.id), companyId },
+      });
+      return { ok: true };
+    }
+    case "addCustomer": {
+      await prisma.customer.create({
+        data: {
+          id: asString(p.id),
+          companyId,
+          name: asString(p.name),
+          contactName: asOptString(p.contactName),
+          email: asOptString(p.email),
+          phone: asOptString(p.phone),
+          vat: asOptString(p.vat),
+          city: asOptString(p.city),
+          address: asOptString(p.address),
+          notes: asOptString(p.notes),
+        },
+      });
+      return { ok: true };
+    }
+    case "updateCustomer": {
+      await prisma.customer.updateMany({
+        where: { id: asString(p.id), companyId },
+        data: {
+          name: asString(p.name),
+          contactName: asOptString(p.contactName),
+          email: asOptString(p.email),
+          phone: asOptString(p.phone),
+          vat: asOptString(p.vat),
+          city: asOptString(p.city),
+          address: asOptString(p.address),
+          notes: asOptString(p.notes),
+        },
+      });
+      return { ok: true };
+    }
+    case "deleteCustomer": {
+      await prisma.customer.deleteMany({
+        where: { id: asString(p.id), companyId },
       });
       return { ok: true };
     }

@@ -4,6 +4,7 @@ import type { ConversationRecord } from "@/lib/conversationTypes";
 import type { KnowledgeEntry } from "@/lib/knowledgeTypes";
 import type { ServiceTicketRecord } from "@/lib/ticketTypes";
 import type { Supplier, SupplierRequest } from "@/lib/supplierTypes";
+import type { Customer } from "@/lib/customerTypes";
 import type {
   InterventionReport,
   Technician,
@@ -206,6 +207,7 @@ export function mapSupplier(row: {
   name: string;
   email: string;
   contact: string | null;
+  phone?: string | null;
   categories: string[];
   notes: string | null;
 }): Supplier {
@@ -214,7 +216,32 @@ export function mapSupplier(row: {
     name: row.name,
     email: row.email,
     contact: row.contact ?? undefined,
+    phone: row.phone ?? undefined,
     categories: row.categories,
+    notes: row.notes ?? undefined,
+  };
+}
+
+export function mapCustomer(row: {
+  id: string;
+  name: string;
+  contactName: string | null;
+  email: string | null;
+  phone: string | null;
+  vat: string | null;
+  city: string | null;
+  address: string | null;
+  notes: string | null;
+}): Customer {
+  return {
+    id: row.id,
+    name: row.name,
+    contactName: row.contactName ?? undefined,
+    email: row.email ?? undefined,
+    phone: row.phone ?? undefined,
+    vat: row.vat ?? undefined,
+    city: row.city ?? undefined,
+    address: row.address ?? undefined,
     notes: row.notes ?? undefined,
   };
 }

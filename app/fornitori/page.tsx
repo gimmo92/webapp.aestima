@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
 
 export default function FornitoriPage() {
-  redirect("/");
+  redirect("/company/fornitori");
 }

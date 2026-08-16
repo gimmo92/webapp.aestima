@@ -9,6 +9,7 @@ import {
   mapPartRequest,
   mapReport,
   mapSparePart,
+  mapCustomer,
   mapSupplier,
   mapSupplierRequest,
   mapTechnician,
@@ -20,6 +21,7 @@ import type { KnowledgeEntry } from "@/lib/knowledgeTypes";
 import type { ServiceTicketRecord, TicketStage } from "@/lib/ticketTypes";
 import { normalizeTicketStages } from "@/lib/ticketData";
 import type { Supplier, SupplierRequest } from "@/lib/supplierTypes";
+import type { Customer } from "@/lib/customerTypes";
 import type {
   InterventionReport,
   Technician,
@@ -42,6 +44,7 @@ export type WorkspaceSnapshot = {
   archiveFiles: SourceFile[];
   spareParts: SparePart[];
   ticketStages: TicketStage[];
+  customers: Customer[];
 };
 
 export async function loadCompanyWorkspace(
@@ -78,6 +81,7 @@ export async function loadCompanyWorkspace(
     interventionReports,
     archiveFiles,
     spareParts,
+    customers,
   ] = await Promise.all([
     prisma.label.findMany({ where: { companyId }, orderBy: { name: "asc" } }),
     prisma.partRequest.findMany({
@@ -136,6 +140,10 @@ export async function loadCompanyWorkspace(
       where: { companyId },
       orderBy: { codice: "asc" },
     }),
+    prisma.customer.findMany({
+      where: { companyId },
+      orderBy: { name: "asc" },
+    }),
   ]);
 
   return {
@@ -154,5 +162,6 @@ export async function loadCompanyWorkspace(
     ticketStages: normalizeTicketStages(
       (company.settingsJson as { ticketStages?: unknown } | null)?.ticketStages
     ),
+    customers: customers.map(mapCustomer),
   };
 }

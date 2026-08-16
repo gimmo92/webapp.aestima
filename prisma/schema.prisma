@@ -25,6 +25,7 @@ model Company {
   updatedAt    DateTime  @updatedAt
 
   users                  User[]
+  customers              Customer[]
   labels                 Label[]
   partRequests           PartRequest[]
   conversations          Conversation[]
@@ -49,6 +50,24 @@ model User {
   company      Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
+
+  @@index([companyId])
+}
+
+model Customer {
+  id          String   @id @default(cuid())
+  companyId   String
+  name        String
+  contactName String?
+  email       String?
+  phone       String?
+  vat         String?
+  city        String?
+  address     String?
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@index([companyId])
 }
@@ -193,6 +212,7 @@ model Supplier {
   name         String
   email        String
   contact      String?
+  phone        String?
   categories   String[] @default([])
   notes        String?
   company      Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)

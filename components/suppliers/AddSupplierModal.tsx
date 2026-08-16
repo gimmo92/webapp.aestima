@@ -12,6 +12,7 @@ export function AddSupplierModal({ onClose, onSave }: Props) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [contact, setContact] = useState("");
+  const [phone, setPhone] = useState("");
   const [categories, setCategories] = useState("");
   const [notes, setNotes] = useState("");
 
@@ -21,6 +22,7 @@ export function AddSupplierModal({ onClose, onSave }: Props) {
       name: name.trim(),
       email: email.trim(),
       contact: contact.trim() || undefined,
+      phone: phone.trim() || undefined,
       categories: categories
         .split(/[;,]/)
         .map((c) => c.trim())
@@ -73,6 +75,14 @@ export function AddSupplierModal({ onClose, onSave }: Props) {
               onChange={(e) => setContact(e.target.value)}
               className="w-full rounded-lg border border-border bg-base px-3 py-2 text-sm text-ink outline-none focus:border-brand"
               placeholder="Marco Ferretti"
+            />
+          </Field>
+          <Field label="Telefono">
+            <input
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              className="w-full rounded-lg border border-border bg-base px-3 py-2 text-sm text-ink outline-none focus:border-brand"
+              placeholder="+39 02 1234567"
             />
           </Field>
           <Field label="Categorie (separate da ; )">

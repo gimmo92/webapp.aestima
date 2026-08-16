@@ -5,6 +5,7 @@ import { MOCK_CONVERSATIONS } from "@/lib/conversationData";
 import { MOCK_KNOWLEDGE_ENTRIES } from "@/lib/knowledgeData";
 import { MOCK_TICKETS } from "@/lib/ticketData";
 import { MOCK_SUPPLIERS, MOCK_SUPPLIER_REQUESTS } from "@/lib/supplierData";
+import { MOCK_CUSTOMERS } from "@/lib/customerData";
 import {
   MOCK_TECHNICIANS,
   MOCK_TECHNICIAN_ASSIGNMENTS,
@@ -41,6 +42,7 @@ export async function clearCompanyWorkspace(companyId: string) {
     prisma.knowledgeEntry.deleteMany({ where: { companyId } }),
     prisma.serviceTicket.deleteMany({ where: { companyId } }),
     prisma.supplier.deleteMany({ where: { companyId } }),
+    prisma.customer.deleteMany({ where: { companyId } }),
     prisma.technician.deleteMany({ where: { companyId } }),
     prisma.company.update({
       where: { id: companyId },
@@ -123,8 +125,26 @@ export async function seedCompanyWorkspace(
         name: s.name,
         email: s.email,
         contact: s.contact,
+        phone: s.phone ?? null,
         categories: s.categories,
         notes: s.notes,
+      },
+    });
+  }
+
+  for (const c of MOCK_CUSTOMERS) {
+    await prisma.customer.create({
+      data: {
+        id: nid(companyId, "cus", c.id),
+        companyId,
+        name: c.name,
+        contactName: c.contactName ?? null,
+        email: c.email ?? null,
+        phone: c.phone ?? null,
+        vat: c.vat ?? null,
+        city: c.city ?? null,
+        address: c.address ?? null,
+        notes: c.notes ?? null,
       },
     });
   }

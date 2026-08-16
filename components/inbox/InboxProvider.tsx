@@ -20,6 +20,8 @@ import type {
   SupplierRequest,
   SupplierRequestStatus,
 } from "@/lib/supplierTypes";
+import { newCustomerId } from "@/lib/customerData";
+import type { Customer, CustomerInput } from "@/lib/customerTypes";
 import {
   newTechnicianAssignmentId,
   newTechnicianId,
@@ -113,6 +115,12 @@ interface InboxContextValue {
   supplierRequests: SupplierRequest[];
   addSupplier: (input: SupplierInput) => string;
   addSuppliers: (inputs: SupplierInput[]) => number;
+  updateSupplier: (id: string, input: SupplierInput) => void;
+  deleteSupplier: (id: string) => void;
+  customers: Customer[];
+  addCustomer: (input: CustomerInput) => string;
+  updateCustomer: (id: string, input: CustomerInput) => void;
+  deleteCustomer: (id: string) => void;
   createSupplierRequests: (input: CreateSupplierRequestInput) => void;
   updateSupplierRequestStatus: (
     id: string,
@@ -197,6 +205,7 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
   const [labels, setLabels] = useState<Label[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
   const [supplierRequests, setSupplierRequests] = useState<SupplierRequest[]>(
     []
   );
@@ -242,6 +251,7 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
         setTickets(data.tickets ?? []);
         setTicketStagesState(normalizeTicketStages(data.ticketStages));
         setSuppliers(data.suppliers ?? []);
+        setCustomers(data.customers ?? []);
         setSupplierRequests(data.supplierRequests ?? []);
         setTechnicians(data.technicians ?? []);
         setTechnicianAssignments(data.technicianAssignments ?? []);
@@ -349,6 +359,37 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
     setSuppliers((prev) => [...prev, ...added]);
     for (const row of added) persist("addSupplier", row);
     return added.length;
+  };
+
+  const updateSupplier = (id: string, input: SupplierInput) => {
+    setSuppliers((prev) =>
+      prev.map((s) => (s.id === id ? { ...s, ...input } : s))
+    );
+    persist("updateSupplier", { id, ...input });
+  };
+
+  const deleteSupplier = (id: string) => {
+    setSuppliers((prev) => prev.filter((s) => s.id !== id));
+    persist("deleteSupplier", { id });
+  };
+
+  const addCustomer = (input: CustomerInput): string => {
+    const id = newCustomerId();
+    setCustomers((prev) => [...prev, { ...input, id }]);
+    persist("addCustomer", { id, ...input });
+    return id;
+  };
+
+  const updateCustomer = (id: string, input: CustomerInput) => {
+    setCustomers((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, ...input } : c))
+    );
+    persist("updateCustomer", { id, ...input });
+  };
+
+  const deleteCustomer = (id: string) => {
+    setCustomers((prev) => prev.filter((c) => c.id !== id));
+    persist("deleteCustomer", { id });
   };
 
   const createSupplierRequests = (input: CreateSupplierRequestInput) => {
@@ -809,6 +850,12 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
         supplierRequests,
         addSupplier,
         addSuppliers,
+        updateSupplier,
+        deleteSupplier,
+        customers,
+        addCustomer,
+        updateCustomer,
+        deleteCustomer,
         createSupplierRequests,
         updateSupplierRequestStatus,
         technicians,
