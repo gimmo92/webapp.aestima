@@ -936,11 +936,6 @@ export function ServiceChatWorkspace({
               Stai parlando con un agente umano.
             </p>
           )}
-          <p className="mt-3 text-center text-xs text-ink-faint">
-            Foto (JPG, PNG) analizzate dall&apos;AI · Documenti PDF/Office
-            inoltrati al tecnico · Max {MAX_ATTACHMENTS_PER_MESSAGE} allegati
-            {dictationSupported ? " · Microfono per dettare" : ""}
-          </p>
         </div>
       </div>
     </div>
