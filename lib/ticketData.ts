@@ -1,5 +1,7 @@
 import type {
   ServiceTicketRecord,
+  TicketStage,
+  TicketStatus,
   TicketStatusConfig,
 } from "./ticketTypes";
 
@@ -8,18 +10,89 @@ import type {
 // Sostituire in produzione con API ticketing del cliente.
 // =============================================================
 
-export const TICKET_STATUSES: TicketStatusConfig[] = [
-  { id: "aperto", label: "Aperto", color: "#3b82f6" },
-  { id: "assegnato", label: "Assegnato", color: "#8b5cf6" },
-  { id: "in_lavorazione", label: "In lavorazione", color: "#f59e0b" },
-  { id: "in_attesa_cliente", label: "In attesa cliente", color: "#06b6d4" },
-  { id: "risolto", label: "Risolto", color: "#22c55e" },
-  { id: "chiuso", label: "Chiuso", color: "#9fb0c3" },
+export const DEFAULT_TICKET_STAGES: TicketStage[] = [
+  { id: "aperto", label: "Da assegnare", color: "#3b82f6", inBoard: true, terminal: false },
+  { id: "assegnato", label: "Assegnato", color: "#8b5cf6", inBoard: true, terminal: false },
+  { id: "in_lavorazione", label: "In lavorazione", color: "#f59e0b", inBoard: true, terminal: false },
+  { id: "in_attesa_cliente", label: "In attesa cliente", color: "#06b6d4", inBoard: true, terminal: false },
+  { id: "risolto", label: "Risolto", color: "#22c55e", inBoard: true, terminal: true },
+  { id: "chiuso", label: "Chiuso", color: "#9fb0c3", inBoard: false, terminal: true },
 ];
+
+export const TICKET_STATUSES: TicketStatusConfig[] = DEFAULT_TICKET_STAGES.map(
+  ({ id, label, color }) => ({ id, label, color })
+);
 
 export const TICKET_STATUS_BY_ID = Object.fromEntries(
   TICKET_STATUSES.map((s) => [s.id, s])
 );
+
+export const TICKET_STAGE_COLORS = [
+  "#3b82f6",
+  "#8b5cf6",
+  "#f59e0b",
+  "#06b6d4",
+  "#22c55e",
+  "#ef4444",
+  "#ec4899",
+  "#9fb0c3",
+];
+
+export function normalizeTicketStages(raw: unknown): TicketStage[] {
+  if (!Array.isArray(raw) || raw.length === 0) return DEFAULT_TICKET_STAGES;
+  const out: TicketStage[] = [];
+  const seen = new Set<string>();
+  for (const item of raw) {
+    if (!item || typeof item !== "object") continue;
+    const o = item as Record<string, unknown>;
+    const id = String(o.id ?? "").trim();
+    const label = String(o.label ?? "").trim();
+    if (!id || !label || seen.has(id)) continue;
+    seen.add(id);
+    out.push({
+      id,
+      label,
+      color: String(o.color ?? "#3b82f6"),
+      inBoard: o.inBoard !== false,
+      terminal: Boolean(o.terminal),
+    });
+  }
+  return out.length > 0 ? out : DEFAULT_TICKET_STAGES;
+}
+
+export function boardStages(stages: TicketStage[]): TicketStage[] {
+  return stages.filter((s) => s.inBoard);
+}
+
+export function terminalStageIds(stages: TicketStage[]): TicketStatus[] {
+  return stages.filter((s) => s.terminal).map((s) => s.id);
+}
+
+export function openStageIds(stages: TicketStage[]): TicketStatus[] {
+  return stages.filter((s) => !s.terminal).map((s) => s.id);
+}
+
+export function firstOpenStageId(stages: TicketStage[]): TicketStatus {
+  return stages.find((s) => !s.terminal)?.id ?? stages[0]?.id ?? "aperto";
+}
+
+export function stageById(
+  stages: TicketStage[],
+  id: TicketStatus
+): TicketStage | undefined {
+  return stages.find((s) => s.id === id);
+}
+
+export function newTicketStageId(label: string): string {
+  const slug = label
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_|_$/g, "")
+    .slice(0, 32);
+  return slug || `stage_${Date.now().toString(36)}`;
+}
 
 export const TICKET_SOURCE_LABELS: Record<
   ServiceTicketRecord["source"],

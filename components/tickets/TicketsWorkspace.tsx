@@ -7,7 +7,8 @@ import { useInbox } from "@/components/inbox/InboxProvider";
 import {
   TICKET_CATEGORY_LABELS,
   TICKET_SOURCE_LABELS,
-  TICKET_STATUSES,
+  openStageIds,
+  terminalStageIds,
 } from "@/lib/ticketData";
 import type {
   ServiceTicketRecord,
@@ -25,24 +26,18 @@ const TABS: { id: Tab; label: string }[] = [
   { id: "chiusi", label: "Chiusi / risolti" },
 ];
 
-const OPEN_STATUSES: TicketStatus[] = [
-  "aperto",
-  "assegnato",
-  "in_lavorazione",
-  "in_attesa_cliente",
-];
-
-const CLOSED_STATUSES: TicketStatus[] = ["risolto", "chiuso"];
-
 export function TicketsWorkspace() {
   const {
     tickets,
+    ticketStages,
     technicians,
     conversations,
     createTicket,
     updateTicket,
     addKnowledgeEntry,
   } = useInbox();
+  const openIds = openStageIds(ticketStages);
+  const closedIds = terminalStageIds(ticketStages);
   const searchParams = useSearchParams();
   const deepLinkId = searchParams.get("id");
   const [tab, setTab] = useState<Tab>("aperti");
@@ -56,9 +51,9 @@ export function TicketsWorkspace() {
     if (!deepLinkId) return;
     setSelectedId(deepLinkId);
     const t = tickets.find((x) => x.id === deepLinkId);
-    if (t && CLOSED_STATUSES.includes(t.status)) setTab("chiusi");
+    if (t && closedIds.includes(t.status)) setTab("chiusi");
     else setTab("aperti");
-  }, [deepLinkId, tickets]);
+  }, [deepLinkId, tickets, closedIds]);
 
   const techById = useMemo(
     () => Object.fromEntries(technicians.map((t) => [t.id, t])),
@@ -68,15 +63,15 @@ export function TicketsWorkspace() {
   const filtered = useMemo(() => {
     let list = tickets;
     if (tab === "aperti") {
-      list = list.filter((t) => OPEN_STATUSES.includes(t.status));
+      list = list.filter((t) => openIds.includes(t.status));
     } else if (tab === "chiusi") {
-      list = list.filter((t) => CLOSED_STATUSES.includes(t.status));
+      list = list.filter((t) => closedIds.includes(t.status));
     }
     if (statusFilter !== "all") {
       list = list.filter((t) => t.status === statusFilter);
     }
     return list;
-  }, [tickets, tab, statusFilter]);
+  }, [tickets, tab, statusFilter, openIds, closedIds]);
 
   const selected =
     tickets.find((t) => t.id === selectedId) ??
@@ -94,11 +89,11 @@ export function TicketsWorkspace() {
 
   const counts = useMemo(
     () => ({
-      aperti: tickets.filter((t) => OPEN_STATUSES.includes(t.status)).length,
+      aperti: tickets.filter((t) => openIds.includes(t.status)).length,
       tutti: tickets.length,
-      chiusi: tickets.filter((t) => CLOSED_STATUSES.includes(t.status)).length,
+      chiusi: tickets.filter((t) => closedIds.includes(t.status)).length,
     }),
-    [tickets]
+    [tickets, openIds, closedIds]
   );
 
   return (
@@ -133,7 +128,7 @@ export function TicketsWorkspace() {
           </div>
           <div className="flex items-center gap-2">
             <Link
-              href="/conversazioni"
+              href="/ticket/chat"
               className="rounded-lg border border-border bg-base px-3 py-2 text-sm font-medium text-ink-muted transition-colors hover:border-brand/40 hover:text-brand"
             >
               Chat live
@@ -171,10 +166,8 @@ export function TicketsWorkspace() {
                   onClick={() => setStatusFilter("all")}
                   label="Tutti"
                 />
-                {TICKET_STATUSES.filter((s) =>
-                  tab === "aperti"
-                    ? OPEN_STATUSES.includes(s.id)
-                    : true
+                {ticketStages.filter((s) =>
+                  tab === "aperti" ? !s.terminal : true
                 ).map((s) => (
                     <FilterChip
                       key={s.id}
@@ -302,6 +295,7 @@ function TicketDetail({
   onUpdate: (id: string, input: UpdateTicketInput) => void;
   onLearnFromSolution: ReturnType<typeof useInbox>["addKnowledgeEntry"];
 }) {
+  const { ticketStages } = useInbox();
   const [notes, setNotes] = useState(ticket.internalNotes ?? "");
   const [solution, setSolution] = useState(ticket.solution ?? "");
   const [learning, setLearning] = useState(false);
@@ -314,8 +308,9 @@ function TicketDetail({
   }, [ticket.id, ticket.internalNotes, ticket.solution]);
 
   const assigned = technicians.find((t) => t.id === ticket.assignedTechnicianId);
-  const isClosed =
-    ticket.status === "risolto" || ticket.status === "chiuso";
+  const isClosed = ticketStages.some(
+    (s) => s.id === ticket.status && s.terminal
+  );
 
   const closeAndLearn = async () => {
     const sol = solution.trim();
@@ -390,7 +385,7 @@ function TicketDetail({
           </p>
           {linkedConversationId && (
             <Link
-              href={`/conversazioni?id=${encodeURIComponent(linkedConversationId)}`}
+              href={`/ticket/chat?id=${encodeURIComponent(linkedConversationId)}`}
               className="mt-2 inline-flex text-xs font-semibold text-brand hover:underline"
             >
               Apri chat collegata →
@@ -538,7 +533,7 @@ function TicketDetail({
           Aggiorna stato
         </p>
         <div className="flex flex-wrap gap-2">
-          {TICKET_STATUSES.map((s) => (
+          {ticketStages.map((s) => (
             <button
               key={s.id}
               onClick={() => onUpdate(ticket.id, { status: s.id })}

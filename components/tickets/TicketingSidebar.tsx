@@ -7,7 +7,7 @@ const ITEMS = [
   {
     href: "/ticket",
     label: "Lista ticket",
-    exact: true,
+    match: (path: string) => path === "/ticket",
     icon: (
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
         <path
@@ -20,9 +20,24 @@ const ITEMS = [
     ),
   },
   {
+    href: "/ticket/coda",
+    label: "Coda ticket",
+    match: (path: string) => path === "/ticket/coda" || path.startsWith("/ticket/coda/"),
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path
+          d="M4 6h5v12H4zM10 6h5v12h-5zM16 6h4v12h-4z"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinejoin="round"
+        />
+      </svg>
+    ),
+  },
+  {
     href: "/ticket/inbox",
     label: "Inbox",
-    exact: false,
+    match: (path: string) => path === "/ticket/inbox" || path.startsWith("/ticket/inbox/"),
     icon: (
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
         <path
@@ -36,6 +51,25 @@ const ITEMS = [
           stroke="currentColor"
           strokeWidth="1.8"
           strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    ),
+  },
+  {
+    href: "/ticket/chat",
+    label: "Chat live",
+    match: (path: string) =>
+      path === "/ticket/chat" ||
+      path.startsWith("/ticket/chat/") ||
+      path === "/conversazioni" ||
+      path.startsWith("/conversazioni/"),
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path
+          d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v8Z"
+          stroke="currentColor"
+          strokeWidth="1.8"
           strokeLinejoin="round"
         />
       </svg>
@@ -55,9 +89,7 @@ export function TicketingSidebar() {
       </div>
       <nav className="flex flex-col gap-0.5 p-2" aria-label="Sezioni ticketing">
         {ITEMS.map((item) => {
-          const active = item.exact
-            ? pathname === item.href
-            : pathname === item.href || pathname.startsWith(`${item.href}/`);
+          const active = item.match(pathname);
           return (
             <Link
               key={item.href}

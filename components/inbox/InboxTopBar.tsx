@@ -43,20 +43,6 @@ const NAV = [
     ),
   },
   {
-    href: "/conversazioni",
-    label: "Chat live",
-    icon: (
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <path
-          d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v8Z"
-          stroke="currentColor"
-          strokeWidth="1.8"
-          strokeLinejoin="round"
-        />
-      </svg>
-    ),
-  },
-  {
     href: "/archivio",
     label: "Archivio",
     icon: (
@@ -248,7 +234,33 @@ export function InboxTopBar({
           </div>
         )}
         {loggedIn ? (
-          <form action={logoutAction}>
+          <>
+        <Link
+          href="/impostazioni"
+          title="Impostazioni"
+          className={[
+            "inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-semibold transition-colors",
+            pathname.startsWith("/impostazioni")
+              ? "border-brand/40 bg-brand-soft text-ink"
+              : "border-border bg-base text-ink-muted hover:border-brand/40 hover:text-brand",
+          ].join(" ")}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path
+              d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"
+              stroke="currentColor"
+              strokeWidth="1.8"
+            />
+            <path
+              d="M19.4 13a7.8 7.8 0 0 0 .1-2l2-1.5-2-3.5-2.4 1a7.4 7.4 0 0 0-1.7-1L15 3h-6l-.4 2.9a7.4 7.4 0 0 0-1.7 1l-2.4-1-2 3.5 2 1.5a7.8 7.8 0 0 0 .1 2l-2 1.5 2 3.5 2.4-1a7.4 7.4 0 0 0 1.7 1L9 21h6l.4-2.9a7.4 7.4 0 0 0 1.7-1l2.4 1 2-3.5-2-1.5Z"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinejoin="round"
+            />
+          </svg>
+          <span className="hidden sm:inline">Impostazioni</span>
+        </Link>
+        <form action={logoutAction}>
             <button
               type="submit"
               className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-base px-3.5 py-2 text-sm font-semibold text-ink transition-colors hover:border-danger/50 hover:bg-danger/10 hover:text-danger"
@@ -265,6 +277,7 @@ export function InboxTopBar({
               Logout
             </button>
           </form>
+          </>
         ) : (
           <Link
             href="/login"

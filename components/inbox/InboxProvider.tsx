@@ -45,12 +45,31 @@ import type {
   CreateConversationInput,
   UpdateConversationInput,
 } from "@/lib/conversationTypes";
-import { newTicketId } from "@/lib/ticketData";
+import {
+  DEFAULT_TICKET_STAGES,
+  firstOpenStageId,
+  newTicketId,
+  normalizeTicketStages,
+} from "@/lib/ticketData";
 import type {
   CreateTicketInput,
   ServiceTicketRecord,
+  TicketStage,
   UpdateTicketInput,
 } from "@/lib/ticketTypes";
+
+const TICKET_STAGES_STORAGE_KEY = "aftercore:ticket-stages:v1";
+
+function loadLocalTicketStages(): TicketStage[] {
+  if (typeof window === "undefined") return DEFAULT_TICKET_STAGES;
+  try {
+    const raw = window.localStorage.getItem(TICKET_STAGES_STORAGE_KEY);
+    if (!raw) return DEFAULT_TICKET_STAGES;
+    return normalizeTicketStages(JSON.parse(raw));
+  } catch {
+    return DEFAULT_TICKET_STAGES;
+  }
+}
 import { persistWorkspace } from "@/lib/workspace/persistClient";
 
 // =============================================================
@@ -113,6 +132,8 @@ interface InboxContextValue {
   ) => TechnicianAssignment | undefined;
   interventionReports: InterventionReport[];
   tickets: ServiceTicketRecord[];
+  ticketStages: TicketStage[];
+  setTicketStages: (stages: TicketStage[]) => void;
   createTicket: (input: CreateTicketInput) => string;
   updateTicket: (id: string, input: UpdateTicketInput) => void;
   getTicketById: (id: string) => ServiceTicketRecord | undefined;
@@ -187,6 +208,9 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
     InterventionReport[]
   >([]);
   const [tickets, setTickets] = useState<ServiceTicketRecord[]>([]);
+  const [ticketStages, setTicketStagesState] = useState<TicketStage[]>(
+    DEFAULT_TICKET_STAGES
+  );
   const [conversations, setConversations] = useState<ConversationRecord[]>([]);
   const conversationsHydratedRef = useRef(false);
   const cloudModeRef = useRef(false);
@@ -202,6 +226,7 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
           const stored = loadStoredConversations();
           if (!cancelled) {
             if (stored) setConversations(stored);
+            setTicketStagesState(loadLocalTicketStages());
             conversationsHydratedRef.current = true;
             cloudModeRef.current = false;
           }
@@ -215,6 +240,7 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
         setConversations(data.conversations ?? []);
         setKnowledgeBase(data.knowledgeBase ?? []);
         setTickets(data.tickets ?? []);
+        setTicketStagesState(normalizeTicketStages(data.ticketStages));
         setSuppliers(data.suppliers ?? []);
         setSupplierRequests(data.supplierRequests ?? []);
         setTechnicians(data.technicians ?? []);
@@ -260,6 +286,22 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
     if (!cloudModeRef.current) return;
     persistWorkspace(action, payload);
   }, []);
+
+  const setTicketStages = useCallback(
+    (stages: TicketStage[]) => {
+      const next = normalizeTicketStages(stages);
+      setTicketStagesState(next);
+      if (cloudModeRef.current) {
+        persist("updateTicketStages", { stages: next });
+      } else if (typeof window !== "undefined") {
+        window.localStorage.setItem(
+          TICKET_STAGES_STORAGE_KEY,
+          JSON.stringify(next)
+        );
+      }
+    },
+    [persist]
+  );
 
   const changeStatus = (id: string, status: RequestStatus) => {
     setRequests((prev) => prev.map((r) => (r.id === id ? { ...r, status } : r)));
@@ -411,7 +453,7 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
       const id = input.id?.trim() || newTicketId();
       const row: ServiceTicketRecord = {
         id,
-        status: "aperto",
+        status: firstOpenStageId(ticketStages),
         priority: input.priority ?? "normale",
         source: input.source,
         category: input.category ?? "altro",
@@ -430,7 +472,7 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
       persist("createTicket", row);
       return id;
     },
-    [persist]
+    [persist, ticketStages]
   );
 
   const updateTicket = useCallback(
@@ -778,6 +820,8 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
         getTechnicianAssignmentForRequest,
         interventionReports,
         tickets,
+        ticketStages,
+        setTicketStages,
         createTicket,
         updateTicket,
         getTicketById,

@@ -597,6 +597,26 @@ export async function applyWorkspaceMutation(
       }
       return { ok: true };
     }
+    case "updateTicketStages": {
+      const company = await prisma.company.findUnique({
+        where: { id: companyId },
+        select: { settingsJson: true },
+      });
+      const prev =
+        company?.settingsJson && typeof company.settingsJson === "object"
+          ? (company.settingsJson as Record<string, unknown>)
+          : {};
+      await prisma.company.update({
+        where: { id: companyId },
+        data: {
+          settingsJson: {
+            ...prev,
+            ticketStages: p.stages,
+          } as Prisma.InputJsonValue,
+        },
+      });
+      return { ok: true };
+    }
     default:
       return { ok: false, error: `Azione sconosciuta: ${action}` };
   }

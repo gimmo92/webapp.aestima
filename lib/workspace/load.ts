@@ -17,7 +17,8 @@ import {
 import type { Label, PartRequest } from "@/lib/inboxTypes";
 import type { ConversationRecord } from "@/lib/conversationTypes";
 import type { KnowledgeEntry } from "@/lib/knowledgeTypes";
-import type { ServiceTicketRecord } from "@/lib/ticketTypes";
+import type { ServiceTicketRecord, TicketStage } from "@/lib/ticketTypes";
+import { normalizeTicketStages } from "@/lib/ticketData";
 import type { Supplier, SupplierRequest } from "@/lib/supplierTypes";
 import type {
   InterventionReport,
@@ -40,12 +41,21 @@ export type WorkspaceSnapshot = {
   interventionReports: InterventionReport[];
   archiveFiles: SourceFile[];
   spareParts: SparePart[];
+  ticketStages: TicketStage[];
 };
 
 export async function loadCompanyWorkspace(
   companyId: string
 ): Promise<WorkspaceSnapshot> {
-  const company = await prisma.company.findUnique({ where: { id: companyId } });
+  const company = await prisma.company.findUnique({
+    where: { id: companyId },
+    select: {
+      id: true,
+      slug: true,
+      seededAt: true,
+      settingsJson: true,
+    },
+  });
   if (!company) {
     throw new Error("Company non trovata");
   }
@@ -141,5 +151,8 @@ export async function loadCompanyWorkspace(
     interventionReports: interventionReports.map(mapReport),
     archiveFiles: archiveFiles.map(mapArchiveFile),
     spareParts: spareParts.map(mapSparePart),
+    ticketStages: normalizeTicketStages(
+      (company.settingsJson as { ticketStages?: unknown } | null)?.ticketStages
+    ),
   };
 }

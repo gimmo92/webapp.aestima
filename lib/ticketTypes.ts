@@ -4,13 +4,8 @@
 // sincronizzati con email, chat AI e assegnazioni tecnici.
 // =============================================================
 
-export type TicketStatus =
-  | "aperto"
-  | "assegnato"
-  | "in_lavorazione"
-  | "in_attesa_cliente"
-  | "risolto"
-  | "chiuso";
+/** ID stage ticket — i default restano aperti/assegnato/…, in settings se ne possono aggiungere. */
+export type TicketStatus = string;
 
 export type TicketPriority = "normale" | "alta";
 
@@ -22,6 +17,17 @@ export interface TicketStatusConfig {
   id: TicketStatus;
   label: string;
   color: string;
+}
+
+/** Stage configurabile (impostazioni ticketing + coda kanban). */
+export interface TicketStage {
+  id: TicketStatus;
+  label: string;
+  color: string;
+  /** Compare come colonna nella Coda ticket. */
+  inBoard: boolean;
+  /** Conta come chiuso/risolto nella lista. */
+  terminal: boolean;
 }
 
 /** Ticket completo nel sistema (tab Ticket). */

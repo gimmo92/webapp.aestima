@@ -16,12 +16,13 @@ enum CompanyRole {
 }
 
 model Company {
-  id        String   @id @default(cuid())
-  name      String
-  slug      String   @unique
-  seededAt  DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id           String    @id @default(cuid())
+  name         String
+  slug         String    @unique
+  seededAt     DateTime?
+  settingsJson Json?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   users                  User[]
   labels                 Label[]
