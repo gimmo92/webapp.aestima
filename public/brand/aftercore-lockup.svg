@@ -1,0 +1,8 @@
+<svg width="198" height="40" viewBox="0 0 198 40" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="aftercore">
+  <polygon points="20.00,2.80 34.90,11.40 34.90,28.60 20.00,37.20 5.10,28.60 5.10,11.40" fill="none" stroke="#1C3A5E" stroke-width="3.4" stroke-linejoin="round"/>
+  <polygon points="20.00,8.60 29.87,14.30 29.87,25.70 20.00,31.40 10.13,25.70 10.13,14.30" fill="none" stroke="#38BDF8" stroke-width="2.15" stroke-linejoin="round"/>
+  <polygon points="20.00,14.90 24.42,17.45 24.42,22.55 20.00,25.10 15.58,22.55 15.58,17.45" fill="#38BDF8"/>
+  <text x="46" y="28.2" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="24" font-weight="600" letter-spacing="-0.04em">
+    <tspan fill="#1C3A5E">after</tspan><tspan fill="#38BDF8">core</tspan>
+  </text>
+</svg>
