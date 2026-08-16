@@ -10,10 +10,20 @@ import {
   setSessionCookie,
 } from "@/lib/auth/session";
 import { slugifyCompanyName } from "@/lib/auth/user";
+import {
+  RESET_TOKEN_TTL_MS,
+  appBaseUrl,
+  createResetToken,
+  hashResetToken,
+  isLocalHost,
+  sendPasswordResetEmail,
+} from "@/lib/auth/passwordReset";
 
 export type AuthActionState = {
   error?: string;
   ok?: boolean;
+  message?: string;
+  resetUrl?: string;
 };
 
 function normalizeEmail(email: string) {
@@ -327,4 +337,89 @@ export async function deleteMemberAction(
   await prisma.user.delete({ where: { id: target.id } });
   revalidatePath("/company/utenti");
   return { ok: true };
+}
+
+const RESET_OK_MESSAGE =
+  "Se l'indirizzo è in anagrafica, riceverai a breve le istruzioni per reimpostare la password.";
+
+export async function requestPasswordResetAction(
+  _prev: AuthActionState,
+  formData: FormData
+): Promise<AuthActionState> {
+  const email = normalizeEmail(String(formData.get("email") ?? ""));
+  if (!email || !email.includes("@")) {
+    return { error: "Inserisci un'email valida." };
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { email },
+    select: { id: true, email: true },
+  });
+
+  if (!user) {
+    return { ok: true, message: RESET_OK_MESSAGE };
+  }
+
+  const { token, tokenHash } = createResetToken();
+  await prisma.passwordResetToken.deleteMany({ where: { userId: user.id } });
+  await prisma.passwordResetToken.create({
+    data: {
+      userId: user.id,
+      tokenHash,
+      expiresAt: new Date(Date.now() + RESET_TOKEN_TTL_MS),
+    },
+  });
+
+  const resetUrl = `${await appBaseUrl()}/recupera-password/nuova?token=${encodeURIComponent(token)}`;
+  const emailResult = await sendPasswordResetEmail(user.email, resetUrl);
+  if (emailResult.error) {
+    return { error: "Invio email non riuscito. Riprova tra poco." };
+  }
+
+  if (!emailResult.sent && isLocalHost(resetUrl)) {
+    return {
+      ok: true,
+      message: "Ambiente locale: usa il link qui sotto per scegliere la nuova password.",
+      resetUrl,
+    };
+  }
+
+  return { ok: true, message: RESET_OK_MESSAGE };
+}
+
+export async function resetPasswordAction(
+  _prev: AuthActionState,
+  formData: FormData
+): Promise<AuthActionState> {
+  const token = String(formData.get("token") ?? "").trim();
+  const password = String(formData.get("password") ?? "");
+  const confirm = String(formData.get("confirm") ?? "");
+
+  if (!token) return { error: "Link non valido. Richiedine uno nuovo." };
+  if (password.length < 8) {
+    return { error: "La password deve avere almeno 8 caratteri." };
+  }
+  if (password !== confirm) {
+    return { error: "Le password non coincidono." };
+  }
+
+  const row = await prisma.passwordResetToken.findUnique({
+    where: { tokenHash: hashResetToken(token) },
+    select: { id: true, userId: true, expiresAt: true },
+  });
+
+  if (!row || row.expiresAt.getTime() < Date.now()) {
+    if (row) await prisma.passwordResetToken.delete({ where: { id: row.id } });
+    return { error: "Link non valido o scaduto. Richiedine uno nuovo." };
+  }
+
+  await prisma.$transaction([
+    prisma.user.update({
+      where: { id: row.userId },
+      data: { passwordHash: await hashPassword(password) },
+    }),
+    prisma.passwordResetToken.deleteMany({ where: { userId: row.userId } }),
+  ]);
+
+  redirect("/login?reset=1");
 }

@@ -5,6 +5,7 @@ import { SESSION_COOKIE } from "@/lib/auth/constants";
 const PUBLIC_PREFIXES = [
   "/login",
   "/register",
+  "/recupera-password",
   "/assistenza",
   "/embed",
   "/api/service-chat",

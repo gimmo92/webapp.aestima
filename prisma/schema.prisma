@@ -50,10 +50,22 @@ model User {
   company      Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
   customerContacts Customer[] @relation("CustomerContact")
   supplierContacts Supplier[] @relation("SupplierContact")
+  passwordResetTokens PasswordResetToken[]
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
 
   @@index([companyId])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model Customer {

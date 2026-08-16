@@ -136,7 +136,13 @@ const NAV = [
   },
 ] as const;
 
-const PUBLIC_PATHS = ["/assistenza", "/embed", "/login", "/register"];
+const PUBLIC_PATHS = [
+  "/assistenza",
+  "/embed",
+  "/login",
+  "/register",
+  "/recupera-password",
+];
 
 type MeInfo = {
   name: string;
