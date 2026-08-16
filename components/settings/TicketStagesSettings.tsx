@@ -60,7 +60,7 @@ export function TicketStagesSettings() {
   };
 
   return (
-    <div className="min-h-0 flex-1 overflow-y-auto p-5 sm:p-8">
+    <div className="p-5 sm:p-8">
       <div className="mx-auto max-w-3xl">
         <h1 className="text-xl font-bold text-ink">Stage ticket</h1>
         <p className="mt-1 text-sm text-ink-muted">

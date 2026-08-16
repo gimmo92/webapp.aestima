@@ -105,6 +105,17 @@ export async function loadCompanyWorkspace(
     }),
     prisma.serviceTicket.findMany({
       where: { companyId },
+      include: {
+        attachments: {
+          select: {
+            id: true,
+            name: true,
+            mimeType: true,
+            sizeLabel: true,
+            kind: true,
+          },
+        },
+      },
       orderBy: { updatedAt: "desc" },
     }),
     prisma.supplier.findMany({ where: { companyId }, orderBy: { name: "asc" } }),

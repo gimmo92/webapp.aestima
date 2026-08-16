@@ -178,9 +178,20 @@ export function mapTicket(row: {
   internalNotes: string | null;
   solution: string | null;
   knowledgeEntryId: string | null;
+  customerName?: string | null;
+  customerEmail?: string | null;
+  customerPhone?: string | null;
+  customerCompany?: string | null;
   createdLabel: string;
   createdFull: string;
   updatedFull: string;
+  attachments?: Array<{
+    id: string;
+    name: string;
+    mimeType: string;
+    sizeLabel: string;
+    kind: string;
+  }>;
 }): ServiceTicketRecord {
   return {
     id: row.id,
@@ -196,6 +207,17 @@ export function mapTicket(row: {
     internalNotes: row.internalNotes ?? undefined,
     solution: row.solution ?? undefined,
     knowledgeEntryId: row.knowledgeEntryId ?? undefined,
+    customerName: row.customerName ?? undefined,
+    customerEmail: row.customerEmail ?? undefined,
+    customerPhone: row.customerPhone ?? undefined,
+    customerCompany: row.customerCompany ?? undefined,
+    attachments: row.attachments?.map((a) => ({
+      id: a.id,
+      name: a.name,
+      mimeType: a.mimeType,
+      sizeLabel: a.sizeLabel,
+      kind: a.kind === "image" ? "image" : "document",
+    })),
     createdLabel: row.createdLabel,
     createdFull: row.createdFull,
     updatedFull: row.updatedFull,

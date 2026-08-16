@@ -433,7 +433,43 @@ function TicketDetail({
         <MetaField label="Tecnico assegnato" className="sm:col-span-2">
           {assignedName ?? "Non assegnato"}
         </MetaField>
+        {(ticket.customerName || ticket.customerEmail) && (
+          <MetaField label="Richiedente" className="sm:col-span-2">
+            {[ticket.customerName, ticket.customerCompany]
+              .filter(Boolean)
+              .join(" · ") || "—"}
+            {ticket.customerEmail && (
+              <span className="block text-ink-faint">{ticket.customerEmail}</span>
+            )}
+            {ticket.customerPhone && (
+              <span className="block text-ink-faint">{ticket.customerPhone}</span>
+            )}
+          </MetaField>
+        )}
       </div>
+
+      {ticket.attachments && ticket.attachments.length > 0 && (
+        <div className="rounded-xl border border-border bg-base/60 p-4">
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
+            Allegati
+          </p>
+          <ul className="flex flex-wrap gap-2">
+            {ticket.attachments.map((att) => (
+              <li key={att.id}>
+                <a
+                  href={`/api/tickets/attachments/${att.id}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-2 rounded-lg border border-border bg-surface px-3 py-2 text-xs text-ink-muted hover:text-ink"
+                >
+                  {att.kind === "image" ? "Foto" : "File"} · {att.name}
+                  <span className="text-ink-faint">{att.sizeLabel}</span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <article className="rounded-xl border border-border bg-base/60 p-4">
         <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-ink-faint">

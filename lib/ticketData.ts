@@ -101,6 +101,7 @@ export const TICKET_SOURCE_LABELS: Record<
   chat_ai: "Chat AI",
   manuale: "Manuale",
   inbox: "Inbox",
+  form: "Form web",
 };
 
 export const TICKET_CATEGORY_LABELS: Record<

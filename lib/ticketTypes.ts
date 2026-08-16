@@ -9,7 +9,7 @@ export type TicketStatus = string;
 
 export type TicketPriority = "normale" | "alta";
 
-export type TicketSource = "chat_ai" | "manuale" | "inbox";
+export type TicketSource = "chat_ai" | "manuale" | "inbox" | "form";
 
 export type TicketCategory = "ricambio" | "troubleshooting" | "altro";
 
@@ -52,6 +52,19 @@ export interface ServiceTicketRecord {
   solution?: string;
   /** Voce KB generata da questo ticket */
   knowledgeEntryId?: string;
+  customerName?: string;
+  customerEmail?: string;
+  customerPhone?: string;
+  customerCompany?: string;
+  attachments?: TicketAttachmentMeta[];
+}
+
+export interface TicketAttachmentMeta {
+  id: string;
+  name: string;
+  mimeType: string;
+  sizeLabel: string;
+  kind: "image" | "document";
 }
 
 /** Anteprima ticket restituita dalla chat AI (subset). */
@@ -66,6 +79,10 @@ export interface CreateTicketInput {
   priority?: TicketPriority;
   machineModel?: string;
   machineSerial?: string;
+  customerName?: string;
+  customerEmail?: string;
+  customerPhone?: string;
+  customerCompany?: string;
 }
 
 export interface UpdateTicketInput {

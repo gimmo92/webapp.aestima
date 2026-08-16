@@ -5,6 +5,33 @@ export const EMBED_MODE_LABELS: Record<EmbedMode, string> = {
   wide: "Chatbox larga",
 };
 
+export function buildTicketFormIframeSnippet(
+  baseUrl: string,
+  companySlug: string
+): string {
+  return `<iframe
+  src="${baseUrl}/embed/ticket?company=${encodeURIComponent(companySlug)}"
+  title="Apri un ticket"
+  style="width:100%;min-height:820px;border:0;border-radius:16px;"
+></iframe>`;
+}
+
+export function buildTicketFormScriptSnippet(
+  baseUrl: string,
+  companySlug: string
+): string {
+  return `<div id="aftercore-ticket-form"></div>
+<script
+  src="${baseUrl}/embed.js"
+  data-mode="ticket"
+  data-base-url="${baseUrl}"
+  data-company="${companySlug}"
+  data-container="aftercore-ticket-form"
+  data-height="820"
+  async
+></script>`;
+}
+
 export function buildEmbedSnippet(baseUrl: string, mode: EmbedMode): string {
   if (mode === "bubble") {
     return `<script

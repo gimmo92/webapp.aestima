@@ -21,6 +21,35 @@
     }
   }
 
+  if (mode === "ticket") {
+    var company = script.getAttribute("data-company") || "";
+    var ticketHeight = parseInt(script.getAttribute("data-height") || "820", 10);
+    var ticketContainerId = script.getAttribute("data-container");
+    var ticketContainer = ticketContainerId
+      ? document.getElementById(ticketContainerId)
+      : null;
+    if (!ticketContainer) {
+      ticketContainer = document.createElement("div");
+      ticketContainer.id = ticketContainerId || "aftercore-ticket-form";
+      script.parentNode.insertBefore(ticketContainer, script.nextSibling);
+    }
+    ticketContainer.style.width = "100%";
+    ticketContainer.style.height = ticketHeight + "px";
+    ticketContainer.style.maxWidth = "100%";
+    ticketContainer.style.overflow = "hidden";
+    ticketContainer.style.borderRadius = "16px";
+    var ticketFrame = document.createElement("iframe");
+    ticketFrame.src =
+      baseUrl + "/embed/ticket?company=" + encodeURIComponent(company);
+    ticketFrame.title = "Apri un ticket";
+    ticketFrame.style.border = "0";
+    ticketFrame.style.width = "100%";
+    ticketFrame.style.height = "100%";
+    ticketFrame.style.display = "block";
+    ticketContainer.appendChild(ticketFrame);
+    return;
+  }
+
   var chatPath = script.getAttribute("data-chat-path") || "/embed/chat";
   var chatUrl =
     mode === "bubble"

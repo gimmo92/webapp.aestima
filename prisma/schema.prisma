@@ -38,6 +38,7 @@ model Company {
   interventionReports    InterventionReport[]
   archiveFiles           ArchiveFile[]
   spareParts             SparePart[]
+  ticketAttachments      TicketAttachment[]
 }
 
 model User {
@@ -212,14 +213,36 @@ model ServiceTicket {
   internalNotes        String?
   solution             String?
   knowledgeEntryId     String?
+  customerName         String?
+  customerEmail        String?
+  customerPhone        String?
+  customerCompany      String?
   createdLabel         String
   createdFull          String
   updatedFull          String
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
   company              Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  attachments          TicketAttachment[]
 
   @@index([companyId, status])
+}
+
+model TicketAttachment {
+  id        String   @id @default(cuid())
+  companyId String
+  ticketId  String
+  name      String
+  mimeType  String
+  sizeLabel String
+  kind      String
+  content   Bytes
+  createdAt DateTime @default(now())
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  ticket    ServiceTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId])
+  @@index([companyId])
 }
 
 model Supplier {

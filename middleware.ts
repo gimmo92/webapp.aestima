@@ -9,6 +9,7 @@ const PUBLIC_PREFIXES = [
   "/assistenza",
   "/embed",
   "/api/service-chat",
+  "/api/embed",
   "/api/me",
 ];
 
