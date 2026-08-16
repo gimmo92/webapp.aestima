@@ -29,12 +29,12 @@ import { useSpeechDictation } from "@/lib/useSpeechDictation";
 import {
   buildTicketDescription,
   buildTicketSummary,
-  escalateQuickReplyOption,
   extractMachineFromMessages,
   inferTicketCategory,
   inferTicketPriority,
   isAiUnresolved,
   isHumanEscalationIntent,
+  withHumanEscalationBubble,
 } from "@/lib/ticketEscalate";
 
 // =============================================================
@@ -498,20 +498,20 @@ export function ServiceChatWorkspace({
           return;
         }
 
-        let quickReplies = ensureMachineOtherOption(
-          data.quickReplies ??
-            inferQuickReplies(history, data.message, {
-              hasSpareParts: Boolean(data.spareParts?.length),
-            })
-        );
-
-        if (isAiUnresolved(data.message) && !getConversationById(convId)?.ticketId) {
-          const escalateOpt = escalateQuickReplyOption();
-          const list = quickReplies ?? [];
-          if (!list.some((q) => q.value === escalateOpt.value)) {
-            quickReplies = [...list, escalateOpt];
+        const userTurns = history.filter((m) => m.role === "user").length;
+        const quickReplies = withHumanEscalationBubble(
+          ensureMachineOtherOption(
+            data.quickReplies ??
+              inferQuickReplies(history, data.message, {
+                hasSpareParts: Boolean(data.spareParts?.length),
+              })
+          ),
+          userTurns,
+          {
+            force: isAiUnresolved(data.message),
+            hasTicket: Boolean(getConversationById(convId)?.ticketId),
           }
-        }
+        );
 
         const machineHint = extractMachineFromMessages(history);
         if (machineHint.machineModel || machineHint.machineSerial) {

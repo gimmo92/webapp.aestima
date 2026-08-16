@@ -106,7 +106,30 @@ export function extractMachineFromMessages(
 
 export function escalateQuickReplyOption() {
   return {
-    label: "Apri ticket tecnico",
-    value: "Vorrei parlare con un tecnico — apri un ticket",
+    label: "Parla con un umano",
+    value: "Vorrei parlare con un umano",
   };
+}
+
+const HUMAN_BUBBLE_AFTER_USER_MESSAGES = 3;
+
+/** Aggiunge la bubble di escalation se l'AI è in stallo o dopo il 3° messaggio utente. */
+export function withHumanEscalationBubble(
+  replies: { label: string; value: string }[] | undefined,
+  userMessageCount: number,
+  opts?: { force?: boolean; hasTicket?: boolean }
+): { label: string; value: string }[] | undefined {
+  if (opts?.hasTicket) return replies;
+  if (!opts?.force && userMessageCount < HUMAN_BUBBLE_AFTER_USER_MESSAGES) {
+    return replies;
+  }
+  const opt = escalateQuickReplyOption();
+  const list = replies ?? [];
+  const already = list.some(
+    (q) =>
+      q.value === opt.value ||
+      /parla con un (umano|tecnico)|apri ticket/i.test(`${q.label} ${q.value}`)
+  );
+  if (already) return list.length > 0 ? list : undefined;
+  return [...list, opt];
 }
