@@ -22,10 +22,12 @@ export function UserContactSelect({
   users,
   value,
   onChange,
+  emptyLabel = "Nessun referente",
 }: {
   users: CompanyUserOption[];
   value: string;
   onChange: (userId: string) => void;
+  emptyLabel?: string;
 }) {
   return (
     <select
@@ -33,7 +35,7 @@ export function UserContactSelect({
       onChange={(e) => onChange(e.target.value)}
       className={inputClass}
     >
-      <option value="">Nessun referente</option>
+      <option value="">{emptyLabel}</option>
       {users.map((u) => (
         <option key={u.id} value={u.id}>
           {u.name} · {u.email}

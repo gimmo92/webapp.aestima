@@ -3,11 +3,13 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useInbox } from "@/components/inbox/InboxProvider";
+import { userContactLabel } from "@/lib/companyUsers";
 import { boardStages } from "@/lib/ticketData";
 import { TicketStatusPill } from "./TicketStatusPill";
 
 export function TicketQueueBoard() {
-  const { tickets, ticketStages, technicians, updateTicket } = useInbox();
+  const { tickets, ticketStages, technicians, companyUsers, updateTicket } =
+    useInbox();
   const router = useRouter();
   const columns = useMemo(() => boardStages(ticketStages), [ticketStages]);
   const [draggingId, setDraggingId] = useState<string | null>(null);
@@ -108,7 +110,11 @@ export function TicketQueueBoard() {
                         </p>
                         <p className="mt-2 text-[11px] text-ink-faint">
                           {t.assignedTechnicianId
-                            ? techById[t.assignedTechnicianId] ?? "Assegnato"
+                            ? userContactLabel(
+                                companyUsers,
+                                t.assignedTechnicianId,
+                                techById[t.assignedTechnicianId]
+                              ) || "Assegnato"
                             : "Non assegnato"}{" "}
                           · {t.createdLabel}
                         </p>

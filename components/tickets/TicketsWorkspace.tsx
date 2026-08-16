@@ -15,6 +15,8 @@ import type {
   TicketStatus,
   UpdateTicketInput,
 } from "@/lib/ticketTypes";
+import { userContactLabel } from "@/lib/companyUsers";
+import { UserContactSelect } from "@/components/company/formFields";
 import { CreateTicketModal } from "./CreateTicketModal";
 import { TicketStatusPill } from "./TicketStatusPill";
 
@@ -31,6 +33,7 @@ export function TicketsWorkspace() {
     tickets,
     ticketStages,
     technicians,
+    companyUsers,
     conversations,
     createTicket,
     updateTicket,
@@ -194,7 +197,11 @@ export function TicketsWorkspace() {
                   active={t.id === selected?.id}
                   technicianName={
                     t.assignedTechnicianId
-                      ? techById[t.assignedTechnicianId]?.name
+                      ? userContactLabel(
+                          companyUsers,
+                          t.assignedTechnicianId,
+                          techById[t.assignedTechnicianId]?.name
+                        ) || undefined
                       : undefined
                   }
                   onSelect={() => setSelectedId(t.id)}
@@ -210,6 +217,7 @@ export function TicketsWorkspace() {
             <TicketDetail
               ticket={selected}
               technicians={technicians}
+              companyUsers={companyUsers}
               linkedConversationId={linkedConversation?.id}
               onUpdate={updateTicket}
               onLearnFromSolution={addKnowledgeEntry}
@@ -285,12 +293,14 @@ function TicketListRow({
 function TicketDetail({
   ticket,
   technicians,
+  companyUsers,
   linkedConversationId,
   onUpdate,
   onLearnFromSolution,
 }: {
   ticket: ServiceTicketRecord;
   technicians: { id: string; name: string }[];
+  companyUsers: { id: string; name: string; email: string }[];
   linkedConversationId?: string;
   onUpdate: (id: string, input: UpdateTicketInput) => void;
   onLearnFromSolution: ReturnType<typeof useInbox>["addKnowledgeEntry"];
@@ -307,7 +317,12 @@ function TicketDetail({
     setLearnMsg(null);
   }, [ticket.id, ticket.internalNotes, ticket.solution]);
 
-  const assigned = technicians.find((t) => t.id === ticket.assignedTechnicianId);
+  const assignedName =
+    userContactLabel(
+      companyUsers,
+      ticket.assignedTechnicianId,
+      technicians.find((t) => t.id === ticket.assignedTechnicianId)?.name
+    ) || undefined;
   const isClosed = ticketStages.some(
     (s) => s.id === ticket.status && s.terminal
   );
@@ -416,7 +431,7 @@ function TicketDetail({
           {ticket.machineSerial ?? "—"}
         </MetaField>
         <MetaField label="Tecnico assegnato" className="sm:col-span-2">
-          {assigned?.name ?? "Non assegnato"}
+          {assignedName ?? "Non assegnato"}
         </MetaField>
       </div>
 
@@ -508,24 +523,20 @@ function TicketDetail({
         <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
           Assegna tecnico
         </p>
-        <div className="flex flex-wrap gap-2">
-          {technicians.map((tech) => (
-            <button
-              key={tech.id}
-              onClick={() =>
-                onUpdate(ticket.id, { assignedTechnicianId: tech.id })
-              }
-              className={[
-                "rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors",
-                ticket.assignedTechnicianId === tech.id
-                  ? "border-brand bg-brand-soft text-brand"
-                  : "border-border bg-surface text-ink-muted hover:border-border-strong hover:text-ink",
-              ].join(" ")}
-            >
-              {tech.name}
-            </button>
-          ))}
-        </div>
+        <UserContactSelect
+          users={companyUsers}
+          value={
+            companyUsers.some((u) => u.id === ticket.assignedTechnicianId)
+              ? ticket.assignedTechnicianId ?? ""
+              : ""
+          }
+          emptyLabel="Non assegnato"
+          onChange={(userId) =>
+            onUpdate(ticket.id, {
+              assignedTechnicianId: userId || null,
+            })
+          }
+        />
       </div>
 
       <div className="rounded-xl border border-border bg-base/60 p-4">

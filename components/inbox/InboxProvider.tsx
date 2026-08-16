@@ -22,6 +22,7 @@ import type {
 } from "@/lib/supplierTypes";
 import { newCustomerId } from "@/lib/customerData";
 import type { Customer, CustomerInput } from "@/lib/customerTypes";
+import type { CompanyUserOption } from "@/lib/companyUsers";
 import {
   newTechnicianAssignmentId,
   newTechnicianId,
@@ -117,6 +118,7 @@ interface InboxContextValue {
   addSuppliers: (inputs: SupplierInput[]) => number;
   updateSupplier: (id: string, input: SupplierInput) => void;
   deleteSupplier: (id: string) => void;
+  companyUsers: CompanyUserOption[];
   customers: Customer[];
   addCustomer: (input: CustomerInput) => string;
   updateCustomer: (id: string, input: CustomerInput) => void;
@@ -206,6 +208,7 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const [companyUsers, setCompanyUsers] = useState<CompanyUserOption[]>([]);
   const [supplierRequests, setSupplierRequests] = useState<SupplierRequest[]>(
     []
   );
@@ -252,6 +255,7 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
         setTicketStagesState(normalizeTicketStages(data.ticketStages));
         setSuppliers(data.suppliers ?? []);
         setCustomers(data.customers ?? []);
+        setCompanyUsers(data.companyUsers ?? []);
         setSupplierRequests(data.supplierRequests ?? []);
         setTechnicians(data.technicians ?? []);
         setTechnicianAssignments(data.technicianAssignments ?? []);
@@ -852,6 +856,7 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
         addSuppliers,
         updateSupplier,
         deleteSupplier,
+        companyUsers,
         customers,
         addCustomer,
         updateCustomer,
