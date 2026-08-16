@@ -44,7 +44,7 @@ export function PipelineBoard() {
 
   const openCard = (id: string) => {
     setSelectedId(id);
-    router.push("/");
+    router.push("/ticket/inbox");
   };
 
   const handleDrop = (stage: RequestStatus) => {

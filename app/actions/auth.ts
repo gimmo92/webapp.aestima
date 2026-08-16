@@ -113,7 +113,7 @@ export async function loginAction(
   });
 
   const next = String(formData.get("next") ?? "").trim();
-  redirect(next.startsWith("/") && !next.startsWith("//") ? next : "/");
+  redirect(next.startsWith("/") && !next.startsWith("//") ? next : "/ticket");
 }
 
 export async function logoutAction() {

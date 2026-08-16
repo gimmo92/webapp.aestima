@@ -50,7 +50,7 @@ export function OfferHistoryWorkspace() {
   const openRequest = (requestId?: string) => {
     if (!requestId) return;
     setSelectedId(requestId);
-    router.push("/");
+    router.push("/ticket/inbox");
   };
 
   return (

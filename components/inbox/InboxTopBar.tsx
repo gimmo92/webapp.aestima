@@ -23,29 +23,8 @@ const NAV = [
     ),
   },
   {
-    href: "/",
-    label: "Email",
-    icon: (
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <path
-          d="M4 6h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1Z"
-          stroke="currentColor"
-          strokeWidth="1.8"
-          strokeLinejoin="round"
-        />
-        <path
-          d="m3.5 7.5 8.5 6 8.5-6"
-          stroke="currentColor"
-          strokeWidth="1.8"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
-    ),
-  },
-  {
     href: "/ticket",
-    label: "Ticket",
+    label: "Ticketing",
     icon: (
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
         <path
@@ -233,9 +212,7 @@ export function InboxTopBar({
         <nav className="flex items-center gap-1 overflow-x-auto">
           {NAV.map((item) => {
             const active =
-              item.href === "/"
-                ? pathname === "/"
-                : pathname === item.href || pathname.startsWith(`${item.href}/`);
+              pathname === item.href || pathname.startsWith(`${item.href}/`);
             return (
               <Link
                 key={item.href}

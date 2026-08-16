@@ -243,7 +243,7 @@ function AssignmentDetail({
       </div>
 
       <Link
-        href="/"
+        href="/ticket/inbox"
         className="inline-flex items-center gap-1 text-xs font-medium text-brand hover:underline"
       >
         Apri richiesta in inbox
