@@ -34,7 +34,6 @@ import {
   type UploadedCatalogFile,
 } from "./CatalogUploadZone";
 
-// Demo proiettore: l'agente trova e propone, l'esperto conferma.
 // Stato solo in React (niente localStorage / sessionStorage).
 // I file caricati definiscono il catalogo da analizzare; l'estrazione
 // articoli resta sul dataset demo Vallmec (in produzione: parse del file).
@@ -242,11 +241,6 @@ export function CatalogAnalysisWorkspace() {
             <h1 className="text-lg font-bold tracking-tight text-ink">
               Analisi catalogo
             </h1>
-            {phase !== "done" && (
-              <p className="text-xs text-ink-muted">
-                L&apos;agente trova e propone, l&apos;esperto conferma.
-              </p>
-            )}
             {phase === "done" && hasCatalog && (
               <p className="truncate text-xs text-ink-muted">
                 {uploadedFiles.map((f) => f.name).join(" · ")}
@@ -400,9 +394,6 @@ export function CatalogAnalysisWorkspace() {
                 {" · "}
                 {apiSource === "anthropic" ? "Claude + regole" : "Mock + regole"}
               </p>
-              <p className="font-medium text-ink-faint">
-                L&apos;agente trova e propone, l&apos;esperto conferma.
-              </p>
             </div>
 
             {/* Coda di revisione umana — elemento centrale */}
@@ -464,10 +455,6 @@ export function CatalogAnalysisWorkspace() {
                 );
               })}
             </section>
-
-            <p className="pb-6 text-center text-sm font-medium text-ink-muted">
-              L&apos;agente trova e propone, l&apos;esperto conferma.
-            </p>
           </div>
         )}
 
@@ -476,7 +463,7 @@ export function CatalogAnalysisWorkspace() {
             <div className="max-w-lg text-center">
               <p className="text-base text-ink-muted sm:text-lg">
                 {hasCatalog
-                  ? "Catalogo pronto. Premi Analizza catalogo: l'agente trova e propone, l'esperto conferma."
+                  ? "Catalogo pronto. Premi Analizza catalogo."
                   : "Carica i file sopra, oppure usa i dati di esempio Vallmec, poi avvia l'analisi."}
               </p>
             </div>
@@ -551,7 +538,7 @@ function AnalysisStages({
       <p className="mt-1 text-center text-sm text-ink-muted sm:text-base">
         {source === "anthropic"
           ? "Giudizio fuzzy con Claude · regole deterministiche sul resto"
-          : "Analisi locale (mock) · l'esperto conferma sempre"}
+          : "Analisi locale (mock)"}
         {" · "}
         <span className="tabular-nums text-ink">
           {Math.min(tick, STAGE_TICKS)}/{STAGE_TICKS}

@@ -97,7 +97,7 @@ Rispondi SOLO con JSON:
 
   const result = await callAnthropicMessages({
     system:
-      "Rispondi esclusivamente con JSON valido, senza markdown. L'agente propone, l'esperto conferma.",
+      "Rispondi esclusivamente con JSON valido, senza markdown.",
     user: prompt,
     maxTokens: 1200,
   });
