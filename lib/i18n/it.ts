@@ -98,7 +98,7 @@ export const it = {
     ticketHintWait:
       "Disponibile dopo il primo messaggio della conversazione",
     welcome:
-      "Buongiorno, sono l'assistente service di aftercore. Posso aiutarti a identificare ricambi nella distinta della tua macchina o a trovare soluzioni a malfunzionamenti già risoliti in passato.\n\nScegli un'opzione qui sotto, allega foto o documenti, oppure scrivi liberamente.",
+      "Buongiorno, sono l'assistente service di Aftercore. Posso aiutarti a identificare ricambi o a trovare soluzioni a malfunzionamenti.\n\nScegli un'opzione qui sotto, allega foto o documenti, oppure scrivi liberamente.",
     qrSpare: "Cerco un ricambio",
     qrMalfunction: "Ho un malfunzionamento",
     qrMissingCode: "Non trovo il codice di un pezzo",

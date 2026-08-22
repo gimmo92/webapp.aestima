@@ -96,7 +96,7 @@ export const en: Messages = {
     ticketHint: "Open a service ticket linked to this chat",
     ticketHintWait: "Available after the first message in the conversation",
     welcome:
-      "Hello, I am aftercore's service assistant. I can help you identify spare parts in your machine BOM or find solutions to malfunctions already solved in the past.\n\nChoose an option below, attach photos or documents, or type freely.",
+      "Hello, I am Aftercore's service assistant. I can help you identify spare parts or find solutions to malfunctions.\n\nChoose an option below, attach photos or documents, or type freely.",
     qrSpare: "I need a spare part",
     qrMalfunction: "I have a malfunction",
     qrMissingCode: "I can't find a part code",
