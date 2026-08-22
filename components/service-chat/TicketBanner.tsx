@@ -6,7 +6,7 @@ import type { ServiceTicket } from "@/lib/serviceChatTypes";
 /** Banner visibile quando l'agente apre un ticket per escalation umana. */
 export function TicketBanner({ ticket }: { ticket: ServiceTicket }) {
   return (
-    <div className="mt-3 overflow-hidden rounded-xl border border-brand/40 bg-brand-soft">
+    <div className="overflow-hidden rounded-xl border border-brand/40 bg-brand-soft">
       <div className="flex items-start gap-3 px-4 py-3.5">
         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/20 text-brand">
           <svg

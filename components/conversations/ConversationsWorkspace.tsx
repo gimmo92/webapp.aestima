@@ -4,8 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useInbox } from "@/components/inbox/InboxProvider";
-import { SparePartCardList } from "@/components/service-chat/SparePartCard";
-import { TicketBanner } from "@/components/service-chat/TicketBanner";
+import { ChatResultsSidebar, collectChatResults } from "@/components/service-chat/ChatResultsSidebar";
 import {
   CONVERSATION_CHANNEL_LABELS,
   CONVERSATION_FILTERS,
@@ -462,7 +461,8 @@ function ConversationPanel({
   };
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div className="relative flex h-full min-h-0">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
       {/* Header */}
       <div className="flex items-center justify-between gap-3 border-b border-border bg-surface/70 px-5 py-3 backdrop-blur-md">
         <div className="min-w-0">
@@ -633,6 +633,11 @@ function ConversationPanel({
           )}
         </div>
       </div>
+      </div>
+
+      {collectChatResults(conversation.messages).hasResults && (
+        <ChatResultsSidebar messages={conversation.messages} />
+      )}
     </div>
   );
 }
@@ -738,10 +743,6 @@ function ConversationMessage({ message }: { message: StoredConversationMessage }
         >
           {message.content}
         </p>
-        {!isUser && message.spareParts && message.spareParts.length > 0 && (
-          <SparePartCardList parts={message.spareParts} />
-        )}
-        {!isUser && message.ticket && <TicketBanner ticket={message.ticket} />}
       </div>
     </div>
   );

@@ -165,6 +165,7 @@ interface InboxContextValue {
   ) => void;
   takeOverConversation: (id: string, operatorId: string) => void;
   resolveConversation: (id: string) => void;
+  deleteConversation: (id: string) => void;
   getConversationById: (id: string) => ConversationRecord | undefined;
   knowledgeBase: KnowledgeEntry[];
   addKnowledgeEntry: (
@@ -741,6 +742,14 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
     [conversations]
   );
 
+  const deleteConversation = useCallback(
+    (id: string) => {
+      setConversations((prev) => prev.filter((c) => c.id !== id));
+      persist("deleteConversation", { id });
+    },
+    [persist]
+  );
+
   const addKnowledgeEntry = useCallback(
     (
       input: Omit<
@@ -920,6 +929,7 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
         appendConversationMessage,
         takeOverConversation,
         resolveConversation,
+        deleteConversation,
         getConversationById,
         knowledgeBase,
         addKnowledgeEntry,

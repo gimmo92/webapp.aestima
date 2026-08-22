@@ -5,7 +5,7 @@ export function KbMatchBanner({ match }: { match: KbMatchPreview }) {
   const href = `/manuale?entry=${encodeURIComponent(match.entryId)}`;
 
   return (
-    <div className="mt-3 rounded-xl border border-ok/40 bg-ok/10 px-4 py-3">
+    <div className="rounded-xl border border-ok/40 bg-ok/10 px-4 py-3">
       <div className="mb-1 flex items-center gap-2">
         <svg
           width="16"

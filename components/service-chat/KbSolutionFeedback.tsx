@@ -19,7 +19,7 @@ export function KbSolutionFeedback({
 }: Props) {
   if (status === "updating") {
     return (
-      <div className="mt-3 rounded-xl border border-brand/30 bg-brand-soft/50 px-4 py-3">
+      <div className="rounded-xl border border-brand/30 bg-brand-soft/50 px-4 py-3">
         <div className="flex items-center gap-3">
           <span className="h-5 w-5 animate-spin rounded-full border-2 border-brand/30 border-t-brand" />
           <div>
@@ -35,7 +35,7 @@ export function KbSolutionFeedback({
 
   if (status === "helpful") {
     return (
-      <div className="mt-3 rounded-xl border border-ok/30 bg-ok/10 px-4 py-3 text-sm text-ok">
+      <div className="rounded-xl border border-ok/30 bg-ok/10 px-4 py-3 text-sm text-ok">
         Grazie! Knowledge base aggiornata — la soluzione è ora più rilevante per
         casi futuri simili.
       </div>
@@ -44,7 +44,7 @@ export function KbSolutionFeedback({
 
   if (status === "not_helpful") {
     return (
-      <div className="mt-3 rounded-xl border border-border bg-surface/80 px-4 py-3 text-sm text-ink-muted">
+      <div className="rounded-xl border border-border bg-surface/80 px-4 py-3 text-sm text-ink-muted">
         Grazie per il feedback. Ho aperto un ticket: un tecnico seguirà la
         conversazione e ti aiuterà.
       </div>
@@ -52,7 +52,7 @@ export function KbSolutionFeedback({
   }
 
   return (
-    <div className="mt-3 rounded-xl border border-border bg-base/80 px-4 py-3">
+    <div className="rounded-xl border border-border bg-base/80 px-4 py-3">
       <p className="mb-2.5 text-sm font-medium text-ink">
         Questa soluzione ti ha aiutato?
       </p>

@@ -3,11 +3,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { ChatAttachmentList } from "./ChatAttachmentList";
+import { ChatHistorySidebar } from "./ChatHistorySidebar";
+import { ChatResultsSidebar, collectChatResults } from "./ChatResultsSidebar";
 import { QuickReplyBubbles } from "./QuickReplyBubbles";
-import { SparePartCardList } from "./SparePartCard";
-import { KbMatchBanner } from "./KbMatchBanner";
-import { KbSolutionFeedback } from "./KbSolutionFeedback";
-import { TicketBanner } from "./TicketBanner";
 import { EmbedCodeButtons } from "./EmbedCodeButtons";
 import { useInbox } from "@/components/inbox/InboxProvider";
 import {
@@ -96,10 +94,12 @@ export function ServiceChatWorkspace({
 } = {}) {
   const showHeader = !hideHeader;
   const {
+    conversations,
     createConversation,
     appendConversationMessage,
     getConversationById,
     updateConversation,
+    deleteConversation,
     knowledgeBase,
     incrementKnowledgeFrequency,
     createTicket,
@@ -115,6 +115,8 @@ export function ServiceChatWorkspace({
   const [attachError, setAttachError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [kbSearching, setKbSearching] = useState(false);
+  const [overlayResultsOpen, setOverlayResultsOpen] = useState(false);
+  const hadResultsRef = useRef(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -599,7 +601,60 @@ export function ServiceChatWorkspace({
     setInput("");
     setPendingAttachments([]);
     setAttachError(null);
+    setOverlayResultsOpen(false);
+    hadResultsRef.current = false;
+    syncedAgentCountRef.current = 0;
     inputRef.current?.focus();
+  };
+
+  const historyConversations = useMemo(
+    () => conversations.filter((c) => c.channel === channel),
+    [conversations, channel]
+  );
+
+  const openConversation = useCallback(
+    (id: string) => {
+      if (id === conversationId || loading) return;
+      const conv = getConversationById(id);
+      if (!conv) return;
+      stopDictation();
+      clearDictationError();
+      revokeAttachmentUrls(collectAttachmentUrls(messages));
+      revokeAttachmentUrls(pendingAttachments);
+      setPendingAttachments([]);
+      setAttachError(null);
+      setInput("");
+      setOverlayResultsOpen(false);
+      hadResultsRef.current = false;
+      setConversationId(id);
+      syncFromStored(conv);
+      syncedAgentCountRef.current = conv.messages.filter(
+        (m) => m.role === "agent"
+      ).length;
+      inputRef.current?.focus();
+    },
+    [
+      conversationId,
+      loading,
+      getConversationById,
+      stopDictation,
+      clearDictationError,
+      messages,
+      pendingAttachments,
+      syncFromStored,
+    ]
+  );
+
+  const handleDeleteConversation = (id: string) => {
+    if (
+      !window.confirm(
+        "Eliminare questa conversazione? L'azione non si può annullare."
+      )
+    ) {
+      return;
+    }
+    deleteConversation(id);
+    if (conversationId === id) resetChat();
   };
 
   const canSend =
@@ -618,8 +673,45 @@ export function ServiceChatWorkspace({
       ? messages[lastAssistantIdx].quickReplies
       : undefined;
 
+  const chatResults = collectChatResults(messages);
+
+  useEffect(() => {
+    if (!embed) return;
+    const show = chatResults.hasResults || kbSearching;
+    if (show && !hadResultsRef.current) {
+      setOverlayResultsOpen(true);
+    }
+    hadResultsRef.current = show;
+  }, [embed, chatResults.hasResults, kbSearching]);
+
+  const handleSidebarKbFeedback = useCallback(
+    (helpful: boolean) => {
+      const current = collectChatResults(messages);
+      if (!current.kbMessageId || !current.kbMatch) return;
+      void handleKbFeedback(
+        current.kbMessageId,
+        current.kbMatch.entryId,
+        current.kbMatch.symptom,
+        current.kbMatch.frequency,
+        helpful
+      );
+    },
+    [messages, handleKbFeedback]
+  );
+
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <div className="relative flex min-h-0 flex-1">
+      {!embed && (
+        <ChatHistorySidebar
+          conversations={historyConversations}
+          activeId={conversationId}
+          onSelect={openConversation}
+          onDelete={handleDeleteConversation}
+          onNew={resetChat}
+          disabled={loading}
+        />
+      )}
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
       {showHeader && (
       <div
         className={[
@@ -627,12 +719,7 @@ export function ServiceChatWorkspace({
           embed ? "px-4 py-3" : "px-6 py-5",
         ].join(" ")}
       >
-        <div
-          className={[
-            "flex items-start justify-between gap-4",
-            embed ? "w-full" : "mx-auto max-w-4xl",
-          ].join(" ")}
-        >
+        <div className="flex w-full items-start justify-between gap-4">
           <div>
             <div className="mb-0.5 flex items-center gap-2">
               <span
@@ -769,16 +856,6 @@ export function ServiceChatWorkspace({
               }
               onQuickReply={(value) => void submitText(value)}
               quickRepliesDisabled={loading}
-              onKbFeedback={(helpful) =>
-                msg.kbMatch &&
-                void handleKbFeedback(
-                  msg.id,
-                  msg.kbMatch.entryId,
-                  msg.kbMatch.symptom,
-                  msg.kbMatch.frequency,
-                  helpful
-                )
-              }
             />
           ))}
           {loading && <TypingIndicator kbSearch={kbSearching} />}
@@ -938,6 +1015,59 @@ export function ServiceChatWorkspace({
           )}
         </div>
       </div>
+      </div>
+
+      {!embed && (
+        <ChatResultsSidebar
+          messages={messages}
+          searching={kbSearching}
+          onKbFeedback={handleSidebarKbFeedback}
+        />
+      )}
+      {embed && overlayResultsOpen && (
+        <>
+          <button
+            type="button"
+            className="absolute inset-0 z-10 bg-ink/20"
+            aria-label="Chiudi risultati"
+            onClick={() => setOverlayResultsOpen(false)}
+          />
+          <ChatResultsSidebar
+            overlay
+            messages={messages}
+            searching={kbSearching}
+            onKbFeedback={handleSidebarKbFeedback}
+            onClose={() => setOverlayResultsOpen(false)}
+          />
+        </>
+      )}
+      {embed &&
+        !overlayResultsOpen &&
+        (chatResults.hasResults || kbSearching) && (
+          <button
+            type="button"
+            onClick={() => setOverlayResultsOpen(true)}
+            className="absolute right-3 top-1/2 z-10 flex -translate-y-1/2 flex-col items-center gap-1 rounded-l-xl border border-r-0 border-border bg-surface px-2 py-3 text-[10px] font-semibold uppercase tracking-wider text-brand shadow-lg shadow-black/10"
+            aria-label="Apri risultati"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path
+                d="M12 3.5 20 8v8l-8 4.5L4 16V8l8-4.5Z"
+                stroke="currentColor"
+                strokeWidth="1.7"
+                strokeLinejoin="round"
+              />
+            </svg>
+            Risultati
+            {chatResults.hasResults && (
+              <span className="rounded-full bg-brand/15 px-1.5 py-0.5 tabular-nums">
+                {chatResults.spareParts.length +
+                  (chatResults.kbMatch ? 1 : 0) +
+                  (chatResults.ticket ? 1 : 0)}
+              </span>
+            )}
+          </button>
+        )}
     </div>
   );
 }
@@ -947,13 +1077,11 @@ function MessageBubble({
   quickReplies,
   onQuickReply,
   quickRepliesDisabled,
-  onKbFeedback,
 }: {
   message: DisplayMessage;
   quickReplies?: DisplayMessage["quickReplies"];
   onQuickReply: (value: string) => void;
   quickRepliesDisabled?: boolean;
-  onKbFeedback?: (helpful: boolean) => void;
 }) {
   const isUser = message.role === "user";
 
@@ -997,25 +1125,6 @@ function MessageBubble({
             isUserMessage={isUser}
           />
         )}
-        {!isUser && message.spareParts && message.spareParts.length > 0 && (
-          <SparePartCardList parts={message.spareParts} />
-        )}
-        {!isUser && message.ticket && <TicketBanner ticket={message.ticket} />}
-        {!isUser && message.kbMatch && (
-          <KbMatchBanner match={message.kbMatch} />
-        )}
-        {!isUser &&
-          message.kbMatch &&
-          message.kbFeedback &&
-          onKbFeedback && (
-            <KbSolutionFeedback
-              status={message.kbFeedback}
-              entryId={message.kbMatch.entryId}
-              onHelpful={() => onKbFeedback(true)}
-              onNotHelpful={() => onKbFeedback(false)}
-              disabled={message.kbFeedback !== "pending"}
-            />
-          )}
         {!isUser && quickReplies && quickReplies.length > 0 && (
           <QuickReplyBubbles
             options={quickReplies}

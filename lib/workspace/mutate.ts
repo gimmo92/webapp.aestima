@@ -185,6 +185,13 @@ export async function applyWorkspaceMutation(
       ]);
       return { ok: true };
     }
+    case "deleteConversation": {
+      const id = asString(p.id);
+      await prisma.conversation.deleteMany({
+        where: { id, companyId },
+      });
+      return { ok: true };
+    }
     case "takeOverConversation": {
       const id = asString(p.id);
       const operatorId = asString(p.operatorId);
