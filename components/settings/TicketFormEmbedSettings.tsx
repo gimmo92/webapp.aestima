@@ -6,6 +6,7 @@ import {
   buildTicketFormScriptSnippet,
 } from "@/lib/embedSnippets";
 import { TicketFormFieldsEditor } from "./TicketFormFieldsEditor";
+import { useI18n } from "@/lib/i18n";
 
 export function TicketFormEmbedSettings() {
   const [slug, setSlug] = useState<string | null>(null);
@@ -13,6 +14,7 @@ export function TicketFormEmbedSettings() {
   const [copied, setCopied] = useState<"iframe" | "script" | null>(null);
   const [mode, setMode] = useState<"iframe" | "script">("iframe");
   const [previewKey, setPreviewKey] = useState(0);
+  const { t } = useI18n();
 
   useEffect(() => {
     let cancelled = false;
@@ -52,15 +54,17 @@ export function TicketFormEmbedSettings() {
 
   return (
     <section className="mt-12 border-t border-border pt-8">
-      <h2 className="text-xl font-bold text-ink">Form ticket embeddabile</h2>
+      <h2 className="text-xl font-bold text-ink">{t("tickets.embedTitle")}</h2>
       <p className="mt-1 text-sm text-ink-muted">
-        Pubblica sul sito un form che apre un ticket nel workspace
-        {companyName ? ` di ${companyName}` : ""}. Il cliente può inserire
-        contatto, macchina e allegare foto o documenti.
+        {t("tickets.embedHint", {
+          company: companyName
+            ? t("tickets.embedHintCompany", { name: companyName })
+            : "",
+        })}
       </p>
 
       {!slug ? (
-        <p className="mt-4 text-sm text-ink-faint">Carico i dati company…</p>
+        <p className="mt-4 text-sm text-ink-faint">{t("tickets.loadingCompany")}</p>
       ) : (
         <>
           <div className="mt-4 flex flex-wrap items-center gap-2">
@@ -70,10 +74,10 @@ export function TicketFormEmbedSettings() {
               rel="noreferrer"
               className="rounded-lg border border-border bg-surface px-3 py-2 text-sm font-medium text-ink-muted hover:text-ink"
             >
-              Apri form
+              {t("tickets.openForm")}
             </a>
             <span className="text-xs text-ink-faint">
-              Workspace <span className="font-mono text-brand">{slug}</span>
+              {t("tickets.workspace")} <span className="font-mono text-brand">{slug}</span>
             </span>
           </div>
 

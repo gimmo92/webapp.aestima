@@ -1,8 +1,10 @@
 import Link from "next/link";
 import type { KbMatchPreview } from "@/lib/serviceChatTypes";
+import { useI18n } from "@/lib/i18n";
 
 export function KbMatchBanner({ match }: { match: KbMatchPreview }) {
   const href = `/manuale?entry=${encodeURIComponent(match.entryId)}`;
+  const { t } = useI18n();
 
   return (
     <div className="rounded-xl border border-ok/40 bg-ok/10 px-4 py-3">
@@ -23,13 +25,13 @@ export function KbMatchBanner({ match }: { match: KbMatchPreview }) {
           />
         </svg>
         <p className="text-xs font-bold uppercase tracking-wider text-ok">
-          Referenza knowledge base
+          {t("kb.reference")}
         </p>
       </div>
       <p className="text-sm leading-relaxed text-ink-muted">
-        Problema già risolto in un intervento precedente
+        {t("kb.alreadySolved")}
         {match.frequency && match.frequency > 1
-          ? ` — riscontrato ${match.frequency} volte`
+          ? t("kb.times", { n: match.frequency })
           : ""}
         .
       </p>
@@ -37,7 +39,7 @@ export function KbMatchBanner({ match }: { match: KbMatchPreview }) {
         href={href}
         className="mt-2 inline-flex items-center gap-1.5 text-sm font-semibold text-brand hover:underline"
       >
-        Vedi scheda {match.entryId} nel Manuale
+        {t("kb.viewCard", { id: match.entryId })}
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
           <path
             d="M5 12h14M13 6l6 6-6 6"

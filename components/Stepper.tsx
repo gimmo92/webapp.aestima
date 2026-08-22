@@ -1,16 +1,20 @@
+"use client";
+
+import { useI18n } from "@/lib/i18n";
+
 // Indicatore di avanzamento del flusso a step.
 
-export const STEPS = [
-  { id: 1, label: "Richiesta" },
-  { id: 2, label: "Analisi AI" },
-  { id: 3, label: "Ricambio" },
-  { id: 4, label: "Preventivo" },
-] as const;
-
 export function Stepper({ current }: { current: number }) {
+  const { t } = useI18n();
+  const steps = [
+    { id: 1, label: t("stepper.request") },
+    { id: 2, label: t("stepper.analysis") },
+    { id: 3, label: t("stepper.part") },
+    { id: 4, label: t("stepper.quote") },
+  ];
   return (
     <div className="flex items-center justify-center gap-1 sm:gap-2">
-      {STEPS.map((step, i) => {
+      {steps.map((step, i) => {
         const isDone = step.id < current;
         const isActive = step.id === current;
         return (
@@ -59,7 +63,7 @@ export function Stepper({ current }: { current: number }) {
                 {step.label}
               </span>
             </div>
-            {i < STEPS.length - 1 && (
+            {i < steps.length - 1 && (
               <div
                 className={[
                   "mx-2 h-px w-6 sm:w-12",

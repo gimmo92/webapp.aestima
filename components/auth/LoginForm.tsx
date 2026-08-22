@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useActionState } from "react";
 import { loginAction, type AuthActionState } from "@/app/actions/auth";
 import { Logo } from "@/components/Logo";
+import { useI18n } from "@/lib/i18n";
 
 const initial: AuthActionState = {};
 
@@ -15,14 +16,15 @@ export function LoginForm({
   resetDone?: boolean;
 }) {
   const [state, action, pending] = useActionState(loginAction, initial);
+  const { t } = useI18n();
 
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-md flex-col justify-center px-5 py-10">
       <div className="mb-8 text-center">
         <Logo className="justify-center" height={40} />
-        <h1 className="mt-6 text-2xl font-bold text-ink">Accedi alla company</h1>
+        <h1 className="mt-6 text-2xl font-bold text-ink">{t("auth.loginTitle")}</h1>
         <p className="mt-2 text-sm text-ink-muted">
-          Gestisci inbox, ticket e archivio del tuo team.
+          {t("auth.loginSubtitle")}
         </p>
       </div>
 
@@ -35,7 +37,7 @@ export function LoginForm({
         ) : null}
 
         <label className="block text-sm font-medium text-ink-muted">
-          Email
+          {t("auth.email")}
           <input
             name="email"
             type="email"
@@ -47,7 +49,7 @@ export function LoginForm({
         </label>
 
         <label className="mt-4 block text-sm font-medium text-ink-muted">
-          Password
+          {t("auth.password")}
           <input
             name="password"
             type="password"
@@ -62,13 +64,13 @@ export function LoginForm({
             href="/recupera-password"
             className="text-xs font-medium text-brand hover:underline"
           >
-            Password dimenticata?
+            {t("auth.forgotPassword")}
           </Link>
         </div>
 
         {resetDone && (
           <p className="mt-4 rounded-lg border border-ok/40 bg-ok/10 px-3 py-2 text-sm text-ok">
-            Password aggiornata. Accedi con la nuova password.
+            {t("auth.passwordUpdated")}
           </p>
         )}
         {state.error && (
@@ -82,14 +84,14 @@ export function LoginForm({
           disabled={pending}
           className="mt-6 w-full rounded-xl bg-brand px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-brand/20 transition-colors hover:bg-brand-strong disabled:opacity-50"
         >
-          {pending ? "Accesso…" : "Accedi"}
+          {pending ? t("auth.signingIn") : t("auth.signIn")}
         </button>
       </form>
 
       <p className="mt-6 text-center text-sm text-ink-faint">
-        Non hai ancora una company?{" "}
+        {t("auth.noCompany")}{" "}
         <Link href="/register" className="font-medium text-brand hover:underline">
-          Registrati
+          {t("auth.register")}
         </Link>
       </p>
     </div>

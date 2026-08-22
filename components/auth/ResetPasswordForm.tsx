@@ -7,25 +7,27 @@ import {
   type AuthActionState,
 } from "@/app/actions/auth";
 import { Logo } from "@/components/Logo";
+import { useI18n } from "@/lib/i18n";
 
 const initial: AuthActionState = {};
 
 export function ResetPasswordForm({ token }: { token: string }) {
   const [state, action, pending] = useActionState(resetPasswordAction, initial);
+  const { t } = useI18n();
 
   if (!token) {
     return (
       <div className="mx-auto flex min-h-screen w-full max-w-md flex-col justify-center px-5 py-10">
         <div className="mb-8 text-center">
           <Logo className="justify-center" height={40} />
-          <h1 className="mt-6 text-2xl font-bold text-ink">Link non valido</h1>
+          <h1 className="mt-6 text-2xl font-bold text-ink">{t("auth.invalidLinkTitle")}</h1>
           <p className="mt-2 text-sm text-ink-muted">
-            Il link di recupero manca o è incompleto.
+            {t("auth.invalidLinkBody")}
           </p>
         </div>
         <p className="text-center text-sm text-ink-faint">
           <Link href="/recupera-password" className="font-medium text-brand hover:underline">
-            Richiedi un nuovo link
+            {t("auth.requestNewLink")}
           </Link>
         </p>
       </div>
@@ -36,9 +38,9 @@ export function ResetPasswordForm({ token }: { token: string }) {
     <div className="mx-auto flex min-h-screen w-full max-w-md flex-col justify-center px-5 py-10">
       <div className="mb-8 text-center">
         <Logo className="justify-center" height={40} />
-        <h1 className="mt-6 text-2xl font-bold text-ink">Nuova password</h1>
+        <h1 className="mt-6 text-2xl font-bold text-ink">{t("auth.newPasswordTitle")}</h1>
         <p className="mt-2 text-sm text-ink-muted">
-          Scegli una password di almeno 8 caratteri.
+          {t("auth.newPasswordSubtitle")}
         </p>
       </div>
 
@@ -49,7 +51,7 @@ export function ResetPasswordForm({ token }: { token: string }) {
         <input type="hidden" name="token" value={token} />
 
         <label className="block text-sm font-medium text-ink-muted">
-          Nuova password
+          {t("auth.newPassword")}
           <input
             name="password"
             type="password"
@@ -57,12 +59,12 @@ export function ResetPasswordForm({ token }: { token: string }) {
             minLength={8}
             autoComplete="new-password"
             className="mt-1.5 w-full rounded-xl border border-border bg-base px-3 py-2.5 text-sm text-ink outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
-            placeholder="Minimo 8 caratteri"
+            placeholder={t("auth.minChars")}
           />
         </label>
 
         <label className="mt-4 block text-sm font-medium text-ink-muted">
-          Conferma password
+          {t("auth.confirmPassword")}
           <input
             name="confirm"
             type="password"
@@ -70,7 +72,7 @@ export function ResetPasswordForm({ token }: { token: string }) {
             minLength={8}
             autoComplete="new-password"
             className="mt-1.5 w-full rounded-xl border border-border bg-base px-3 py-2.5 text-sm text-ink outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
-            placeholder="Ripeti la password"
+            placeholder={t("auth.repeatPassword")}
           />
         </label>
 
@@ -85,13 +87,13 @@ export function ResetPasswordForm({ token }: { token: string }) {
           disabled={pending}
           className="mt-6 w-full rounded-xl bg-brand px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-brand/20 transition-colors hover:bg-brand-strong disabled:opacity-50"
         >
-          {pending ? "Salvataggio…" : "Imposta nuova password"}
+          {pending ? t("auth.saving") : t("auth.setNewPassword")}
         </button>
       </form>
 
       <p className="mt-6 text-center text-sm text-ink-faint">
         <Link href="/login" className="font-medium text-brand hover:underline">
-          Torna al login
+          {t("auth.backToSignIn")}
         </Link>
       </p>
     </div>

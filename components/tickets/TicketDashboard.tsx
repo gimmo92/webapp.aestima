@@ -7,12 +7,14 @@ import { useInbox } from "@/components/inbox/InboxProvider";
 import { openStageIds, terminalStageIds } from "@/lib/ticketData";
 import { CreateTicketModal } from "./CreateTicketModal";
 import { TicketStatusPill } from "./TicketStatusPill";
+import { useI18n } from "@/lib/i18n";
 
 export function TicketDashboard() {
   const { tickets, ticketStages, requests, conversations, createTicket } =
     useInbox();
   const router = useRouter();
   const [showCreate, setShowCreate] = useState(false);
+  const { t } = useI18n();
 
   const openIds = openStageIds(ticketStages);
   const closedIds = terminalStageIds(ticketStages);
@@ -45,9 +47,9 @@ export function TicketDashboard() {
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="flex items-center justify-between gap-4 border-b border-border bg-surface/40 px-5 py-3">
         <div>
-          <h1 className="text-sm font-semibold text-ink">Dashboard</h1>
+          <h1 className="text-sm font-semibold text-ink">{t("tickets.dashboard")}</h1>
           <p className="text-xs text-ink-faint">
-            Panoramica dei ticket e di quello che richiede attenzione.
+            {t("tickets.dashboardHint")}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -55,7 +57,7 @@ export function TicketDashboard() {
             href="/ticket/coda"
             className="rounded-lg border border-border bg-base px-3 py-2 text-sm font-medium text-ink-muted hover:text-ink"
           >
-            Coda
+            {t("tickets.queueShort")}
           </Link>
           <button
             type="button"
@@ -70,7 +72,7 @@ export function TicketDashboard() {
                 strokeLinecap="round"
               />
             </svg>
-            Nuovo ticket
+            {t("tickets.newTicket")}
           </button>
         </div>
       </div>
@@ -79,28 +81,28 @@ export function TicketDashboard() {
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <Kpi
             href="/ticket/lista"
-            label="Aperti"
+            label={t("tickets.open")}
             value={stats.open}
-            hint="In lavorazione o da assegnare"
+            hint={t("tickets.openHint")}
           />
           <Kpi
             href="/ticket/lista"
-            label="Alta priorità"
+            label={t("tickets.highPriority")}
             value={stats.high}
-            hint="Ticket aperti urgenti"
+            hint={t("tickets.highHint")}
             accent={stats.high > 0 ? "warn" : undefined}
           />
           <Kpi
             href="/ticket/coda"
-            label="Da assegnare"
+            label={t("tickets.unassigned")}
             value={stats.unassigned}
-            hint="Senza tecnico"
+            hint={t("tickets.unassignedHint")}
           />
           <Kpi
             href="/ticket/lista"
-            label="Chiusi / risolti"
+            label={t("tickets.closed")}
             value={stats.closed}
-            hint="Stage terminali"
+            hint={t("tickets.closedHint")}
           />
         </div>
 
@@ -109,20 +111,20 @@ export function TicketDashboard() {
             href="/ticket/inbox"
             className="rounded-xl border border-border bg-surface/60 px-4 py-3 hover:border-border-strong"
           >
-            <p className="text-xs font-medium text-ink-faint">Inbox email</p>
+            <p className="text-xs font-medium text-ink-faint">{t("tickets.emailInbox")}</p>
             <p className="mt-1 text-lg font-semibold text-ink">
               {stats.inboxNew}{" "}
-              <span className="text-sm font-medium text-ink-muted">nuove</span>
+              <span className="text-sm font-medium text-ink-muted">{t("tickets.newCount")}</span>
             </p>
           </Link>
           <Link
             href="/ticket/chat"
             className="rounded-xl border border-border bg-surface/60 px-4 py-3 hover:border-border-strong"
           >
-            <p className="text-xs font-medium text-ink-faint">Chat live</p>
+            <p className="text-xs font-medium text-ink-faint">{t("tickets.liveChat")}</p>
             <p className="mt-1 text-lg font-semibold text-ink">
               {stats.chatsOpen}{" "}
-              <span className="text-sm font-medium text-ink-muted">aperte</span>
+              <span className="text-sm font-medium text-ink-muted">{t("tickets.chatsOpen")}</span>
             </p>
           </Link>
         </div>
@@ -130,12 +132,12 @@ export function TicketDashboard() {
         <div className="mt-5 grid gap-5 lg:grid-cols-2">
           <section className="rounded-2xl border border-border bg-surface/40 p-4">
             <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-ink">Per stage</h2>
+              <h2 className="text-sm font-semibold text-ink">{t("tickets.byStage")}</h2>
               <Link
                 href="/ticket/coda"
                 className="text-xs font-medium text-brand hover:underline"
               >
-                Apri coda
+                {t("tickets.openQueue")}
               </Link>
             </div>
             {tickets.length === 0 ? (
@@ -171,17 +173,17 @@ export function TicketDashboard() {
 
           <section className="rounded-2xl border border-border bg-surface/40 p-4">
             <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-ink">Alta priorità</h2>
+              <h2 className="text-sm font-semibold text-ink">{t("tickets.highPriority")}</h2>
               <Link
                 href="/ticket/lista"
                 className="text-xs font-medium text-brand hover:underline"
               >
-                Tutti i ticket
+                {t("tickets.allTickets")}
               </Link>
             </div>
             {stats.urgent.length === 0 ? (
               <p className="py-8 text-center text-xs text-ink-faint">
-                Nessun ticket urgente aperto.
+                {t("tickets.noUrgent")}
               </p>
             ) : (
               <ul className="space-y-2">
@@ -195,12 +197,12 @@ export function TicketDashboard() {
 
         <section className="mt-5 rounded-2xl border border-border bg-surface/40 p-4">
           <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-ink">Ultimi ticket</h2>
+            <h2 className="text-sm font-semibold text-ink">{t("tickets.latest")}</h2>
             <Link
               href="/ticket/lista"
               className="text-xs font-medium text-brand hover:underline"
             >
-              Vedi lista
+              {t("tickets.seeList")}
             </Link>
           </div>
           {stats.recent.length === 0 ? (
@@ -300,9 +302,8 @@ function TicketRow({
 }
 
 function EmptyHint() {
+  const { t } = useI18n();
   return (
-    <p className="py-8 text-center text-xs text-ink-faint">
-      Ancora nessun ticket. Creane uno o attendi un invio dal form.
-    </p>
+    <p className="py-8 text-center text-xs text-ink-faint">{t("tickets.empty")}</p>
   );
 }

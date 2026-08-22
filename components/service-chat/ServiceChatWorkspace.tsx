@@ -18,10 +18,11 @@ import {
 } from "@/lib/serviceChatAttachments";
 import {
   inferQuickReplies,
-  WELCOME_QUICK_REPLIES,
   ensureMachineOtherOption,
 } from "@/lib/serviceChatQuickReplies";
 import type { DisplayMessage } from "@/lib/serviceChatTypes";
+import { useI18n, translate, type TranslateFn } from "@/lib/i18n";
+import { DEFAULT_LOCALE } from "@/lib/i18n/locale";
 import { isReadyForKbSearch } from "@/lib/knowledgeSearch";
 import { useSpeechDictation } from "@/lib/useSpeechDictation";
 import {
@@ -41,13 +42,19 @@ import {
 // Quick-reply bubbles + allegati foto/documenti.
 // =============================================================
 
-const WELCOME: DisplayMessage = {
-  id: "welcome",
-  role: "assistant",
-  content:
-    "Buongiorno, sono l'assistente service di aftercore. Posso aiutarti a identificare ricambi nella distinta della tua macchina o a trovare soluzioni a malfunzionamenti già risoliti in passato.\n\nScegli un'opzione qui sotto, allega foto o documenti, oppure scrivi liberamente.",
-  quickReplies: WELCOME_QUICK_REPLIES,
-};
+function buildWelcome(t: TranslateFn): DisplayMessage {
+  return {
+    id: "welcome",
+    role: "assistant",
+    content: t("chat.welcome"),
+    quickReplies: [
+      { label: t("chat.qrSpare"), value: t("chat.qrSpare") },
+      { label: t("chat.qrMalfunction"), value: t("chat.qrMalfunction") },
+      { label: t("chat.qrMissingCode"), value: t("chat.qrMissingCode") },
+      { label: t("chat.qrOther"), value: t("chat.qrOtherValue") },
+    ],
+  };
+}
 
 let msgCounter = 0;
 function nextId() {
@@ -104,10 +111,14 @@ export function ServiceChatWorkspace({
     incrementKnowledgeFrequency,
     createTicket,
   } = useInbox();
+  const { t, locale, dateLocale } = useI18n();
+  const welcome = useMemo(() => buildWelcome(t), [t]);
   const [conversationId, setConversationId] = useState<string | null>(
     initialConversationId ?? null
   );
-  const [messages, setMessages] = useState<DisplayMessage[]>([WELCOME]);
+  const [messages, setMessages] = useState<DisplayMessage[]>(() => [
+    buildWelcome((key) => translate(DEFAULT_LOCALE, key)),
+  ]);
   const [input, setInput] = useState("");
   const [pendingAttachments, setPendingAttachments] = useState<ChatAttachment[]>(
     []
@@ -153,8 +164,8 @@ export function ServiceChatWorkspace({
     const welcomeMsg = {
       id: "welcome",
       role: "assistant" as const,
-      content: WELCOME.content,
-      timestampLabel: new Date().toLocaleTimeString("it-IT", {
+      content: welcome.content,
+      timestampLabel: new Date().toLocaleTimeString(dateLocale, {
         hour: "2-digit",
         minute: "2-digit",
       }),
@@ -173,6 +184,8 @@ export function ServiceChatWorkspace({
     customerName,
     customerEmail,
     channel,
+    welcome,
+    dateLocale,
   ]);
 
   /** Crea un ServiceTicket collegato alla conversazione (una sola volta). */
@@ -219,8 +232,7 @@ export function ServiceChatWorkspace({
       const notice: DisplayMessage = {
         id: nextId(),
         role: "assistant",
-        content:
-          "Ho aperto un ticket di assistenza service. Un tecnico prenderà in carico la richiesta a breve.",
+        content: t("chat.ticketOpened"),
         ticket,
       };
       setMessages((prev) => [...prev, notice]);
@@ -307,12 +319,19 @@ export function ServiceChatWorkspace({
         ticket: m.ticket,
         isOperatorReply: m.role === "agent",
       }));
-      setMessages(mapped.length > 0 ? mapped : [WELCOME]);
+      setMessages(mapped.length > 0 ? mapped : [welcome]);
     },
-    []
+    [welcome]
   );
 
   const syncedAgentCountRef = useRef(0);
+
+  useEffect(() => {
+    if (conversationId) return;
+    setMessages((prev) =>
+      prev.length === 1 && prev[0].id === "welcome" ? [welcome] : prev
+    );
+  }, [welcome, conversationId]);
 
   useEffect(() => {
     if (!initialConversationId) return;
@@ -380,7 +399,7 @@ export function ServiceChatWorkspace({
 
       const slotsLeft = MAX_ATTACHMENTS_PER_MESSAGE - pendingAttachments.length;
       if (slotsLeft <= 0) {
-        setAttachError(`Massimo ${MAX_ATTACHMENTS_PER_MESSAGE} allegati per messaggio.`);
+        setAttachError(t("chat.maxAttachments", { n: MAX_ATTACHMENTS_PER_MESSAGE }));
         return;
       }
 
@@ -393,7 +412,7 @@ export function ServiceChatWorkspace({
         setPendingAttachments((prev) => [...prev, ...converted]);
       } catch (err) {
         setAttachError(
-          err instanceof Error ? err.message : "Impossibile allegare il file."
+          err instanceof Error ? err.message : t("chat.attachFail")
         );
       } finally {
         if (fileRef.current) fileRef.current.value = "";
@@ -440,7 +459,7 @@ export function ServiceChatWorkspace({
           id: nextId(),
           role: "assistant",
           content:
-            "Il tuo messaggio è stato inoltrato all'operatore. Riceverai una risposta a breve.",
+            t("chat.forwardedToOperator"),
         };
         setMessages((prev) => [...prev, waitMsg]);
         return;
@@ -451,7 +470,7 @@ export function ServiceChatWorkspace({
           id: nextId(),
           role: "assistant",
           content:
-            "Questa conversazione è stata chiusa. Avvia una nuova conversazione per ulteriore assistenza.",
+            t("chat.conversationClosed"),
         };
         setMessages((prev) => [...prev, closedMsg]);
         return;
@@ -478,7 +497,7 @@ export function ServiceChatWorkspace({
         const res = await fetch("/api/service-chat", {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ messages: apiMessages, knowledgeBase }),
+          body: JSON.stringify({ messages: apiMessages, knowledgeBase, locale }),
         });
 
         const data = await res.json();
@@ -488,8 +507,7 @@ export function ServiceChatWorkspace({
             id: nextId(),
             role: "assistant",
             content:
-              data?.error ??
-              "Al momento non riesco a rispondere. Riprova tra qualche istante.",
+              data?.error ?? t("chat.errorRetry"),
             isError: true,
           };
           setMessages((prev) => [...prev, errMsg]);
@@ -546,7 +564,7 @@ export function ServiceChatWorkspace({
           id: nextId(),
           role: "assistant",
           content:
-            "Connessione non disponibile. Verifica la rete e riprova.",
+            t("chat.errorNetwork"),
           isError: true,
         };
         setMessages((prev) => [...prev, errMsg]);
@@ -596,7 +614,7 @@ export function ServiceChatWorkspace({
     clearDictationError();
     revokeAttachmentUrls(collectAttachmentUrls(messages));
     revokeAttachmentUrls(pendingAttachments);
-    setMessages([WELCOME]);
+    setMessages([welcome]);
     setConversationId(null);
     setInput("");
     setPendingAttachments([]);
@@ -648,7 +666,7 @@ export function ServiceChatWorkspace({
   const handleDeleteConversation = (id: string) => {
     if (
       !window.confirm(
-        "Eliminare questa conversazione? L'azione non si può annullare."
+        t("chat.deleteConfirm")
       )
     ) {
       return;
@@ -750,7 +768,7 @@ export function ServiceChatWorkspace({
                   embed ? "text-base" : "text-xl sm:text-2xl",
                 ].join(" ")}
               >
-                Assistenza service
+                {t("chat.title")}
               </h1>
             </div>
           </div>
@@ -777,7 +795,7 @@ export function ServiceChatWorkspace({
                       strokeLinejoin="round"
                     />
                   </svg>
-                  Vedi ticket
+                  {t("chat.viewTicket")}
                 </Link>
               ) : (
                 <button
@@ -788,8 +806,8 @@ export function ServiceChatWorkspace({
                   }
                   title={
                     hasActiveConversation
-                      ? "Apri un ticket di assistenza collegato a questa chat"
-                      : "Disponibile dopo il primo messaggio della conversazione"
+                      ? t("chat.ticketHint")
+                      : t("chat.ticketHintWait")
                   }
                   className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-border bg-surface px-3 py-2 text-xs font-semibold text-ink-muted transition-colors hover:border-brand/40 hover:text-brand disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-border disabled:hover:text-ink-muted"
                 >
@@ -808,7 +826,7 @@ export function ServiceChatWorkspace({
                       strokeLinejoin="round"
                     />
                   </svg>
-                  Crea ticket
+                  {t("chat.createTicket")}
                 </button>
               )}
               <button
@@ -831,7 +849,7 @@ export function ServiceChatWorkspace({
                     strokeLinejoin="round"
                   />
                 </svg>
-                Nuova conversazione
+                {t("chat.newConversation")}
               </button>
             </div>
           )}
@@ -884,7 +902,7 @@ export function ServiceChatWorkspace({
           {pendingAttachments.length > 0 && (
             <div className="mb-3 rounded-xl border border-border bg-base/60 p-3">
               <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
-                Allegati pronti per l&apos;invio
+                {t("chat.pendingAttachments")}
               </p>
               <ChatAttachmentList
                 attachments={pendingAttachments}
@@ -906,7 +924,7 @@ export function ServiceChatWorkspace({
               onClick={() => fileRef.current?.click()}
               disabled={loading || pendingAttachments.length >= MAX_ATTACHMENTS_PER_MESSAGE}
               className="inline-flex h-[52px] w-[52px] shrink-0 items-center justify-center self-end rounded-xl border border-border bg-base text-ink-muted transition-colors hover:border-brand/50 hover:text-brand disabled:cursor-not-allowed disabled:opacity-40"
-              title="Allega foto o documento"
+              title={t("chat.attachTitle")}
             >
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
                 <path
@@ -928,8 +946,8 @@ export function ServiceChatWorkspace({
                 }}
                 disabled={loading || conversationResolved}
                 aria-pressed={dictating}
-                aria-label={dictating ? "Ferma dettatura" : "Dettatura audio"}
-                title={dictating ? "Ferma dettatura" : "Dettatura audio"}
+                aria-label={dictating ? t("chat.dictationStop") : t("chat.dictationStart")}
+                title={dictating ? t("chat.dictationStop") : t("chat.dictationStart")}
                 className={[
                   "inline-flex h-[52px] w-[52px] shrink-0 items-center justify-center self-end rounded-xl border transition-colors disabled:cursor-not-allowed disabled:opacity-40",
                   dictating
@@ -967,8 +985,8 @@ export function ServiceChatWorkspace({
               rows={2}
               placeholder={
                 dictating
-                  ? "Sto ascoltando… parla pure"
-                  : "Descrivi il problema, dettalo o allega una foto della macchina / del componente…"
+                  ? t("chat.listening")
+                  : t("chat.placeholder")
               }
               className={[
                 "min-h-[52px] flex-1 resize-none rounded-xl border bg-base px-4 py-3 text-[15px] leading-relaxed text-ink outline-none transition-colors placeholder:text-ink-faint disabled:opacity-60",
@@ -1000,17 +1018,17 @@ export function ServiceChatWorkspace({
                   />
                 </svg>
               )}
-              Invia
+              {t("chat.send")}
             </button>
           </div>
           {dictating && (
             <p className="mt-2 text-center text-xs font-medium text-danger">
-              Dettatura attiva — tocca di nuovo il microfono per fermare
+              {t("chat.dictationOn")}
             </p>
           )}
           {operatorActive && !conversationResolved && (
             <p className="mt-2 text-center text-xs text-ok">
-              Stai parlando con un agente umano.
+              {t("chat.talkingToHuman")}
             </p>
           )}
         </div>
@@ -1029,7 +1047,7 @@ export function ServiceChatWorkspace({
           <button
             type="button"
             className="absolute inset-0 z-10 bg-ink/20"
-            aria-label="Chiudi risultati"
+            aria-label={t("results.close")}
             onClick={() => setOverlayResultsOpen(false)}
           />
           <ChatResultsSidebar
@@ -1048,7 +1066,7 @@ export function ServiceChatWorkspace({
             type="button"
             onClick={() => setOverlayResultsOpen(true)}
             className="absolute right-3 top-1/2 z-10 flex -translate-y-1/2 flex-col items-center gap-1 rounded-l-xl border border-r-0 border-border bg-surface px-2 py-3 text-[10px] font-semibold uppercase tracking-wider text-brand shadow-lg shadow-black/10"
-            aria-label="Apri risultati"
+            aria-label={t("results.open")}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path
@@ -1058,7 +1076,7 @@ export function ServiceChatWorkspace({
                 strokeLinejoin="round"
               />
             </svg>
-            Risultati
+            {t("results.title")}
             {chatResults.hasResults && (
               <span className="rounded-full bg-brand/15 px-1.5 py-0.5 tabular-nums">
                 {chatResults.spareParts.length +
@@ -1084,6 +1102,15 @@ function MessageBubble({
   quickRepliesDisabled?: boolean;
 }) {
   const isUser = message.role === "user";
+  const { t } = useI18n();
+  const isSystem =
+    message.content.includes("operatore sta gestendo") ||
+    message.content.includes("inoltrato all'operatore") ||
+    message.content.includes("agente umano") ||
+    message.content.includes("conversazione è stata chiusa") ||
+    message.content.includes("forwarded to the operator") ||
+    message.content.includes("human agent") ||
+    message.content.includes("conversation has been closed");
 
   return (
     <div
@@ -1104,14 +1131,11 @@ function MessageBubble({
       >
         {!isUser && (
           <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-brand">
-            {message.content.includes("operatore sta gestendo") ||
-            message.content.includes("inoltrato all'operatore") ||
-            message.content.includes("agente umano") ||
-            message.content.includes("conversazione è stata chiusa")
-              ? "Sistema"
+            {isSystem
+              ? t("chat.system")
               : message.isOperatorReply
-                ? "Operatore"
-                : "Assistente aftercore"}
+                ? t("chat.operator")
+                : t("chat.assistant")}
           </p>
         )}
         {message.content && (
@@ -1138,6 +1162,7 @@ function MessageBubble({
 }
 
 function TypingIndicator({ kbSearch = false }: { kbSearch?: boolean }) {
+  const { t } = useI18n();
   return (
     <div className="flex justify-start animate-fade-up">
       <div
@@ -1149,7 +1174,7 @@ function TypingIndicator({ kbSearch = false }: { kbSearch?: boolean }) {
         ].join(" ")}
       >
         <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-brand">
-          Assistente aftercore
+          {t("chat.assistant")}
         </p>
         <div className="flex items-center gap-1.5">
           {[0, 1, 2].map((i) => (
@@ -1164,8 +1189,8 @@ function TypingIndicator({ kbSearch = false }: { kbSearch?: boolean }) {
           ))}
           <span className="ml-2 text-sm text-ink-muted">
             {kbSearch
-              ? "Attendi, cerco nella knowledge base…"
-              : "Sta scrivendo…"}
+              ? t("chat.searchingKb")
+              : t("chat.typing")}
           </span>
         </div>
       </div>

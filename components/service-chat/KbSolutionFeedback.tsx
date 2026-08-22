@@ -1,6 +1,7 @@
 "use client";
 
 import type { KbFeedbackStatus } from "@/lib/serviceChatTypes";
+import { useI18n } from "@/lib/i18n";
 
 interface Props {
   status: KbFeedbackStatus;
@@ -17,15 +18,16 @@ export function KbSolutionFeedback({
   onNotHelpful,
   disabled,
 }: Props) {
+  const { t } = useI18n();
   if (status === "updating") {
     return (
       <div className="rounded-xl border border-brand/30 bg-brand-soft/50 px-4 py-3">
         <div className="flex items-center gap-3">
           <span className="h-5 w-5 animate-spin rounded-full border-2 border-brand/30 border-t-brand" />
           <div>
-            <p className="text-sm font-medium text-ink">Aggiorno knowledge base…</p>
+            <p className="text-sm font-medium text-ink">{t("kb.updating")}</p>
             <p className="text-xs text-ink-faint">
-              Registro che la scheda {entryId} ha risolto un altro caso
+              {t("kb.updatingHint", { id: entryId })}
             </p>
           </div>
         </div>
@@ -36,8 +38,7 @@ export function KbSolutionFeedback({
   if (status === "helpful") {
     return (
       <div className="rounded-xl border border-ok/30 bg-ok/10 px-4 py-3 text-sm text-ok">
-        Grazie! Knowledge base aggiornata — la soluzione è ora più rilevante per
-        casi futuri simili.
+        {t("kb.thanks")}
       </div>
     );
   }
@@ -45,8 +46,7 @@ export function KbSolutionFeedback({
   if (status === "not_helpful") {
     return (
       <div className="rounded-xl border border-border bg-surface/80 px-4 py-3 text-sm text-ink-muted">
-        Grazie per il feedback. Ho aperto un ticket: un tecnico seguirà la
-        conversazione e ti aiuterà.
+        {t("kb.notHelpful")}
       </div>
     );
   }
@@ -54,7 +54,7 @@ export function KbSolutionFeedback({
   return (
     <div className="rounded-xl border border-border bg-base/80 px-4 py-3">
       <p className="mb-2.5 text-sm font-medium text-ink">
-        Questa soluzione ti ha aiutato?
+        {t("kb.didItHelp")}
       </p>
       <div className="flex flex-wrap gap-2">
         <button
@@ -71,7 +71,7 @@ export function KbSolutionFeedback({
               strokeLinejoin="round"
             />
           </svg>
-          Sì, ha risolto
+          {t("kb.yes")}
         </button>
         <button
           type="button"
@@ -87,7 +87,7 @@ export function KbSolutionFeedback({
               strokeLinejoin="round"
             />
           </svg>
-          No, non ha aiutato
+          {t("kb.no")}
         </button>
       </div>
     </div>

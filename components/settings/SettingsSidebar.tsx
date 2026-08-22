@@ -2,11 +2,38 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useI18n } from "@/lib/i18n";
 
 const ITEMS = [
   {
+    href: "/impostazioni/lingua",
+    key: "settings.language" as const,
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path
+          d="M4 5h7M4 5c0 6 3.5 10 8 12M4 5h0M11 5h9M20 5c0 6-3.5 10-8 12M11 5v0"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+        />
+        <path
+          d="M5 19h14"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+        />
+        <path
+          d="M12 5v14"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+        />
+      </svg>
+    ),
+  },
+  {
     href: "/impostazioni/ticketing",
-    label: "Ticketing",
+    key: "settings.ticketing" as const,
     icon: (
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
         <path
@@ -24,19 +51,20 @@ const ITEMS = [
       </svg>
     ),
   },
-] as const;
+];
 
 export function SettingsSidebar() {
   const pathname = usePathname();
+  const { t } = useI18n();
 
   return (
     <aside className="flex h-full w-52 shrink-0 flex-col border-r border-border bg-surface/60">
       <div className="border-b border-border px-4 py-3">
         <p className="text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
-          Impostazioni
+          {t("settings.title")}
         </p>
       </div>
-      <nav className="flex flex-col gap-0.5 p-2" aria-label="Sezioni impostazioni">
+      <nav className="flex flex-col gap-0.5 p-2" aria-label={t("settings.navAria")}>
         {ITEMS.map((item) => {
           const active =
             pathname === item.href || pathname.startsWith(`${item.href}/`);
@@ -52,7 +80,7 @@ export function SettingsSidebar() {
               ].join(" ")}
             >
               {item.icon}
-              {item.label}
+              {t(item.key)}
             </Link>
           );
         })}

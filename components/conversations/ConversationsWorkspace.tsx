@@ -16,6 +16,7 @@ import type {
   StoredConversationMessage,
 } from "@/lib/conversationTypes";
 import type { ServiceTicketRecord } from "@/lib/ticketTypes";
+import { useI18n } from "@/lib/i18n";
 
 export function ConversationsWorkspace() {
   const {
@@ -28,6 +29,7 @@ export function ConversationsWorkspace() {
     updateTicket,
     getTicketById,
   } = useInbox();
+  const { t } = useI18n();
   const searchParams = useSearchParams();
   const deepLinkId = searchParams.get("id");
 
@@ -135,8 +137,16 @@ export function ConversationsWorkspace() {
   const selected =
     filtered.find((c) => c.id === selectedId) ?? filtered[0] ?? null;
 
-  const filterLabel =
-    CONVERSATION_FILTERS.find((f) => f.id === filter)?.label ?? "Ticket";
+  const filterLabel = t(
+    (
+      {
+        non_assegnate: "conversations.unassigned",
+        miei_aperti: "conversations.mine",
+        risolte: "conversations.resolved",
+        tutte: "conversations.all",
+      } as const
+    )[filter]
+  );
 
   let lastSection: string | undefined;
   const sidebarItems = CONVERSATION_FILTERS.map((item) => {
@@ -150,13 +160,13 @@ export function ConversationsWorkspace() {
       {/* Sidebar filtri */}
       <aside className="flex h-full w-60 shrink-0 flex-col border-r border-border bg-surface/60">
         <div className="border-b border-border px-4 py-4">
-          <h2 className="text-sm font-bold text-ink">Chat live</h2>
-          <p className="text-xs text-ink-faint">Inbox Assistenza AI</p>
+          <h2 className="text-sm font-bold text-ink">{t("conversations.title")}</h2>
+          <p className="text-xs text-ink-faint">{t("conversations.subtitle")}</p>
           <Link
             href="/ticket"
             className="mt-2 inline-flex text-xs font-semibold text-brand hover:underline"
           >
-            Vai ai ticket service →
+            {t("conversations.goTickets")}
           </Link>
         </div>
 
@@ -181,7 +191,7 @@ export function ConversationsWorkspace() {
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Cerca conversazioni…"
+              placeholder={t("conversations.search")}
               className="w-full rounded-lg border border-border bg-base py-2 pl-9 pr-3 text-sm text-ink placeholder:text-ink-faint outline-none transition-colors focus:border-brand focus:ring-2 focus:ring-brand/20"
             />
           </div>
@@ -192,7 +202,9 @@ export function ConversationsWorkspace() {
             <div key={item.id}>
               {item.showSection && (
                 <p className="px-2 pb-1 pt-4 text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
-                  {item.section}
+                  {item.section === "Live chat"
+                    ? t("conversations.sectionLive")
+                    : t("conversations.sectionOther")}
                 </p>
               )}
               <button
@@ -207,7 +219,18 @@ export function ConversationsWorkspace() {
                     : "text-ink-muted hover:bg-surface-2/70 hover:text-ink",
                 ].join(" ")}
               >
-                <span>{item.label}</span>
+                <span>
+                  {t(
+                    (
+                      {
+                        non_assegnate: "conversations.unassigned",
+                        miei_aperti: "conversations.mine",
+                        risolte: "conversations.resolved",
+                        tutte: "conversations.all",
+                      } as const
+                    )[item.id]
+                  )}
+                </span>
                 <span
                   className={[
                     "min-w-[1.25rem] rounded-full px-1.5 py-0.5 text-center text-[11px] font-semibold",
@@ -239,7 +262,7 @@ export function ConversationsWorkspace() {
                 strokeLinejoin="round"
               />
             </svg>
-            Apri assistenza AI
+            {t("conversations.openAssistenza")}
           </Link>
         </div>
       </aside>
@@ -249,14 +272,16 @@ export function ConversationsWorkspace() {
         <div className="border-b border-border px-4 py-3">
           <h3 className="text-sm font-semibold text-ink">{filterLabel}</h3>
           <p className="text-xs text-ink-faint">
-            {filtered.length} conversazion{filtered.length === 1 ? "e" : "i"}
+            {filtered.length === 1
+              ? t("conversations.countOne", { n: filtered.length })
+              : t("conversations.countMany", { n: filtered.length })}
           </p>
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto">
           {filtered.length === 0 ? (
             <div className="p-8 text-center text-sm text-ink-faint">
-              Nessuna conversazione in questa vista.
+              {t("conversations.empty")}
             </div>
           ) : (
             filtered.map((c) => (
@@ -327,7 +352,7 @@ export function ConversationsWorkspace() {
           />
         ) : (
           <div className="flex h-full items-center justify-center text-sm text-ink-faint">
-            Seleziona una conversazione per visualizzare i messaggi.
+            {t("conversations.select")}
           </div>
         )}
       </div>
@@ -437,6 +462,7 @@ function ConversationPanel({
 }) {
   const [input, setInput] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
+  const { t } = useI18n();
   const isOperator = conversation.assignee === "operatore";
   const isResolved = conversation.status === "risolto";
   const canReply = isOperator && !isResolved;
@@ -582,7 +608,7 @@ function ConversationPanel({
           ) : !isOperator ? (
             <div className="flex flex-col items-center gap-3 py-2">
               <p className="text-center text-sm text-ink-muted">
-                L&apos;assistente AI sta gestendo questa conversazione.
+                {t("conversations.aiHandling")}
               </p>
               <button
                 type="button"

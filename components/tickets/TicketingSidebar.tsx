@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useI18n } from "@/lib/i18n";
 
 const ITEMS = [
   {
     href: "/ticket",
-    label: "Dashboard",
+    key: "tickets.dashboard",
     match: (path: string) => path === "/ticket",
     icon: (
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -21,7 +22,7 @@ const ITEMS = [
   },
   {
     href: "/ticket/lista",
-    label: "Lista ticket",
+    key: "tickets.list",
     match: (path: string) =>
       path === "/ticket/lista" || path.startsWith("/ticket/lista/"),
     icon: (
@@ -37,7 +38,7 @@ const ITEMS = [
   },
   {
     href: "/ticket/coda",
-    label: "Coda ticket",
+    key: "tickets.queue",
     match: (path: string) => path === "/ticket/coda" || path.startsWith("/ticket/coda/"),
     icon: (
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -52,7 +53,7 @@ const ITEMS = [
   },
   {
     href: "/ticket/inbox",
-    label: "Inbox",
+    key: "tickets.inbox",
     match: (path: string) => path === "/ticket/inbox" || path.startsWith("/ticket/inbox/"),
     icon: (
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -74,7 +75,7 @@ const ITEMS = [
   },
   {
     href: "/ticket/chat",
-    label: "Chat live",
+    key: "tickets.liveChat",
     match: (path: string) =>
       path === "/ticket/chat" ||
       path.startsWith("/ticket/chat/") ||
@@ -95,15 +96,16 @@ const ITEMS = [
 
 export function TicketingSidebar() {
   const pathname = usePathname();
+  const { t } = useI18n();
 
   return (
     <aside className="flex h-full w-52 shrink-0 flex-col border-r border-border bg-surface/60">
       <div className="border-b border-border px-4 py-3">
         <p className="text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
-          Ticketing
+          {t("tickets.section")}
         </p>
       </div>
-      <nav className="flex flex-col gap-0.5 p-2" aria-label="Sezioni ticketing">
+      <nav className="flex flex-col gap-0.5 p-2" aria-label={t("tickets.navAria")}>
         {ITEMS.map((item) => {
           const active = item.match(pathname);
           return (
@@ -118,7 +120,7 @@ export function TicketingSidebar() {
               ].join(" ")}
             >
               {item.icon}
-              {item.label}
+              {t(item.key)}
             </Link>
           );
         })}

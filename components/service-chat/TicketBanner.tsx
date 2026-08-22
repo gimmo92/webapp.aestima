@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 import type { ServiceTicket } from "@/lib/serviceChatTypes";
+import { useI18n } from "@/lib/i18n";
 
 /** Banner visibile quando l'agente apre un ticket per escalation umana. */
 export function TicketBanner({ ticket }: { ticket: ServiceTicket }) {
+  const { t } = useI18n();
   return (
     <div className="overflow-hidden rounded-xl border border-brand/40 bg-brand-soft">
       <div className="flex items-start gap-3 px-4 py-3.5">
@@ -27,16 +29,16 @@ export function TicketBanner({ ticket }: { ticket: ServiceTicket }) {
         </span>
         <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold text-ink">
-            Ticket {ticket.id} creato — un tecnico ti risponderà
+            {t("ticketBanner.created", { id: ticket.id })}
           </p>
           <p className="mt-1 text-sm text-ink-muted">{ticket.summary}</p>
           <p className="mt-2 text-xs text-ink-faint">
-            Tempo medio di risposta: entro 4 ore lavorative ·{" "}
+            {t("ticketBanner.sla")}{" "}
             <Link
               href={`/ticket/lista?id=${encodeURIComponent(ticket.id)}`}
               className="font-medium text-brand hover:underline"
             >
-              Vedi ticket →
+              {t("ticketBanner.view")}
             </Link>
           </p>
         </div>

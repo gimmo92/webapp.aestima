@@ -7,6 +7,7 @@ import {
   type AuthActionState,
 } from "@/app/actions/auth";
 import { Logo } from "@/components/Logo";
+import { useI18n } from "@/lib/i18n";
 
 const initial: AuthActionState = {};
 
@@ -15,14 +16,15 @@ export function RegisterForm() {
     registerCompanyAction,
     initial
   );
+  const { t } = useI18n();
 
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-md flex-col justify-center px-5 py-10">
       <div className="mb-8 text-center">
         <Logo className="justify-center" height={40} />
-        <h1 className="mt-6 text-2xl font-bold text-ink">Crea la tua company</h1>
+        <h1 className="mt-6 text-2xl font-bold text-ink">{t("auth.registerTitle")}</h1>
         <p className="mt-2 text-sm text-ink-muted">
-          Registra l&apos;azienda e diventa owner del workspace aftercore.
+          {t("auth.registerSubtitle")}
         </p>
       </div>
 
@@ -31,7 +33,7 @@ export function RegisterForm() {
         className="space-y-4 rounded-2xl border border-border bg-surface/70 p-6 shadow-xl shadow-black/20"
       >
         <label className="block text-sm font-medium text-ink-muted">
-          Nome company
+          {t("auth.companyName")}
           <input
             name="companyName"
             required
@@ -41,7 +43,7 @@ export function RegisterForm() {
         </label>
 
         <label className="block text-sm font-medium text-ink-muted">
-          Il tuo nome
+          {t("auth.yourName")}
           <input
             name="name"
             required
@@ -51,7 +53,7 @@ export function RegisterForm() {
         </label>
 
         <label className="block text-sm font-medium text-ink-muted">
-          Email lavoro
+          {t("auth.workEmail")}
           <input
             name="email"
             type="email"
@@ -63,7 +65,7 @@ export function RegisterForm() {
         </label>
 
         <label className="block text-sm font-medium text-ink-muted">
-          Password
+          {t("auth.password")}
           <input
             name="password"
             type="password"
@@ -71,7 +73,7 @@ export function RegisterForm() {
             minLength={8}
             autoComplete="new-password"
             className="mt-1.5 w-full rounded-xl border border-border bg-base px-3 py-2.5 text-sm text-ink outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
-            placeholder="Minimo 8 caratteri"
+            placeholder={t("auth.minChars")}
           />
         </label>
 
@@ -86,14 +88,14 @@ export function RegisterForm() {
           disabled={pending}
           className="w-full rounded-xl bg-brand px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-brand/20 transition-colors hover:bg-brand-strong disabled:opacity-50"
         >
-          {pending ? "Creazione…" : "Crea company e accedi"}
+          {pending ? t("auth.creating") : t("auth.createAndSignIn")}
         </button>
       </form>
 
       <p className="mt-6 text-center text-sm text-ink-faint">
-        Hai già un account?{" "}
+        {t("auth.haveAccount")}{" "}
         <Link href="/login" className="font-medium text-brand hover:underline">
-          Accedi
+          {t("auth.signIn")}
         </Link>
       </p>
     </div>

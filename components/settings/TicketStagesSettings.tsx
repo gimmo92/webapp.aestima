@@ -8,10 +8,12 @@ import {
   newTicketStageId,
 } from "@/lib/ticketData";
 import type { TicketStage } from "@/lib/ticketTypes";
+import { useI18n } from "@/lib/i18n";
 
 export function TicketStagesSettings() {
   const { ticketStages, setTicketStages, tickets } = useInbox();
   const [draftLabel, setDraftLabel] = useState("");
+  const { t } = useI18n();
 
   const move = (index: number, dir: -1 | 1) => {
     const next = [...ticketStages];
@@ -33,7 +35,7 @@ export function TicketStagesSettings() {
     const used = tickets.some((t) => t.status === stage.id);
     if (used) {
       window.alert(
-        "Questo stage è usato da ticket esistenti. Spostali prima di eliminarlo."
+        t("tickets.stageInUse")
       );
       return;
     }
@@ -41,7 +43,7 @@ export function TicketStagesSettings() {
   };
 
   const addStage = () => {
-    const label = draftLabel.trim() || "Nuovo stage";
+    const label = draftLabel.trim() || t("tickets.newStage");
     let id = newTicketStageId(label);
     if (ticketStages.some((s) => s.id === id)) {
       id = `${id}_${Date.now().toString(36)}`;
@@ -62,11 +64,9 @@ export function TicketStagesSettings() {
   return (
     <div className="p-5 sm:p-8">
       <div className="mx-auto max-w-3xl">
-        <h1 className="text-xl font-bold text-ink">Stage ticket</h1>
+        <h1 className="text-xl font-bold text-ink">{t("tickets.stagesTitle")}</h1>
         <p className="mt-1 text-sm text-ink-muted">
-          Questi stage guidano la Coda ticket (colonne drag & drop) e i pulsanti
-          di avanzamento in lista. L&apos;ordine qui è l&apos;ordine delle
-          colonne.
+          {t("tickets.stagesHint")}
         </p>
 
         <div className="mt-6 space-y-2">

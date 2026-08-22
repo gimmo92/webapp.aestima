@@ -2,6 +2,7 @@
 
 import { euro } from "@/lib/quote";
 import type { SparePartProposal } from "@/lib/serviceChatTypes";
+import { useI18n } from "@/lib/i18n";
 
 /** Card strutturata per un ricambio proposto dall'agente. */
 export function SparePartCard({
@@ -12,6 +13,7 @@ export function SparePartCard({
   compact?: boolean;
 }) {
   const available = part.availability === "disponibile";
+  const { t } = useI18n();
 
   return (
     <div className="overflow-hidden rounded-xl border border-border bg-surface-2/50">
@@ -39,7 +41,7 @@ export function SparePartCard({
             <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.7" />
           </svg>
           <span className="truncate">
-            {compact ? part.code : "Ricambio identificato"}
+            {compact ? part.code : t("spare.identified")}
           </span>
         </div>
         <span
@@ -57,9 +59,9 @@ export function SparePartCard({
           />
           {available
             ? compact
-              ? "Disponibile"
-              : "Disponibile a magazzino"
-            : `Da ordinare${part.leadTimeDays ? ` · ${part.leadTimeDays} gg` : ""}`}
+              ? t("spare.availableShort")
+              : t("spare.available")
+            : `${t("spare.toOrder")}${part.leadTimeDays ? ` · ${part.leadTimeDays} gg` : ""}`}
         </span>
       </div>
       <div
@@ -69,7 +71,7 @@ export function SparePartCard({
       >
         <div>
           <p className="mb-0.5 text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
-            Descrizione
+            {t("spare.description")}
           </p>
           <p className="text-sm font-medium text-ink">{part.description}</p>
         </div>
@@ -77,7 +79,7 @@ export function SparePartCard({
           {!compact && (
             <div className="flex items-center justify-between gap-3">
               <span className="text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
-                Codice
+                {t("spare.code")}
               </span>
               <span className="font-mono text-sm font-semibold text-brand">
                 {part.code}
@@ -86,7 +88,7 @@ export function SparePartCard({
           )}
           <div className="flex items-center justify-between gap-3">
             <span className="text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
-              Prezzo listino
+              {t("spare.listPrice")}
             </span>
             <span className="text-sm font-semibold text-ink">
               {euro(part.price)}

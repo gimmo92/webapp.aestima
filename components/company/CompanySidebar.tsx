@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useI18n } from "@/lib/i18n";
 
 const ITEMS = [
   {
     href: "/company/modifica",
-    label: "Modifica azienda",
+    key: "company.edit",
     match: (path: string) =>
       path === "/company" ||
       path === "/company/modifica" ||
@@ -25,7 +26,7 @@ const ITEMS = [
   },
   {
     href: "/company/utenti",
-    label: "Utenti",
+    key: "company.users",
     match: (path: string) => path === "/company/utenti" || path.startsWith("/company/utenti/"),
     icon: (
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -41,7 +42,7 @@ const ITEMS = [
   },
   {
     href: "/company/clienti",
-    label: "Clienti",
+    key: "company.customers",
     match: (path: string) => path === "/company/clienti" || path.startsWith("/company/clienti/"),
     icon: (
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -56,13 +57,14 @@ const ITEMS = [
           stroke="currentColor"
           strokeWidth="1.8"
           strokeLinecap="round"
+          strokeLinejoin="round"
         />
       </svg>
     ),
   },
   {
     href: "/company/fornitori",
-    label: "Fornitori",
+    key: "company.suppliers",
     match: (path: string) =>
       path === "/company/fornitori" || path.startsWith("/company/fornitori/"),
     icon: (
@@ -82,15 +84,16 @@ const ITEMS = [
 
 export function CompanySidebar() {
   const pathname = usePathname();
+  const { t } = useI18n();
 
   return (
     <aside className="flex h-full w-52 shrink-0 flex-col border-r border-border bg-surface/60">
       <div className="border-b border-border px-4 py-3">
         <p className="text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
-          Azienda
+          {t("company.section")}
         </p>
       </div>
-      <nav className="flex flex-col gap-0.5 p-2" aria-label="Sezioni azienda">
+      <nav className="flex flex-col gap-0.5 p-2" aria-label={t("company.navAria")}>
         {ITEMS.map((item) => {
           const active = item.match(pathname);
           return (
@@ -105,7 +108,7 @@ export function CompanySidebar() {
               ].join(" ")}
             >
               {item.icon}
-              {item.label}
+              {t(item.key)}
             </Link>
           );
         })}

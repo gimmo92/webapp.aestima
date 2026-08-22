@@ -1,11 +1,15 @@
 "use client";
 
 import type { ConversationRecord } from "@/lib/conversationTypes";
+import { useI18n } from "@/lib/i18n";
 
-function conversationTitle(conversation: ConversationRecord): string {
+function conversationTitle(
+  conversation: ConversationRecord,
+  untitled: string
+): string {
   const firstUser = conversation.messages.find((m) => m.role === "user");
   const raw = firstUser?.content?.trim() || conversation.lastMessagePreview;
-  if (!raw) return "Nuova conversazione";
+  if (!raw) return untitled;
   const line = raw.split("\n")[0].trim();
   return line.length > 52 ? `${line.slice(0, 49).trim()}…` : line;
 }
@@ -29,16 +33,18 @@ export function ChatHistorySidebar({
   disabled = false,
 }: Props) {
   const isNewActive = activeId === null;
+  const { t } = useI18n();
+  const untitled = t("history.untitled");
 
   return (
     <aside
       className="flex w-72 shrink-0 flex-col border-r border-border bg-surface"
-      aria-label="Storico conversazioni"
+      aria-label={t("history.aria")}
     >
       <div className="border-b border-border px-3 py-3">
-        <p className="px-1 text-sm font-bold text-ink">Conversazioni</p>
+        <p className="px-1 text-sm font-bold text-ink">{t("history.title")}</p>
         <p className="mt-0.5 px-1 text-[11px] text-ink-faint">
-          Storico di questa chat
+          {t("history.subtitle")}
         </p>
         <button
           type="button"
@@ -59,14 +65,14 @@ export function ChatHistorySidebar({
               strokeLinecap="round"
             />
           </svg>
-          Nuova conversazione
+          {t("history.new")}
         </button>
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto p-2">
         {conversations.length === 0 ? (
           <p className="px-3 py-8 text-center text-xs leading-relaxed text-ink-faint">
-            Nessuna conversazione salvata. Inizia a scrivere per crearne una.
+            {t("history.empty")}
           </p>
         ) : (
           <ul className="space-y-1">
@@ -90,7 +96,7 @@ export function ChatHistorySidebar({
                     >
                       <div className="flex items-center gap-2">
                         <span className="min-w-0 flex-1 truncate text-sm font-medium text-ink">
-                          {conversationTitle(conversation)}
+                          {conversationTitle(conversation, untitled)}
                         </span>
                         <span className="shrink-0 text-[10px] text-ink-faint">
                           {conversation.lastMessageLabel}
@@ -110,7 +116,7 @@ export function ChatHistorySidebar({
                               strokeLinejoin="round"
                             />
                           </svg>
-                          Risolta
+                          {t("history.resolved")}
                         </span>
                       )}
                     </button>
@@ -118,8 +124,8 @@ export function ChatHistorySidebar({
                       type="button"
                       onClick={() => onDelete(conversation.id)}
                       disabled={disabled}
-                      title="Elimina conversazione"
-                      aria-label={`Elimina ${conversationTitle(conversation)}`}
+                      title={t("history.delete")}
+                      aria-label={`${t("history.delete")} ${conversationTitle(conversation, untitled)}`}
                       className="mt-2 mr-1 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-ink-faint transition-colors hover:bg-danger/10 hover:text-danger disabled:opacity-40"
                     >
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none">

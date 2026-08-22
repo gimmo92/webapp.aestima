@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { InboxProvider } from "@/components/inbox/InboxProvider";
+import { I18nProvider } from "@/lib/i18n";
 
 // Font Inter self-hosted da Next.js: tipografia pulita, professionale.
 const inter = Inter({
@@ -25,7 +26,9 @@ export default function RootLayout({
     <html lang="it" className={inter.variable}>
       <body className="min-h-screen antialiased">
         {/* Stato condiviso tra inbox, pipeline e fornitori (in memoria, demo). */}
-        <InboxProvider>{children}</InboxProvider>
+        <InboxProvider>
+          <I18nProvider>{children}</I18nProvider>
+        </InboxProvider>
       </body>
     </html>
   );

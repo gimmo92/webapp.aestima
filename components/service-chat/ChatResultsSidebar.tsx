@@ -11,6 +11,7 @@ import type {
   ServiceTicket,
   SparePartProposal,
 } from "@/lib/serviceChatTypes";
+import { useI18n } from "@/lib/i18n";
 
 export type ChatResultSource = Pick<
   DisplayMessage,
@@ -64,6 +65,7 @@ export function ChatResultsSidebar({
   overlay = false,
   onClose,
 }: Props) {
+  const { t } = useI18n();
   const { spareParts, kbMatch, kbFeedback, ticket, hasResults } =
     collectChatResults(messages);
   const resultCount =
@@ -77,12 +79,12 @@ export function ChatResultsSidebar({
           ? "absolute inset-y-0 right-0 z-20 w-[min(22rem,92%)] border-l shadow-2xl shadow-black/20"
           : "w-[min(24rem,38%)] border-l",
       ].join(" ")}
-      aria-label="Risultati della chat"
+      aria-label={t("results.aria")}
     >
       <div className="flex items-start justify-between gap-3 border-b border-border px-4 py-3.5">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <h2 className="text-sm font-bold text-ink">Risultati</h2>
+            <h2 className="text-sm font-bold text-ink">{t("results.title")}</h2>
             {resultCount > 0 && (
               <span className="rounded-full bg-brand/15 px-2 py-0.5 text-[10px] font-semibold tabular-nums text-brand">
                 {resultCount}
@@ -90,7 +92,7 @@ export function ChatResultsSidebar({
             )}
           </div>
           <p className="mt-0.5 text-[11px] text-ink-faint">
-            Ricambi, soluzioni e ticket
+            {t("results.subtitle")}
           </p>
         </div>
         {onClose && (
@@ -98,7 +100,7 @@ export function ChatResultsSidebar({
             type="button"
             onClick={onClose}
             className="rounded-md p-1 text-ink-faint transition-colors hover:bg-surface-2 hover:text-ink"
-            aria-label="Chiudi risultati"
+            aria-label={t("results.close")}
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
               <path
@@ -118,9 +120,9 @@ export function ChatResultsSidebar({
             <div className="flex items-center gap-3">
               <span className="h-5 w-5 animate-spin rounded-full border-2 border-brand/30 border-t-brand" />
               <div>
-                <p className="text-sm font-medium text-ink">Ricerca in corso</p>
+                <p className="text-sm font-medium text-ink">{t("results.searching")}</p>
                 <p className="text-xs text-ink-faint">
-                  Consulto distinta e knowledge base…
+                  {t("results.searchingHint")}
                 </p>
               </div>
             </div>
@@ -149,7 +151,7 @@ export function ChatResultsSidebar({
         {spareParts.length > 0 && (
           <section>
             <p className="mb-2 px-0.5 text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
-              Ricambi identificati
+              {t("results.spareSection")}
             </p>
             <SparePartCardList parts={spareParts} compact />
           </section>
@@ -160,6 +162,7 @@ export function ChatResultsSidebar({
 }
 
 function EmptyResults() {
+  const { t } = useI18n();
   return (
     <div className="rounded-xl border border-dashed border-border bg-base/50 px-4 py-8 text-center">
       <span className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-surface-2 text-ink-faint">
@@ -173,10 +176,9 @@ function EmptyResults() {
           <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.7" />
         </svg>
       </span>
-      <p className="text-sm font-medium text-ink">Nessun risultato ancora</p>
+      <p className="text-sm font-medium text-ink">{t("results.emptyTitle")}</p>
       <p className="mt-1 text-[11px] leading-relaxed text-ink-faint">
-        I ricambi trovati in distinta, le soluzioni della knowledge base e i
-        ticket aperti appariranno qui, fuori dalla conversazione.
+        {t("results.emptyBody")}
       </p>
     </div>
   );

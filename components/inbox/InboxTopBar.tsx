@@ -5,11 +5,12 @@ import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { Logo } from "@/components/Logo";
 import { logoutAction } from "@/app/actions/auth";
+import { useI18n } from "@/lib/i18n";
 
 const NAV = [
   {
     href: "/assistenza",
-    label: "Assistenza AI",
+    key: "nav.assistenza",
     icon: (
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
         <path
@@ -24,7 +25,7 @@ const NAV = [
   },
   {
     href: "/ticket",
-    label: "Ticketing",
+    key: "nav.ticketing",
     icon: (
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
         <path
@@ -44,7 +45,7 @@ const NAV = [
   },
   {
     href: "/archivio",
-    label: "Archivio",
+    key: "nav.archivio",
     icon: (
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
         <path
@@ -64,7 +65,7 @@ const NAV = [
   },
   {
     href: "/manuale",
-    label: "Manuale",
+    key: "nav.manuale",
     icon: (
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
         <path
@@ -79,7 +80,7 @@ const NAV = [
   },
   {
     href: "/analisi-catalogo",
-    label: "Analisi catalogo",
+    key: "nav.catalogAnalysis",
     icon: (
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
         <path
@@ -99,7 +100,7 @@ const NAV = [
   },
   {
     href: "/crea",
-    label: "Crea offerta",
+    key: "nav.createOffer",
     icon: (
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
         <path
@@ -121,7 +122,7 @@ const NAV = [
   },
   {
     href: "/company",
-    label: "Azienda",
+    key: "nav.company",
     icon: (
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
         <path
@@ -157,6 +158,7 @@ export function InboxTopBar({
   userName?: string;
 } = {}) {
   const pathname = usePathname();
+  const { t } = useI18n();
   const isPublic = PUBLIC_PATHS.some(
     (p) => pathname === p || pathname.startsWith(`${p}/`)
   );
@@ -217,7 +219,7 @@ export function InboxTopBar({
                 ].join(" ")}
               >
                 {item.icon}
-                {item.label}
+                {t(item.key)}
               </Link>
             );
           })}
@@ -243,7 +245,7 @@ export function InboxTopBar({
           <>
         <Link
           href="/impostazioni"
-          title="Impostazioni"
+          title={t("nav.settings")}
           className={[
             "inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-semibold transition-colors",
             pathname.startsWith("/impostazioni")
@@ -264,7 +266,7 @@ export function InboxTopBar({
               strokeLinejoin="round"
             />
           </svg>
-          <span className="hidden sm:inline">Impostazioni</span>
+          <span className="hidden sm:inline">{t("nav.settings")}</span>
         </Link>
         <form action={logoutAction}>
             <button
@@ -280,7 +282,7 @@ export function InboxTopBar({
                   strokeLinejoin="round"
                 />
               </svg>
-              Logout
+              {t("nav.logout")}
             </button>
           </form>
           </>
@@ -289,7 +291,7 @@ export function InboxTopBar({
             href="/login"
             className="rounded-lg bg-brand px-3.5 py-2 text-sm font-semibold text-white hover:bg-brand-strong"
           >
-            Accedi
+            {t("nav.login")}
           </Link>
         )}
       </div>

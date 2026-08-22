@@ -7,6 +7,7 @@ import {
   type AuthActionState,
 } from "@/app/actions/auth";
 import { Logo } from "@/components/Logo";
+import { useI18n } from "@/lib/i18n";
 
 const initial: AuthActionState = {};
 
@@ -15,15 +16,15 @@ export function ForgotPasswordForm() {
     requestPasswordResetAction,
     initial
   );
+  const { t } = useI18n();
 
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-md flex-col justify-center px-5 py-10">
       <div className="mb-8 text-center">
         <Logo className="justify-center" height={40} />
-        <h1 className="mt-6 text-2xl font-bold text-ink">Recupera password</h1>
+        <h1 className="mt-6 text-2xl font-bold text-ink">{t("auth.forgotTitle")}</h1>
         <p className="mt-2 text-sm text-ink-muted">
-          Inserisci l&apos;email del tuo account. Se è registrata, ti invieremo
-          un link per sceglierne una nuova.
+          {t("auth.forgotSubtitle")}
         </p>
       </div>
 
@@ -32,7 +33,7 @@ export function ForgotPasswordForm() {
         className="rounded-2xl border border-border bg-surface/70 p-6 shadow-xl shadow-black/20"
       >
         <label className="block text-sm font-medium text-ink-muted">
-          Email
+          {t("auth.email")}
           <input
             name="email"
             type="email"
@@ -56,7 +57,7 @@ export function ForgotPasswordForm() {
         {state.resetUrl && (
           <p className="mt-3 break-all text-sm">
             <Link href={state.resetUrl} className="font-medium text-brand hover:underline">
-              Apri il link di recupero
+              {t("auth.openResetLink")}
             </Link>
           </p>
         )}
@@ -66,14 +67,14 @@ export function ForgotPasswordForm() {
           disabled={pending}
           className="mt-6 w-full rounded-xl bg-brand px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-brand/20 transition-colors hover:bg-brand-strong disabled:opacity-50"
         >
-          {pending ? "Invio…" : "Invia link di recupero"}
+          {pending ? t("auth.sending") : t("auth.sendReset")}
         </button>
       </form>
 
       <p className="mt-6 text-center text-sm text-ink-faint">
-        Torni indietro?{" "}
+        {t("auth.backToLogin")}{" "}
         <Link href="/login" className="font-medium text-brand hover:underline">
-          Accedi
+          {t("auth.signIn")}
         </Link>
       </p>
     </div>

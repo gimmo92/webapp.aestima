@@ -37,11 +37,14 @@ const MACHINES_CONTEXT = buildMachinesContext();
 
 function buildSystemPrompt(
   knowledgeBase: KnowledgeEntry[],
-  kbSearchBlock: string
+  kbSearchBlock: string,
+  locale: "it" | "en" = "it"
 ): string {
   const kbContext = formatKnowledgeForPrompt(knowledgeBase);
+  const lang = locale === "en" ? "English" : "Italian";
+  const langIt = locale === "en" ? "inglese" : "italiano";
   return `Sei l'agente di assistenza service after-sales di "aftercore".
-Parli in italiano, tono professionale e chiaro, come un tecnico esperto ma accessibile.
+Parli in ${langIt} (${lang}), tono professionale e chiaro, come un tecnico esperto ma accessibile.
 
 ## FLUSSO OBBLIGATORIO
 1. **Identifica la macchina**: chiedi modello o matricola se mancano.
@@ -93,7 +96,7 @@ Ragiona ESCLUSIVAMENTE sui dati nel contesto. Non usare conoscenza esterna.
 ## FORMATO RISPOSTA
 Rispondi ESCLUSIVAMENTE con JSON valido (senza markdown):
 {
-  "message": "testo per l'utente in italiano",
+  "message": "testo per l'utente in ${langIt}",
   "spareParts": null oppure [{"code":"...","description":"...","price":123.45,"availability":"disponibile"|"da_ordinare","leadTimeDays":0}],
   "kbMatch": null oppure {"entryId":"KB-101","symptom":"breve sintomo della voce usata"},
   "quickReplies": null oppure [{"label":"...","value":"..."}]
@@ -331,13 +334,21 @@ function coerceKnowledgeBase(body: unknown): KnowledgeEntry[] {
   );
 }
 
+function coerceLocale(body: unknown): "it" | "en" {
+  if (!body || typeof body !== "object") return "it";
+  const locale = (body as { locale?: unknown }).locale;
+  return locale === "en" ? "en" : "it";
+}
+
 export async function POST(req: Request) {
   let messages: ChatMessage[] | null = null;
   let knowledgeBase: KnowledgeEntry[] = [];
+  let locale: "it" | "en" = "it";
   try {
     const body = await req.json();
     messages = coerceMessages(body);
     knowledgeBase = coerceKnowledgeBase(body);
+    locale = coerceLocale(body);
   } catch {
     return NextResponse.json(
       { error: "Corpo della richiesta non valido." },
@@ -374,7 +385,7 @@ export async function POST(req: Request) {
   const kbSearchBlock = formatKbCandidatesForPrompt(candidates, readyForKb);
   const troubleshootingTurn = readyForKb;
 
-  const systemPrompt = buildSystemPrompt(knowledgeBase, kbSearchBlock);
+  const systemPrompt = buildSystemPrompt(knowledgeBase, kbSearchBlock, locale);
 
   try {
     const llm = await callAnthropicConversation({

@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
 
 export default function ImpostazioniPage() {
-  redirect("/impostazioni/ticketing");
+  redirect("/impostazioni/lingua");
 }

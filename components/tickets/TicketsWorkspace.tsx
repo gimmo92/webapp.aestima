@@ -19,14 +19,9 @@ import { userContactLabel } from "@/lib/companyUsers";
 import { UserContactSelect } from "@/components/company/formFields";
 import { CreateTicketModal } from "./CreateTicketModal";
 import { TicketStatusPill } from "./TicketStatusPill";
+import { useI18n } from "@/lib/i18n";
 
 type Tab = "aperti" | "tutti" | "chiusi";
-
-const TABS: { id: Tab; label: string }[] = [
-  { id: "aperti", label: "Aperti" },
-  { id: "tutti", label: "Tutti" },
-  { id: "chiusi", label: "Chiusi / risolti" },
-];
 
 export function TicketsWorkspace() {
   const {
@@ -39,6 +34,12 @@ export function TicketsWorkspace() {
     updateTicket,
     addKnowledgeEntry,
   } = useInbox();
+  const { t } = useI18n();
+  const tabs: { id: Tab; label: string }[] = [
+    { id: "aperti", label: t("tickets.tabOpen") },
+    { id: "tutti", label: t("tickets.tabAll") },
+    { id: "chiusi", label: t("tickets.tabClosed") },
+  ];
   const openIds = openStageIds(ticketStages);
   const closedIds = terminalStageIds(ticketStages);
   const searchParams = useSearchParams();
@@ -105,25 +106,25 @@ export function TicketsWorkspace() {
       <div className="border-b border-border bg-surface/40 px-5">
         <div className="flex items-center justify-between gap-4">
           <div className="flex gap-6">
-            {TABS.map((t) => (
+            {tabs.map((item) => (
               <button
-                key={t.id}
+                key={item.id}
                 onClick={() => {
-                  setTab(t.id);
+                  setTab(item.id);
                   setStatusFilter("all");
                 }}
                 className={[
                   "relative py-3 text-sm font-medium transition-colors",
-                  tab === t.id
+                  tab === item.id
                     ? "text-ink"
                     : "text-ink-faint hover:text-ink-muted",
                 ].join(" ")}
               >
-                {t.label}
+                {item.label}
                 <span className="ml-1.5 text-xs text-ink-faint">
-                  {counts[t.id]}
+                  {counts[item.id]}
                 </span>
-                {tab === t.id && (
+                {tab === item.id && (
                   <span className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-brand" />
                 )}
               </button>
