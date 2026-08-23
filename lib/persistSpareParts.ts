@@ -50,18 +50,22 @@ export async function persistSparePartsForCompany(
     for (const p of chunk) {
       if (!p.codice?.trim()) continue;
       const data = sparePartWriteData(p);
-      await prisma.sparePart.upsert({
-        where: {
-          companyId_codice: { companyId, codice: p.codice },
-        },
-        create: {
-          id: p.id,
-          companyId,
-          codice: p.codice,
-          ...data,
-        },
-        update: data,
-      });
+      try {
+        await prisma.sparePart.upsert({
+          where: {
+            companyId_codice: { companyId, codice: p.codice },
+          },
+          create: {
+            companyId,
+            codice: p.codice,
+            ...data,
+          },
+          update: data,
+        });
+      } catch (err) {
+        console.error("spare upsert fail", p.codice, err);
+        throw err;
+      }
     }
   }
   const saved = await prisma.sparePart.findMany({

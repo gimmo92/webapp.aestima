@@ -319,7 +319,9 @@ export function PartsArchive({
       <div className="min-h-0 flex-1 overflow-auto rounded-xl border border-border bg-base/50">
         {filtered.length === 0 ? (
           <div className="flex h-40 items-center justify-center p-6 text-center text-sm text-ink-faint">
-            Nessun ricambio. Usa «Estrai ricambi» sui file Excel in archivio.
+            {parts.length === 0
+              ? "Nessun ricambio in anagrafica. Importa un listino da Analisi catalogo, oppure usa «Estrai ricambi» su un Excel in Sorgente."
+              : "Nessun ricambio corrisponde ai filtri o alla ricerca."}
           </div>
         ) : (
           <table className="w-full min-w-[900px] border-collapse text-left text-xs">

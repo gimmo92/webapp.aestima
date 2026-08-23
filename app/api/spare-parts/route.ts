@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/user";
-import { loadCompanyWorkspace } from "@/lib/workspace/load";
+import { prisma } from "@/lib/prisma";
+import { mapSparePart } from "@/lib/workspace/mappers";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -12,19 +13,18 @@ export async function GET() {
   }
 
   try {
-    const workspace = await loadCompanyWorkspace(me.companyId);
+    const rows = await prisma.sparePart.findMany({
+      where: { companyId: me.companyId },
+      orderBy: { codice: "asc" },
+    });
     return NextResponse.json(
-      {
-        companyId: me.companyId,
-        companyName: me.company.name,
-        ...workspace,
-      },
+      { spareParts: rows.map(mapSparePart) },
       { headers: { "Cache-Control": "no-store, max-age=0" } }
     );
   } catch (err) {
-    console.error(err);
+    console.error("spare-parts GET fail", err);
     return NextResponse.json(
-      { error: "Impossibile caricare i dati company" },
+      { error: "Impossibile caricare i ricambi" },
       { status: 500 }
     );
   }

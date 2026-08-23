@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { REVIEW_THRESHOLD, SOURCE_FILES, clienteForSerial } from "@/lib/archiveData";
 import type {
   ArchiveAssignment,
@@ -97,6 +97,8 @@ function isCloudArchiveId(id: string) {
 
 export function ArchiveWorkspace() {
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
   const [phase, setPhase] = useState<Phase>("done");
   const [apiDone, setApiDone] = useState(true);
   const [results, setResults] = useState<Map<string, ClassifyResult>>(new Map());
@@ -135,6 +137,17 @@ export function ArchiveWorkspace() {
   const [mappingApplying, setMappingApplying] = useState(false);
   const organizingRef = useRef(false);
 
+  const goToTab = useCallback(
+    (t: ArchiveTab) => {
+      setArchiveTab(t);
+      const params = new URLSearchParams(searchParams.toString());
+      params.set("tab", t);
+      const qs = params.toString();
+      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    },
+    [pathname, router, searchParams]
+  );
+
   useEffect(() => {
     const t = searchParams.get("tab");
     if (
@@ -150,8 +163,19 @@ export function ArchiveWorkspace() {
   useEffect(() => {
     let cancelled = false;
     void (async () => {
+      let parts: SparePart[] = [];
       try {
-        const res = await fetch("/api/workspace");
+        const partsRes = await fetch("/api/spare-parts", { cache: "no-store" });
+        if (partsRes.ok) {
+          const pdata = await partsRes.json();
+          parts = (pdata.spareParts as SparePart[]) ?? [];
+        }
+      } catch {
+        // workspace può avere comunque i ricambi
+      }
+
+      try {
+        const res = await fetch("/api/workspace", { cache: "no-store" });
         if (res.ok) {
           const data = await res.json();
           const files = (data.archiveFiles as SourceFile[]) ?? [];
@@ -161,7 +185,14 @@ export function ArchiveWorkspace() {
           setResults(resultsFromFiles(files));
           setResolved(resolvedSerialFromFiles(files));
           setResolvedCliente(resolvedClienteFromFiles(files));
-          setSpareParts((data.spareParts as SparePart[]) ?? []);
+          if (parts.length === 0) {
+            parts = (data.spareParts as SparePart[]) ?? [];
+          }
+          setSpareParts(parts);
+          const tab = searchParams.get("tab");
+          if (tab === "ricambi" || (!tab && parts.length > 0)) {
+            setArchiveTab("ricambi");
+          }
           setHydrated(true);
           return;
         }
@@ -171,17 +202,22 @@ export function ArchiveWorkspace() {
       if (cancelled) return;
       const local = await loadLocalArchiveFiles();
       if (cancelled) return;
-      setCloudMode(false);
+      setCloudMode(parts.length > 0);
       setUploadedFiles(local);
       setResults(resultsFromFiles(local));
       setResolved(resolvedSerialFromFiles(local));
       setResolvedCliente(resolvedClienteFromFiles(local));
-      setSpareParts([]);
+      setSpareParts(parts);
+      if (parts.length > 0 && !searchParams.get("tab")) {
+        setArchiveTab("ricambi");
+      }
       setHydrated(true);
     })();
     return () => {
       cancelled = true;
     };
+    // solo al mount: i ricambi si ricaricano da /api/spare-parts
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const persistArchive = useCallback(
@@ -719,25 +755,25 @@ export function ArchiveWorkspace() {
         <div className="flex shrink-0 gap-6 border-b border-border px-4">
           <TabBtn
             active={archiveTab === "organizzato"}
-            onClick={() => setArchiveTab("organizzato")}
+            onClick={() => goToTab("organizzato")}
             label="Archivio organizzato"
           />
           <TabBtn
             active={archiveTab === "sorgente"}
-            onClick={() => setArchiveTab("sorgente")}
+            onClick={() => goToTab("sorgente")}
             label="Sorgente"
             sub={`${visibleFiles.length} file`}
           />
           <TabBtn
             active={archiveTab === "verificare"}
-            onClick={() => setArchiveTab("verificare")}
+            onClick={() => goToTab("verificare")}
             label="Da verificare"
             badge={reviewItems.length}
             warn
           />
           <TabBtn
             active={archiveTab === "ricambi"}
-            onClick={() => setArchiveTab("ricambi")}
+            onClick={() => goToTab("ricambi")}
             label="Archivio ricambi"
             sub={`${spareParts.length}`}
           />
@@ -753,6 +789,8 @@ export function ArchiveWorkspace() {
               onViewModeChange={setViewMode}
               onDeleteFile={deleteFile}
               onShowApiFile={showApi}
+              spareCount={spareParts.length}
+              onOpenSpareParts={() => goToTab("ricambi")}
             />
           ) : archiveTab === "sorgente" ? (
             <SourceBrowser

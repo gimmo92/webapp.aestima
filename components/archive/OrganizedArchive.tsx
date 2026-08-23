@@ -57,6 +57,8 @@ interface Props {
   onViewModeChange: (mode: ArchiveViewMode) => void;
   onDeleteFile: (fileId: string) => void;
   onShowApiFile: (file: SourceFile) => void;
+  spareCount?: number;
+  onOpenSpareParts?: () => void;
 }
 
 type FileActions = Pick<Props, "onDeleteFile" | "onShowApiFile">;
@@ -69,6 +71,8 @@ export function OrganizedArchive({
   onViewModeChange,
   onDeleteFile,
   onShowApiFile,
+  spareCount = 0,
+  onOpenSpareParts,
 }: Props) {
   const [preview, setPreview] = useState<{
     name: string;
@@ -161,8 +165,29 @@ export function OrganizedArchive({
 
       <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3">
         {filtered.length === 0 ? (
-          <div className="flex h-full items-center justify-center p-8 text-center text-sm text-ink-faint">
-            Nessun documento corrisponde alla ricerca.
+          <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center">
+            <p className="text-sm text-ink-faint">
+              {docs.length === 0
+                ? "Nessun documento in Archivio organizzato (manuali, distinte, PDF)."
+                : "Nessun documento corrisponde alla ricerca."}
+            </p>
+            {onOpenSpareParts ? (
+              <button
+                type="button"
+                onClick={onOpenSpareParts}
+                className="rounded-lg bg-brand px-3 py-1.5 text-sm font-semibold text-white"
+              >
+                {spareCount > 0
+                  ? `Apri Archivio ricambi (${spareCount})`
+                  : "Apri Archivio ricambi"}
+              </button>
+            ) : null}
+            {docs.length === 0 ? (
+              <p className="max-w-sm text-xs text-ink-faint">
+                I listini Excel importati da Analisi catalogo stanno nella tab{" "}
+                <strong>Archivio ricambi</strong>, non in questa vista documenti.
+              </p>
+            ) : null}
           </div>
         ) : viewMode === "macchina" ? (
           <ByMachineView

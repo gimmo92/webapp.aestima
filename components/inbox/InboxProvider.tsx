@@ -248,7 +248,7 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
     let cancelled = false;
     void (async () => {
       try {
-        const res = await fetch("/api/workspace");
+        const res = await fetch("/api/workspace", { cache: "no-store" });
         if (!res.ok) {
           // Ospite: localStorage conversazioni se presente
           const stored = loadStoredConversations();

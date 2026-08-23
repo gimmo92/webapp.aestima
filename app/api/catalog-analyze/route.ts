@@ -203,7 +203,12 @@ async function extractFromForm(
     if (!EXCEL_EXT.has(ext)) continue;
     const fileId =
       typeof ids[i] === "string" && ids[i] ? String(ids[i]) : name;
-    const mapping = mappings[fileId] ?? mappings[name];
+    const mapping =
+      mappings[fileId] ??
+      mappings[name] ??
+      (Object.keys(mappings).length === 1
+        ? Object.values(mappings)[0]
+        : undefined);
     if (!mapping) continue;
     const buffer = Buffer.from(await blob.arrayBuffer());
     try {

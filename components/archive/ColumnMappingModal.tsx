@@ -69,7 +69,9 @@ export function ColumnMappingModal({
   const active = drafts.find((f) => f.fileId === activeId) ?? drafts[0];
   const hasCodice = useMemo(
     () =>
-      drafts.every((f) => f.columns.some((c) => c.field === "codice")),
+      drafts.every((f) =>
+        f.columns.some((c) => c.field === "codice" || c.field === "codiceOEM")
+      ),
     [drafts]
   );
 
@@ -205,8 +207,8 @@ export function ColumnMappingModal({
           </table>
           {!hasCodice && (
             <p className="mt-3 text-xs text-warn">
-              Serve almeno una colonna mappata su <strong>Codice</strong> per
-              ogni file.
+              Serve almeno una colonna mappata su <strong>Codice</strong> o{" "}
+              <strong>Codice OEM</strong> per ogni file.
             </p>
           )}
           {error && (
