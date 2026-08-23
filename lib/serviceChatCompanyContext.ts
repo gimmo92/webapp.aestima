@@ -12,7 +12,7 @@ export type ServiceChatCompanyContext = {
   catalogBlock: string;
   catalogHits: SparePartProposal[];
   /** Ri-esegue il ranking sul catalogo (es. dopo la descrizione visiva del modello). */
-  rankCatalog: (query: string) => SparePartProposal[];
+  rankCatalog: (query: string) => Promise<SparePartProposal[]>;
 };
 
 type SpareRow = {
@@ -141,8 +141,14 @@ const TYPE_GROUPS = [
     "dentato",
     "dentate",
     "toothed",
+    "teeth",
+    "tooth",
+    "denti",
     "cog",
     "chainwheel",
+    "idler",
+    "tenditore",
+    "timing",
   ],
   ["bearing", "bearings", "cuscinetto", "cuscinetti", "ucf"],
   ["belt", "cinghia", "cinghie"],
@@ -241,7 +247,7 @@ function hitsToProposals(
   scored: Array<{ r: SpareRow; s: number }>
 ): SparePartProposal[] {
   const topScore = scored[0]?.s ?? 0;
-  return scored.slice(0, 6).map(({ r, s }, i) => ({
+  return scored.slice(0, 12).map(({ r, s }, i) => ({
     code: r.codice,
     description: (r.descrizione || r.nome || r.codice).slice(0, 180),
     price: r.prezzoListino ?? 0,
@@ -325,6 +331,76 @@ export function filterPartsByVisualQuery(
   return parts.filter((p) => required.some((t) => partHaystack(p).includes(t)));
 }
 
+export function mergeProposedParts(
+  fromLlm: SparePartProposal[] | undefined,
+  fromCatalog: SparePartProposal[],
+  limit = 8
+): SparePartProposal[] | undefined {
+  const map = new Map<string, SparePartProposal>();
+  for (const p of [...fromCatalog, ...(fromLlm ?? [])]) {
+    const key = p.code.toLowerCase();
+    const prev = map.get(key);
+    if (!prev) {
+      map.set(key, p);
+      continue;
+    }
+    map.set(key, {
+      ...prev,
+      ...p,
+      confidence:
+        Math.max(prev.confidence ?? 0, p.confidence ?? 0) ||
+        prev.confidence ||
+        p.confidence,
+    });
+  }
+  const all = [...map.values()].sort(
+    (a, b) => (b.confidence ?? 0) - (a.confidence ?? 0)
+  );
+  return all.length > 0 ? all.slice(0, limit) : undefined;
+}
+
+const CATALOG_SELECT = {
+  codice: true,
+  codiceOEM: true,
+  nome: true,
+  descrizione: true,
+  categoria: true,
+  brand: true,
+  produttore: true,
+  prezzoListino: true,
+  macchinaCompatibile: true,
+  disponibile: true,
+  fornitore: true,
+} as const;
+
+function mergeRows(base: SpareRow[], extra: SpareRow[]): SpareRow[] {
+  const map = new Map(base.map((r) => [r.codice.toLowerCase(), r]));
+  for (const r of extra) map.set(r.codice.toLowerCase(), r);
+  return [...map.values()];
+}
+
+async function fetchRowsByType(
+  companyId: string,
+  query: string
+): Promise<SpareRow[]> {
+  const group = requiredTypeGroup(expandTokens(tokenize(query)));
+  if (!group) return [];
+  const terms = group.filter((t) => t.length >= 4).slice(0, 10);
+  if (terms.length === 0) return [];
+  return prisma.sparePart.findMany({
+    where: {
+      companyId,
+      OR: terms.flatMap((term) => [
+        { descrizione: { contains: term, mode: "insensitive" } },
+        { nome: { contains: term, mode: "insensitive" } },
+      ]),
+    },
+    select: CATALOG_SELECT,
+    take: 500,
+    orderBy: { codice: "asc" },
+  });
+}
+
 function sampleCodes(rows: SpareRow[]): string {
   const codes = rows.map((r) => r.codice).filter(Boolean);
   if (codes.length === 0) return "n/d";
@@ -342,19 +418,7 @@ export async function loadServiceChatCompanyContext(
   const isDemo = companySlug === DEMO_COMPANY_SLUG;
   const rows = await prisma.sparePart.findMany({
     where: { companyId },
-    select: {
-      codice: true,
-      codiceOEM: true,
-      nome: true,
-      descrizione: true,
-      categoria: true,
-      brand: true,
-      produttore: true,
-      prezzoListino: true,
-      macchinaCompatibile: true,
-      disponibile: true,
-      fornitore: true,
-    },
+    select: CATALOG_SELECT,
     take: 2500,
     orderBy: { codice: "asc" },
   });
@@ -422,7 +486,10 @@ REGOLE ANTI-CONTAMINAZIONE
     catalogCount: rows.length,
     catalogBlock,
     catalogHits,
-    rankCatalog: (query) => rankCatalogHits(rows, query),
+    rankCatalog: async (query) => {
+      const extra = await fetchRowsByType(companyId, query);
+      return rankCatalogHits(mergeRows(rows, extra), query);
+    },
   };
 }
 
@@ -437,7 +504,7 @@ export function anonymousServiceChatContext(): ServiceChatCompanyContext {
 Nessuna sessione company.
 NON usare parco Vallmec/VLM-2200 né matricole 1389/1418/1412/1432.`,
     catalogHits: [],
-    rankCatalog: () => [],
+    rankCatalog: async () => [],
   };
 }
 

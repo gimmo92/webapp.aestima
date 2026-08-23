@@ -19,6 +19,7 @@ import {
   clampConfidence,
   filterPartsByVisualQuery,
   loadServiceChatCompanyContext,
+  mergeProposedParts,
   mergeSparePartConfidence,
   serializeChatPark,
   type ServiceChatCompanyContext,
@@ -520,15 +521,11 @@ export async function POST(req: Request) {
     const visualQuery = [lastUser?.content ?? "", message]
       .filter(Boolean)
       .join(" ");
-    const refinedHits = company.rankCatalog(visualQuery);
+    const refinedHits = await company.rankCatalog(visualQuery);
     if (spareParts?.length) {
-      const filtered = filterPartsByVisualQuery(spareParts, visualQuery);
-      spareParts = filtered.length > 0 ? filtered : undefined;
+      spareParts = filterPartsByVisualQuery(spareParts, visualQuery);
     }
-    if (!spareParts?.length) {
-      const strong = refinedHits.filter((h) => (h.confidence ?? 0) >= 50);
-      spareParts = strong.length > 0 ? strong.slice(0, 4) : undefined;
-    }
+    spareParts = mergeProposedParts(spareParts, refinedHits, 8);
     const quickReplies = ensureMachineOtherOption(
       normalizeApiQuickReplies(parsed.quickReplies),
       machines
