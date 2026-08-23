@@ -36,10 +36,11 @@ import type {
 } from "@/lib/technicianTypes";
 import { newKnowledgeId } from "@/lib/knowledgeData";
 import type { KnowledgeEntry } from "@/lib/knowledgeTypes";
-import { newConversationId } from "@/lib/conversationData";
+import { newConversationId, newMessageId } from "@/lib/conversationData";
 import {
   CONVERSATIONS_STORAGE_KEY,
   loadStoredConversations,
+  mergeConversations,
   saveStoredConversations,
 } from "@/lib/conversationStorage";
 import type {
@@ -167,6 +168,7 @@ interface InboxContextValue {
   resolveConversation: (id: string) => void;
   deleteConversation: (id: string) => void;
   getConversationById: (id: string) => ConversationRecord | undefined;
+  conversationsReady: boolean;
   knowledgeBase: KnowledgeEntry[];
   addKnowledgeEntry: (
     input: Omit<
@@ -239,6 +241,8 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
   const [conversations, setConversations] = useState<ConversationRecord[]>([]);
   const conversationsHydratedRef = useRef(false);
   const cloudModeRef = useRef(false);
+  const persistQueueRef = useRef<{ action: string; payload: unknown }[]>([]);
+  const [conversationsReady, setConversationsReady] = useState(false);
   const ticketFormPersistTimer = useRef<ReturnType<typeof setTimeout> | null>(
     null
   );
@@ -246,26 +250,48 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let cancelled = false;
+    const finish = (cloud: boolean) => {
+      conversationsHydratedRef.current = true;
+      cloudModeRef.current = cloud;
+      setConversationsReady(true);
+      const queued = persistQueueRef.current.splice(0);
+      if (cloud) {
+        for (const item of queued) persistWorkspace(item.action, item.payload);
+      }
+    };
     void (async () => {
       try {
         const res = await fetch("/api/workspace", { cache: "no-store" });
-        if (!res.ok) {
-          // Ospite: localStorage conversazioni se presente
+        if (res.status === 401) {
           const stored = loadStoredConversations();
           if (!cancelled) {
             if (stored) setConversations(stored);
             setTicketStagesState(loadLocalTicketStages());
-            conversationsHydratedRef.current = true;
-            cloudModeRef.current = false;
+            finish(false);
+          }
+          return;
+        }
+        if (!res.ok) {
+          const stored = loadStoredConversations();
+          if (!cancelled) {
+            if (stored) {
+              setConversations((prev) => mergeConversations(stored, prev));
+            }
+            finish(true);
           }
           return;
         }
         const data = await res.json();
         if (cancelled) return;
-        cloudModeRef.current = true;
+        const stored = loadStoredConversations() ?? [];
         setLabels(data.labels ?? []);
         setRequests(data.requests ?? []);
-        setConversations(data.conversations ?? []);
+        setConversations((prev) =>
+          mergeConversations(
+            mergeConversations(data.conversations ?? [], stored),
+            prev
+          )
+        );
         setKnowledgeBase(data.knowledgeBase ?? []);
         setTickets(data.tickets ?? []);
         setTicketStagesState(normalizeTicketStages(data.ticketStages));
@@ -278,11 +304,12 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
         setTechnicianAssignments(data.technicianAssignments ?? []);
         setInterventionReports(data.interventionReports ?? []);
         setSelectedId(data.requests?.[0]?.id ?? null);
-        conversationsHydratedRef.current = true;
+        finish(true);
       } catch {
         if (!cancelled) {
-          conversationsHydratedRef.current = true;
-          cloudModeRef.current = false;
+          const stored = loadStoredConversations();
+          if (stored) setConversations(stored);
+          finish(true);
         }
       }
     })();
@@ -293,18 +320,18 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!conversationsHydratedRef.current) return;
-    if (cloudModeRef.current) return; // cloud: niente localStorage
     saveStoredConversations(conversations);
   }, [conversations]);
 
   useEffect(() => {
     const onStorage = (event: StorageEvent) => {
-      if (cloudModeRef.current) return;
       if (event.key !== CONVERSATIONS_STORAGE_KEY || !event.newValue) return;
       try {
         const parsed: unknown = JSON.parse(event.newValue);
         if (!Array.isArray(parsed)) return;
-        setConversations(parsed as ConversationRecord[]);
+        setConversations((prev) =>
+          mergeConversations(parsed as ConversationRecord[], prev)
+        );
       } catch {
         // Ignora payload corrotto da altre tab.
       }
@@ -314,6 +341,10 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const persist = useCallback((action: string, payload: unknown) => {
+    if (!conversationsHydratedRef.current) {
+      persistQueueRef.current.push({ action, payload });
+      return;
+    }
     if (!cloudModeRef.current) return;
     persistWorkspace(action, payload);
   }, []);
@@ -671,7 +702,7 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
     (id: string, input: AppendConversationMessageInput) => {
       const { sentLabel, sentFull } = nowLabels();
       const message = {
-        id: `msg-${Date.now()}`,
+        id: newMessageId(),
         role: input.role,
         content: input.content,
         timestampLabel: sentLabel,
@@ -703,7 +734,7 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
     (id: string, operatorId: string) => {
       const { sentLabel, sentFull } = nowLabels();
       const notice = {
-        id: `msg-${Date.now()}`,
+        id: newMessageId(),
         role: "agent" as const,
         content: "Stai parlando con un agente umano.",
         timestampLabel: sentLabel,
@@ -931,6 +962,7 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
         resolveConversation,
         deleteConversation,
         getConversationById,
+        conversationsReady,
         knowledgeBase,
         addKnowledgeEntry,
         incrementKnowledgeFrequency,

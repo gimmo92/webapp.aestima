@@ -50,3 +50,19 @@ export function saveStoredConversations(
 export function defaultConversations(): ConversationRecord[] {
   return [];
 }
+
+/** Unisce le conversazioni server con quelle già create in pagina (prima dell'hydrate). */
+export function mergeConversations(
+  server: ConversationRecord[],
+  local: ConversationRecord[]
+): ConversationRecord[] {
+  if (local.length === 0) return server;
+  const serverIds = new Set(server.map((c) => c.id));
+  const mergedServer = server.map((srv) => {
+    const loc = local.find((c) => c.id === srv.id);
+    if (loc && loc.messages.length > srv.messages.length) return loc;
+    return srv;
+  });
+  const localOnly = local.filter((c) => !serverIds.has(c.id));
+  return [...localOnly, ...mergedServer];
+}

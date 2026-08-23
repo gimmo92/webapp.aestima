@@ -39,8 +39,17 @@ export const CONVERSATION_FILTERS: {
 ];
 
 export function newConversationId(): string {
-  const n = Math.floor(1000 + Math.random() * 9000);
-  return `CONV-${n}`;
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return `conv-${crypto.randomUUID()}`;
+  }
+  return `conv-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+export function newMessageId(): string {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return `msg-${crypto.randomUUID()}`;
+  }
+  return `msg-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
 function msg(

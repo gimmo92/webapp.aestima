@@ -7,6 +7,7 @@ import { ChatHistorySidebar } from "./ChatHistorySidebar";
 import { ChatResultsSidebar, collectChatResults } from "./ChatResultsSidebar";
 import { QuickReplyBubbles } from "./QuickReplyBubbles";
 import { EmbedCodeButtons } from "./EmbedCodeButtons";
+import { newMessageId } from "@/lib/conversationData";
 import { useInbox } from "@/components/inbox/InboxProvider";
 import {
   CHAT_ATTACHMENT_ACCEPT,
@@ -107,6 +108,7 @@ export function ServiceChatWorkspace({
     getConversationById,
     updateConversation,
     deleteConversation,
+    conversationsReady,
     knowledgeBase,
     incrementKnowledgeFrequency,
     createTicket,
@@ -116,6 +118,9 @@ export function ServiceChatWorkspace({
   const [conversationId, setConversationId] = useState<string | null>(
     initialConversationId ?? null
   );
+  const chatSessionKey = `aftercore:chat:${channel}`;
+  const skipRestoreRef = useRef(false);
+  const restoredRef = useRef(Boolean(initialConversationId));
   const [messages, setMessages] = useState<DisplayMessage[]>(() => [
     buildWelcome((key) => translate(DEFAULT_LOCALE, key)),
   ]);
@@ -162,7 +167,7 @@ export function ServiceChatWorkspace({
   const ensureConversation = useCallback(() => {
     if (conversationId) return conversationId;
     const welcomeMsg = {
-      id: "welcome",
+      id: newMessageId(),
       role: "assistant" as const,
       content: welcome.content,
       timestampLabel: new Date().toLocaleTimeString(dateLocale, {
@@ -610,6 +615,12 @@ export function ServiceChatWorkspace({
   };
 
   const resetChat = () => {
+    skipRestoreRef.current = true;
+    try {
+      sessionStorage.removeItem(chatSessionKey);
+    } catch {
+      /* ignore */
+    }
     stopDictation();
     clearDictationError();
     revokeAttachmentUrls(collectAttachmentUrls(messages));
@@ -662,6 +673,48 @@ export function ServiceChatWorkspace({
       syncFromStored,
     ]
   );
+
+  useEffect(() => {
+    if (conversationId) {
+      try {
+        sessionStorage.setItem(chatSessionKey, conversationId);
+      } catch {
+        /* ignore */
+      }
+    }
+  }, [conversationId, chatSessionKey]);
+
+  useEffect(() => {
+    if (!conversationsReady || skipRestoreRef.current || restoredRef.current) {
+      return;
+    }
+    if (conversationId) {
+      restoredRef.current = true;
+      return;
+    }
+    let saved: string | null = null;
+    try {
+      saved = sessionStorage.getItem(chatSessionKey);
+    } catch {
+      saved = null;
+    }
+    const fromSession = saved ? getConversationById(saved) : undefined;
+    const latest = historyConversations[0];
+    const conv = fromSession ?? latest;
+    if (!conv) {
+      restoredRef.current = true;
+      return;
+    }
+    restoredRef.current = true;
+    openConversation(conv.id);
+  }, [
+    conversationsReady,
+    conversationId,
+    chatSessionKey,
+    getConversationById,
+    historyConversations,
+    openConversation,
+  ]);
 
   const handleDeleteConversation = (id: string) => {
     if (

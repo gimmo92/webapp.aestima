@@ -109,15 +109,22 @@ export async function applyWorkspaceMutation(
           createdFull: asString(p.createdFull),
           updatedFull: asString(p.updatedFull),
           messages: {
-            create: messages.map((m) => ({
-              id: asString(m.id),
-              companyId,
-              role: asString(m.role),
-              content: asString(m.content),
-              timestampLabel: asString(m.timestampLabel),
-              sparePartsJson: (m.spareParts as Prisma.InputJsonValue) ?? undefined,
-              ticketJson: (m.ticket as Prisma.InputJsonValue) ?? undefined,
-            })),
+            create: messages.map((m) => {
+              const mid = asString(m.id);
+              return {
+                id:
+                  !mid || mid === "welcome"
+                    ? `msg-${crypto.randomUUID()}`
+                    : mid,
+                companyId,
+                role: asString(m.role),
+                content: asString(m.content),
+                timestampLabel: asString(m.timestampLabel),
+                sparePartsJson:
+                  (m.spareParts as Prisma.InputJsonValue) ?? undefined,
+                ticketJson: (m.ticket as Prisma.InputJsonValue) ?? undefined,
+              };
+            }),
           },
         },
       });
@@ -156,14 +163,34 @@ export async function applyWorkspaceMutation(
     case "appendConversationMessage": {
       const conversationId = asString(p.id);
       const message = p.message as Record<string, unknown>;
-      const conv = await prisma.conversation.findFirst({
+      let conv = await prisma.conversation.findFirst({
         where: { id: conversationId, companyId },
       });
+      if (!conv) {
+        await prisma.conversation.create({
+          data: {
+            id: conversationId,
+            companyId,
+            customerName: "Visitatore",
+            status: "aperto",
+            assignee: "ai",
+            channel: "assistenza",
+            lastMessagePreview: asString(message.content).slice(0, 80),
+            lastMessageLabel: asString(message.timestampLabel),
+            visitorOnline: false,
+            createdFull: asString(p.updatedFull),
+            updatedFull: asString(p.updatedFull),
+          },
+        });
+        conv = await prisma.conversation.findFirst({
+          where: { id: conversationId, companyId },
+        });
+      }
       if (!conv) return { ok: false, error: "Conversazione non trovata" };
       await prisma.$transaction([
         prisma.conversationMessage.create({
           data: {
-            id: asString(message.id),
+            id: asString(message.id) || `msg-${crypto.randomUUID()}`,
             conversationId,
             companyId,
             role: asString(message.role),
