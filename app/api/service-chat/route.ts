@@ -501,7 +501,7 @@ export async function POST(req: Request) {
     }
 
     let spareParts = normalizeSpareParts(parsed.spareParts);
-    let quickReplies = ensureMachineOtherOption(
+    const quickReplies = ensureMachineOtherOption(
       normalizeApiQuickReplies(parsed.quickReplies),
       machines
     );
