@@ -1,5 +1,6 @@
 import type {
   SparePart,
+  SparePartImage,
   SparePartSource,
   SparePartStatus,
 } from "./sparePartTypes";
@@ -7,6 +8,8 @@ import {
   computeSpareCompleteness,
   newSparePartId,
 } from "./sparePartTypes";
+import type { SpareDbField } from "./sparePartMapping";
+import { isSpareDbField } from "./sparePartMapping";
 
 /** Normalizza prezzo italiano: "12,50 €" | "1.234,56" | 12.5 → number */
 export function parseItalianPrice(raw: unknown): number | null {
@@ -48,23 +51,14 @@ export function isJunkRow(cells: string[]): boolean {
   return false;
 }
 
-export type ColumnKey =
-  | "codice"
-  | "codiceOEM"
-  | "descrizione"
-  | "categoria"
-  | "um"
-  | "prezzoListino"
-  | "fornitore"
-  | "codiceFornitore"
-  | "leadTimeGiorni"
-  | "macchinaCompatibile"
-  | "stato"
-  | "ignore";
+export type ColumnKey = SpareDbField;
 
 const HEADER_ALIASES: Record<ColumnKey, RegExp[]> = {
   codice: [
     /^codice$/i,
+    /^codice\s*\/\s*part/i,
+    /^part\s*number$/i,
+    /^p\/?n$/i,
     /^cod\.?$/i,
     /^code$/i,
     /^codice\s*ricambio$/i,
@@ -73,6 +67,7 @@ const HEADER_ALIASES: Record<ColumnKey, RegExp[]> = {
     /^codart$/i,
   ],
   codiceOEM: [/^oem$/i, /^codice\s*oem$/i, /^cod\.?\s*oem$/i, /^mpn$/i],
+  nome: [/^nome/i, /^name$/i, /^product\s*name$/i, /^titolo$/i],
   descrizione: [
     /^descrizione$/i,
     /^desart$/i,
@@ -96,7 +91,10 @@ const HEADER_ALIASES: Record<ColumnKey, RegExp[]> = {
     /^cod\.?\s*forn/i,
     /^codforn$/i,
     /^supplier\s*code$/i,
+    /^sku$/i,
   ],
+  brand: [/^brand/i, /^marchio$/i, /^marca$/i],
+  produttore: [/^produttore/i, /^manufacturer$/i, /^costruttore$/i],
   leadTimeGiorni: [/^lt/i, /^lead/i, /^gg$/i, /^giorni$/i, /^ltgg$/i],
   macchinaCompatibile: [
     /^macchina/i,
@@ -106,8 +104,36 @@ const HEADER_ALIASES: Record<ColumnKey, RegExp[]> = {
     /^serial/i,
     /^matricola/i,
   ],
+  disponibile: [
+    /^disponib/i,
+    /^in\s*stock$/i,
+    /^stock$/i,
+    /^giacenza$/i,
+  ],
   stato: [/^stato$/i, /^status$/i, /^attivo$/i],
-  ignore: [],
+  immaginePercorso: [
+    /^percorso\s*immagin/i,
+    /^path\s*immagin/i,
+    /^image\s*path$/i,
+    /^foto\s*path$/i,
+  ],
+  immagineUrl: [
+    /^url\s*immagin/i,
+    /^image\s*url$/i,
+    /^foto\s*url$/i,
+    /^cdn/i,
+  ],
+  ignore: [
+    /^#$/,
+    /^n\.?$/i,
+    /^nr$/i,
+    /^immagine$/i,
+    /^foto$/i,
+    /^thumb/i,
+    /^n\.?\s*immagin/i,
+    /^link$/i,
+    /^link\s*immagin/i,
+  ],
 };
 
 /** Individua la riga header euristicamente (non sempre riga 0). */
@@ -143,34 +169,96 @@ export function mapColumnsHeuristic(headers: string[]): Record<number, ColumnKey
   const used = new Set<ColumnKey>();
   headers.forEach((h, idx) => {
     const t = h.trim();
-    if (!t) return;
+    if (!t) {
+      map[idx] = "ignore";
+      return;
+    }
     for (const [key, patterns] of Object.entries(HEADER_ALIASES) as [
       ColumnKey,
       RegExp[],
     ][]) {
-      if (key === "ignore" || used.has(key)) continue;
-      if (patterns.some((p) => p.test(t))) {
-        map[idx] = key;
-        used.add(key);
+      if (!patterns.some((p) => p.test(t))) continue;
+      if (key === "ignore") {
+        map[idx] = "ignore";
         return;
       }
+      if (used.has(key)) continue;
+      map[idx] = key;
+      used.add(key);
+      return;
     }
+    if (!map[idx]) map[idx] = "ignore";
   });
   return map;
+}
+
+export function normalizeColumnMap(
+  raw: Record<string, string> | Record<number, string>
+): Record<number, ColumnKey> {
+  const out: Record<number, ColumnKey> = {};
+  for (const [k, v] of Object.entries(raw)) {
+    const idx = Number(k);
+    if (!Number.isFinite(idx) || !isSpareDbField(v)) continue;
+    out[idx] = v;
+  }
+  return out;
+}
+
+export function parseDisponibile(raw: string): boolean | undefined {
+  const s = raw.trim().toLowerCase();
+  if (!s) return undefined;
+  if (/^(sì|si|yes|true|1|y|ok|in stock|disponibile)$/i.test(s)) return true;
+  if (/^(no|false|0|n|out of stock|non disponibile|esaurito)$/i.test(s)) {
+    return false;
+  }
+  return undefined;
+}
+
+export async function sheetsFromExcelBuffer(
+  buffer: Buffer,
+  fileName: string
+): Promise<{ sheetName: string; grid: string[][] }[]> {
+  const XLSX = await import("xlsx");
+  const wb = XLSX.read(buffer, { type: "buffer" });
+  const sheets: { sheetName: string; grid: string[][] }[] = [];
+  for (const sheetName of wb.SheetNames) {
+    const sheet = wb.Sheets[sheetName];
+    if (!sheet) continue;
+    const grid = XLSX.utils.sheet_to_json<string[]>(sheet, {
+      header: 1,
+      defval: "",
+      raw: false,
+    }) as string[][];
+    if (grid.length < 2) continue;
+    if (/parametr|analisi|note/i.test(sheetName) && grid.length < 15) continue;
+    sheets.push({
+      sheetName,
+      grid: grid.map((r) => r.map((c) => String(c ?? ""))),
+    });
+  }
+  if (sheets.length === 0 && /csv$/i.test(fileName)) {
+    // xlsx legge anche i csv
+  }
+  return sheets;
 }
 
 export type ExtractedRow = {
   codice: string;
   codiceOEM?: string;
+  nome?: string;
   descrizione: string;
   categoria?: string;
   um?: string;
   prezzoListino?: number | null;
   fornitore?: string;
   codiceFornitore?: string;
+  brand?: string;
+  produttore?: string;
   leadTimeGiorni?: number | null;
   macchinaCompatibile?: string;
+  disponibile?: boolean | null;
   stato?: SparePartStatus;
+  immagini: SparePartImage[];
   source: SparePartSource;
 };
 
@@ -189,18 +277,20 @@ export function rowsFromGrid(
   const out: ExtractedRow[] = [];
   const byKey = new Map<ColumnKey, number>();
   for (const [idx, key] of Object.entries(colMap)) {
+    if (key === "ignore") continue;
     byKey.set(key, Number(idx));
   }
   const codiceIdx = byKey.get("codice");
   const descIdx = byKey.get("descrizione");
+  const nomeIdx = byKey.get("nome");
 
   for (let r = headerIdx + 1; r < grid.length; r++) {
     const row = grid[r] ?? [];
     if (isJunkRow(row.map((c) => String(c ?? "")))) continue;
     const codice = cell(row, codiceIdx);
-    const descrizione = cell(row, descIdx) || codice;
+    const nome = cell(row, nomeIdx) || undefined;
+    const descrizione = cell(row, descIdx) || nome || codice;
     if (!codice) continue;
-    // Scarta se codice sembra un'intestazione
     if (/^(codice|code|articolo)$/i.test(codice)) continue;
 
     const prezzoRaw = cell(row, byKey.get("prezzoListino"));
@@ -212,20 +302,35 @@ export function rowsFromGrid(
     else if (statoRaw.includes("attiv") || statoRaw === "a") stato = "attivo";
 
     const lt = ltRaw ? Number(String(ltRaw).replace(",", ".")) : null;
+    const path = cell(row, byKey.get("immaginePercorso"));
+    const url = cell(row, byKey.get("immagineUrl"));
+    const immagini: SparePartImage[] = [];
+    if (path || url) {
+      immagini.push({
+        path: path || undefined,
+        url: url || undefined,
+        role: "primary",
+      });
+    }
 
     out.push({
       codice: codice.toUpperCase(),
       codiceOEM: cell(row, byKey.get("codiceOEM")) || undefined,
+      nome,
       descrizione,
       categoria: cell(row, byKey.get("categoria")) || undefined,
       um: cell(row, byKey.get("um")) || undefined,
       prezzoListino: parseItalianPrice(prezzoRaw),
       fornitore: cell(row, byKey.get("fornitore")) || undefined,
       codiceFornitore: cell(row, byKey.get("codiceFornitore")) || undefined,
+      brand: cell(row, byKey.get("brand")) || undefined,
+      produttore: cell(row, byKey.get("produttore")) || undefined,
       leadTimeGiorni: Number.isFinite(lt) ? lt : null,
       macchinaCompatibile:
         cell(row, byKey.get("macchinaCompatibile")) || undefined,
+      disponibile: parseDisponibile(cell(row, byKey.get("disponibile"))) ?? null,
       stato,
+      immagini,
       source: { ...sourceBase, row: r + 1 },
     });
   }
@@ -235,23 +340,39 @@ export function rowsFromGrid(
 type FieldKey = keyof Pick<
   SparePart,
   | "codiceOEM"
+  | "nome"
   | "descrizione"
   | "categoria"
   | "um"
   | "prezzoListino"
   | "fornitore"
   | "codiceFornitore"
+  | "brand"
+  | "produttore"
   | "leadTimeGiorni"
   | "macchinaCompatibile"
+  | "disponibile"
   | "stato"
 >;
 
 function valuesEqual(a: unknown, b: unknown): boolean {
   if (a == null && b == null) return true;
+  if (typeof a === "boolean" && typeof b === "boolean") return a === b;
   if (typeof a === "number" && typeof b === "number") {
     return Math.abs(a - b) < 0.001;
   }
   return String(a ?? "").trim() === String(b ?? "").trim();
+}
+
+function mergeImages(existing: SparePartImage[], incoming: SparePartImage[]) {
+  const out = [...existing];
+  for (const img of incoming) {
+    const key = `${img.url ?? ""}|${img.path ?? ""}`;
+    if (!img.url && !img.path) continue;
+    if (out.some((e) => `${e.url ?? ""}|${e.path ?? ""}` === key)) continue;
+    out.push(img);
+  }
+  return out;
 }
 
 /**
@@ -264,7 +385,11 @@ export function mergeExtractedParts(
 ): SparePart[] {
   const byCode = new Map<string, SparePart>();
   for (const p of existing) {
-    byCode.set(p.codice.toUpperCase(), { ...p, sorgenti: [...p.sorgenti] });
+    byCode.set(p.codice.toUpperCase(), {
+      ...p,
+      sorgenti: [...p.sorgenti],
+      immagini: [...(p.immagini ?? [])],
+    });
   }
 
   for (const row of extracted) {
@@ -275,16 +400,21 @@ export function mergeExtractedParts(
         id: newSparePartId(),
         codice: key,
         codiceOEM: row.codiceOEM,
+        nome: row.nome,
         descrizione: row.descrizione,
         categoria: row.categoria,
         um: row.um,
         prezzoListino: row.prezzoListino,
         fornitore: row.fornitore,
         codiceFornitore: row.codiceFornitore,
+        brand: row.brand,
+        produttore: row.produttore,
         leadTimeGiorni: row.leadTimeGiorni,
         macchinaCompatibile: row.macchinaCompatibile,
+        disponibile: row.disponibile,
         stato: row.stato ?? "attivo",
         completezza: 0,
+        immagini: row.immagini,
         sorgenti: [row.source],
         succedanei: [],
         daVerificare: false,
@@ -309,15 +439,20 @@ export function mergeExtractedParts(
     };
 
     assign("codiceOEM", row.codiceOEM);
+    assign("nome", row.nome);
     assign("descrizione", row.descrizione);
     assign("categoria", row.categoria);
     assign("um", row.um);
     assign("prezzoListino", row.prezzoListino);
     assign("fornitore", row.fornitore);
     assign("codiceFornitore", row.codiceFornitore);
+    assign("brand", row.brand);
+    assign("produttore", row.produttore);
     assign("leadTimeGiorni", row.leadTimeGiorni);
     assign("macchinaCompatibile", row.macchinaCompatibile);
+    assign("disponibile", row.disponibile);
     if (row.stato) assign("stato", row.stato);
+    prev.immagini = mergeImages(prev.immagini ?? [], row.immagini);
 
     const srcKey = `${row.source.fileId}:${row.source.sheet ?? ""}:${row.source.row ?? ""}`;
     if (

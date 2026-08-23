@@ -571,6 +571,9 @@ export async function applyWorkspaceMutation(
       if (p.codiceOEM !== undefined) {
         data.codiceOEM = p.codiceOEM ? asString(p.codiceOEM) : null;
       }
+      if (p.nome !== undefined) {
+        data.nome = p.nome ? asString(p.nome) : null;
+      }
       if (p.descrizione !== undefined) data.descrizione = asString(p.descrizione);
       if (p.categoria !== undefined) {
         data.categoria = p.categoria ? asString(p.categoria) : null;
@@ -590,6 +593,18 @@ export async function applyWorkspaceMutation(
           ? asString(p.codiceFornitore)
           : null;
       }
+      if (p.brand !== undefined) {
+        data.brand = p.brand ? asString(p.brand) : null;
+      }
+      if (p.produttore !== undefined) {
+        data.produttore = p.produttore ? asString(p.produttore) : null;
+      }
+      if (p.disponibile !== undefined) {
+        data.disponibile =
+          p.disponibile === null || p.disponibile === ""
+            ? null
+            : asBool(p.disponibile);
+      }
       if (p.leadTimeGiorni !== undefined) {
         data.leadTimeGiorni =
           p.leadTimeGiorni === null || p.leadTimeGiorni === ""
@@ -604,6 +619,9 @@ export async function applyWorkspaceMutation(
       if (p.stato !== undefined) data.stato = asString(p.stato);
       if (p.completezza !== undefined) data.completezza = Number(p.completezza);
       if (p.daVerificare !== undefined) data.daVerificare = asBool(p.daVerificare);
+      if (p.immagini !== undefined) {
+        data.immaginiJson = p.immagini as Prisma.InputJsonValue;
+      }
       if (p.sorgenti !== undefined) {
         data.sorgentiJson = p.sorgenti as Prisma.InputJsonValue;
       }
@@ -636,6 +654,7 @@ export async function applyWorkspaceMutation(
             companyId,
             codice,
             codiceOEM: part.codiceOEM ? asString(part.codiceOEM) : null,
+            nome: part.nome ? asString(part.nome) : null,
             descrizione: asString(part.descrizione) || codice,
             categoria: part.categoria ? asString(part.categoria) : null,
             um: part.um ? asString(part.um) : null,
@@ -645,6 +664,8 @@ export async function applyWorkspaceMutation(
             codiceFornitore: part.codiceFornitore
               ? asString(part.codiceFornitore)
               : null,
+            brand: part.brand ? asString(part.brand) : null,
+            produttore: part.produttore ? asString(part.produttore) : null,
             leadTimeGiorni:
               part.leadTimeGiorni == null
                 ? null
@@ -652,9 +673,12 @@ export async function applyWorkspaceMutation(
             macchinaCompatibile: part.macchinaCompatibile
               ? asString(part.macchinaCompatibile)
               : null,
+            disponibile:
+              part.disponibile == null ? null : asBool(part.disponibile),
             stato: asString(part.stato) || "attivo",
             completezza: Number(part.completezza ?? 0),
             daVerificare: asBool(part.daVerificare),
+            immaginiJson: (part.immagini as Prisma.InputJsonValue) ?? [],
             sorgentiJson: (part.sorgenti as Prisma.InputJsonValue) ?? [],
             succedaneiJson: (part.succedanei as Prisma.InputJsonValue) ?? [],
             conflictFieldsJson:
@@ -662,6 +686,7 @@ export async function applyWorkspaceMutation(
           },
           update: {
             codiceOEM: part.codiceOEM ? asString(part.codiceOEM) : null,
+            nome: part.nome ? asString(part.nome) : null,
             descrizione: asString(part.descrizione) || codice,
             categoria: part.categoria ? asString(part.categoria) : null,
             um: part.um ? asString(part.um) : null,
@@ -671,6 +696,8 @@ export async function applyWorkspaceMutation(
             codiceFornitore: part.codiceFornitore
               ? asString(part.codiceFornitore)
               : null,
+            brand: part.brand ? asString(part.brand) : null,
+            produttore: part.produttore ? asString(part.produttore) : null,
             leadTimeGiorni:
               part.leadTimeGiorni == null
                 ? null
@@ -678,9 +705,12 @@ export async function applyWorkspaceMutation(
             macchinaCompatibile: part.macchinaCompatibile
               ? asString(part.macchinaCompatibile)
               : null,
+            disponibile:
+              part.disponibile == null ? null : asBool(part.disponibile),
             stato: asString(part.stato) || "attivo",
             completezza: Number(part.completezza ?? 0),
             daVerificare: asBool(part.daVerificare),
+            immaginiJson: (part.immagini as Prisma.InputJsonValue) ?? [],
             sorgentiJson: (part.sorgenti as Prisma.InputJsonValue) ?? [],
             succedaneiJson: (part.succedanei as Prisma.InputJsonValue) ?? [],
             conflictFieldsJson:

@@ -433,17 +433,22 @@ export function mapSparePart(row: {
   id: string;
   codice: string;
   codiceOEM: string | null;
+  nome: string | null;
   descrizione: string;
   categoria: string | null;
   um: string | null;
   prezzoListino: number | null;
   fornitore: string | null;
   codiceFornitore: string | null;
+  brand: string | null;
+  produttore: string | null;
   leadTimeGiorni: number | null;
   macchinaCompatibile: string | null;
+  disponibile: boolean | null;
   stato: string;
   completezza: number;
   daVerificare: boolean;
+  immaginiJson: Prisma.JsonValue | null;
   sorgentiJson: Prisma.JsonValue | null;
   succedaneiJson: Prisma.JsonValue | null;
   conflictFieldsJson: Prisma.JsonValue | null;
@@ -452,16 +457,21 @@ export function mapSparePart(row: {
     id: row.id,
     codice: row.codice,
     codiceOEM: row.codiceOEM ?? undefined,
+    nome: row.nome ?? undefined,
     descrizione: row.descrizione,
     categoria: row.categoria ?? undefined,
     um: row.um ?? undefined,
     prezzoListino: row.prezzoListino,
     fornitore: row.fornitore ?? undefined,
     codiceFornitore: row.codiceFornitore ?? undefined,
+    brand: row.brand ?? undefined,
+    produttore: row.produttore ?? undefined,
     leadTimeGiorni: row.leadTimeGiorni,
     macchinaCompatibile: row.macchinaCompatibile ?? undefined,
+    disponibile: row.disponibile,
     stato: (row.stato as SparePartStatus) || "attivo",
     completezza: row.completezza,
+    immagini: (row.immaginiJson as unknown as SparePart["immagini"]) ?? [],
     sorgenti: (row.sorgentiJson as unknown as SparePartSource[]) ?? [],
     succedanei: (row.succedaneiJson as unknown as SparePartSuccedaneo[]) ?? [],
     daVerificare: row.daVerificare,

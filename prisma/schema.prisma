@@ -377,17 +377,22 @@ model SparePart {
   companyId           String
   codice              String
   codiceOEM           String?
+  nome                String?
   descrizione         String
   categoria           String?
   um                  String?
   prezzoListino       Float?
   fornitore           String?
   codiceFornitore     String?
+  brand               String?
+  produttore          String?
   leadTimeGiorni      Int?
   macchinaCompatibile String?
+  disponibile         Boolean?
   stato               String   @default("attivo")
   completezza         Int      @default(0)
   daVerificare        Boolean  @default(false)
+  immaginiJson        Json?
   sorgentiJson        Json?
   succedaneiJson      Json?
   conflictFieldsJson  Json?

@@ -28,7 +28,8 @@ interface Props {
   onQueryChange?: (q: string) => void;
 }
 
-const COLS: { key: keyof SparePart | "docs"; label: string; w?: string }[] = [
+const COLS: { key: keyof SparePart | "docs" | "foto"; label: string; w?: string }[] = [
+  { key: "foto", label: "", w: "w-10" },
   { key: "codice", label: "Codice", w: "w-28" },
   { key: "descrizione", label: "Descrizione" },
   { key: "categoria", label: "Cat.", w: "w-20" },
@@ -348,6 +349,18 @@ export function PartsArchive({
                     p.daVerificare ? "bg-warn/5" : "",
                   ].join(" ")}
                 >
+                  <td className="px-2 py-1.5">
+                    {p.immagini?.[0]?.url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={p.immagini[0].url}
+                        alt=""
+                        className="h-8 w-8 rounded object-cover"
+                      />
+                    ) : (
+                      <span className="block h-8 w-8 rounded bg-surface-2" />
+                    )}
+                  </td>
                   <InlineCell
                     value={p.codice}
                     onCommit={(v) => patchPart(p.id, { codice: v.toUpperCase() })}
@@ -628,6 +641,19 @@ function PartDrawer({
         <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
           {tab === "anagrafica" && (
             <>
+              {part.immagini?.[0]?.url && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={part.immagini[0].url}
+                  alt=""
+                  className="mb-2 max-h-40 w-full rounded-lg object-contain bg-surface-2"
+                />
+              )}
+              <Field
+                label="Nome prodotto"
+                value={part.nome ?? ""}
+                onChange={(v) => onPatch({ nome: v || undefined })}
+              />
               <Field
                 label="Codice OEM"
                 value={part.codiceOEM ?? ""}
@@ -661,6 +687,16 @@ function PartDrawer({
                     prezzoListino: v.trim() && Number.isFinite(n) ? n : null,
                   });
                 }}
+              />
+              <Field
+                label="Brand"
+                value={part.brand ?? ""}
+                onChange={(v) => onPatch({ brand: v || undefined })}
+              />
+              <Field
+                label="Produttore"
+                value={part.produttore ?? ""}
+                onChange={(v) => onPatch({ produttore: v || undefined })}
               />
               <Field
                 label="Macchina compatibile"

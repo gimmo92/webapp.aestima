@@ -2,13 +2,12 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/user";
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@/lib/generated/prisma/client";
-import { callAnthropicMessages, getAnthropicKey } from "@/lib/anthropicKey";
 import {
   findHeaderRow,
-  mapColumnsHeuristic,
   mergeExtractedParts,
+  normalizeColumnMap,
   rowsFromGrid,
-  type ColumnKey,
+  sheetsFromExcelBuffer,
   type ExtractedRow,
 } from "@/lib/extractSpareParts";
 import type { SparePart } from "@/lib/sparePartTypes";
@@ -18,87 +17,41 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-type Body = {
-  fileIds?: string[];
+type MappingPayload = {
+  sheetName?: string;
+  headerIdx?: number;
+  columns: Record<string, string>;
 };
 
-const MAP_SYSTEM = `Sei un assistente che mappa colonne di un foglio Excel ricambi industriali alle chiavi canoniche.
-Chiavi ammesse: codice, codiceOEM, descrizione, categoria, um, prezzoListino, fornitore, codiceFornitore, leadTimeGiorni, macchinaCompatibile, stato, ignore.
-Rispondi SOLO con un oggetto JSON: {"0":"codice","1":"descrizione",...} dove la chiave è l'indice colonna (stringa) e il valore è la chiave canonica.
-Ogni chiave (tranne ignore) al massimo una volta.`;
+type Body = {
+  fileIds?: string[];
+  mappings: Record<string, MappingPayload>;
+};
 
-function parseColumnMap(text: string): Record<number, ColumnKey> | null {
-  try {
-    const match = text.match(/\{[\s\S]*\}/);
-    const obj = JSON.parse(match ? match[0] : text) as Record<string, string>;
-    const out: Record<number, ColumnKey> = {};
-    const allowed = new Set([
-      "codice",
-      "codiceOEM",
-      "descrizione",
-      "categoria",
-      "um",
-      "prezzoListino",
-      "fornitore",
-      "codiceFornitore",
-      "leadTimeGiorni",
-      "macchinaCompatibile",
-      "stato",
-      "ignore",
-    ]);
-    for (const [k, v] of Object.entries(obj)) {
-      const idx = Number(k);
-      if (!Number.isFinite(idx) || !allowed.has(v)) continue;
-      out[idx] = v as ColumnKey;
-    }
-    return Object.keys(out).length ? out : null;
-  } catch {
-    return null;
-  }
-}
-
-async function mapColumnsWithLlm(
-  headers: string[]
-): Promise<Record<number, ColumnKey> | null> {
-  if (!getAnthropicKey()) return null;
-  const llm = await callAnthropicMessages({
-    system: MAP_SYSTEM,
-    user: `Header colonne (indice: testo):\n${headers
-      .map((h, i) => `${i}: ${h}`)
-      .join("\n")}`,
-    maxTokens: 800,
-  });
-  if (!llm.ok) return null;
-  return parseColumnMap(llm.text);
-}
-
-async function gridFromBuffer(
-  buffer: Buffer,
-  fileName: string
-): Promise<{ sheetName: string; grid: string[][] }[]> {
-  const XLSX = await import("xlsx");
-  const wb = XLSX.read(buffer, { type: "buffer" });
-  const sheets: { sheetName: string; grid: string[][] }[] = [];
-  for (const sheetName of wb.SheetNames) {
-    const sheet = wb.Sheets[sheetName];
-    if (!sheet) continue;
-    const grid = XLSX.utils.sheet_to_json<string[]>(sheet, {
-      header: 1,
-      defval: "",
-      raw: false,
-    }) as string[][];
-    if (grid.length < 2) continue;
-    // Skip fogli analisi / parametri tipici
-    if (/parametr|analisi|note/i.test(sheetName) && grid.length < 15) continue;
-    sheets.push({
-      sheetName,
-      grid: grid.map((r) => r.map((c) => String(c ?? ""))),
-    });
-  }
-  if (sheets.length === 0 && /csv$/i.test(fileName)) {
-    // fallback handled by xlsx for csv too
-  }
-  return sheets;
+function sparePartWriteData(p: SparePart) {
+  return {
+    codiceOEM: p.codiceOEM ?? null,
+    nome: p.nome ?? null,
+    descrizione: p.descrizione,
+    categoria: p.categoria ?? null,
+    um: p.um ?? null,
+    prezzoListino: p.prezzoListino ?? null,
+    fornitore: p.fornitore ?? null,
+    codiceFornitore: p.codiceFornitore ?? null,
+    brand: p.brand ?? null,
+    produttore: p.produttore ?? null,
+    leadTimeGiorni: p.leadTimeGiorni ?? null,
+    macchinaCompatibile: p.macchinaCompatibile ?? null,
+    disponibile: p.disponibile ?? null,
+    stato: p.stato,
+    completezza: p.completezza,
+    daVerificare: p.daVerificare,
+    immaginiJson: (p.immagini ?? []) as unknown as Prisma.InputJsonValue,
+    sorgentiJson: p.sorgenti as unknown as Prisma.InputJsonValue,
+    succedaneiJson: p.succedanei as unknown as Prisma.InputJsonValue,
+    conflictFieldsJson: (p.conflictFields ??
+      []) as unknown as Prisma.InputJsonValue,
+  };
 }
 
 export async function POST(req: Request) {
@@ -114,28 +67,32 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "JSON non valido" }, { status: 400 });
   }
 
+  if (!body.mappings || typeof body.mappings !== "object") {
+    return NextResponse.json(
+      {
+        error:
+          "Mappatura colonne mancante. Conferma la schermata di mapping.",
+      },
+      { status: 400 }
+    );
+  }
+
+  const requestedIds = Object.keys(body.mappings);
   const files = await prisma.archiveFile.findMany({
     where: {
       companyId: me.companyId,
-      ...(body.fileIds?.length ? { id: { in: body.fileIds } } : {}),
+      id: { in: body.fileIds?.length ? body.fileIds : requestedIds },
       ext: { in: ["xlsx", "xls", "csv"] },
     },
-    select: {
-      id: true,
-      name: true,
-      ext: true,
-      content: true,
-      classificationJson: true,
-    },
+    select: { id: true, name: true, ext: true, content: true },
   });
 
   const extractable = files.filter((f) => f.content && f.content.length > 0);
   if (extractable.length === 0) {
     return NextResponse.json({
       parts: [],
-      progress: { done: 0, total: 0 },
-      message:
-        "Nessun file Excel/CSV con contenuto in archivio. Carica listini o distinte e riprova.",
+      extractedRows: 0,
+      message: "Nessun Excel/CSV con contenuto da importare.",
     });
   }
 
@@ -147,41 +104,43 @@ export async function POST(req: Request) {
   const progress: { fileId: string; fileName: string; rows: number }[] = [];
 
   for (const file of extractable) {
+    const mapping = body.mappings[file.id];
+    if (!mapping) continue;
+    const colMap = normalizeColumnMap(mapping.columns);
+    if (!Object.values(colMap).includes("codice")) {
+      progress.push({ fileId: file.id, fileName: file.name, rows: 0 });
+      continue;
+    }
+
     const buffer = Buffer.from(file.content!);
     let sheets: { sheetName: string; grid: string[][] }[] = [];
     try {
-      sheets = await gridFromBuffer(buffer, file.name);
+      sheets = await sheetsFromExcelBuffer(buffer, file.name);
     } catch (err) {
       console.error("extract sheet fail", file.name, err);
       continue;
     }
 
-    let fileRows = 0;
-    for (const { sheetName, grid } of sheets) {
-      const headerIdx = findHeaderRow(grid);
-      const headers = (grid[headerIdx] ?? []).map((h) => String(h ?? ""));
-      let colMap = mapColumnsHeuristic(headers);
-      if (!colMap[0] && !Object.values(colMap).includes("codice")) {
-        const llmMap = await mapColumnsWithLlm(headers);
-        if (llmMap) colMap = llmMap;
-      }
-      // Serve almeno codice
-      if (!Object.values(colMap).includes("codice")) continue;
+    const preferred =
+      sheets.find((s) => s.sheetName === mapping.sheetName) ?? sheets[0];
+    if (!preferred) continue;
 
-      const rows = rowsFromGrid(grid, headerIdx, colMap, {
-        fileId: file.id,
-        fileName: file.name,
-        sheet: sheetName,
-      });
-      extractedAll.push(...rows);
-      fileRows += rows.length;
-    }
-    progress.push({ fileId: file.id, fileName: file.name, rows: fileRows });
+    const headerIdx =
+      mapping.headerIdx != null && mapping.headerIdx >= 0
+        ? mapping.headerIdx
+        : findHeaderRow(preferred.grid);
+
+    const rows = rowsFromGrid(preferred.grid, headerIdx, colMap, {
+      fileId: file.id,
+      fileName: file.name,
+      sheet: preferred.sheetName,
+    });
+    extractedAll.push(...rows);
+    progress.push({ fileId: file.id, fileName: file.name, rows: rows.length });
   }
 
   merged = mergeExtractedParts(merged, extractedAll);
 
-  // Persist upsert
   await prisma.$transaction(
     merged.map((p) =>
       prisma.sparePart.upsert({
@@ -192,41 +151,9 @@ export async function POST(req: Request) {
           id: p.id,
           companyId: me.companyId,
           codice: p.codice,
-          codiceOEM: p.codiceOEM ?? null,
-          descrizione: p.descrizione,
-          categoria: p.categoria ?? null,
-          um: p.um ?? null,
-          prezzoListino: p.prezzoListino ?? null,
-          fornitore: p.fornitore ?? null,
-          codiceFornitore: p.codiceFornitore ?? null,
-          leadTimeGiorni: p.leadTimeGiorni ?? null,
-          macchinaCompatibile: p.macchinaCompatibile ?? null,
-          stato: p.stato,
-          completezza: p.completezza,
-          daVerificare: p.daVerificare,
-          sorgentiJson: p.sorgenti as unknown as Prisma.InputJsonValue,
-          succedaneiJson: p.succedanei as unknown as Prisma.InputJsonValue,
-          conflictFieldsJson: (p.conflictFields ??
-            []) as unknown as Prisma.InputJsonValue,
+          ...sparePartWriteData(p),
         },
-        update: {
-          codiceOEM: p.codiceOEM ?? null,
-          descrizione: p.descrizione,
-          categoria: p.categoria ?? null,
-          um: p.um ?? null,
-          prezzoListino: p.prezzoListino ?? null,
-          fornitore: p.fornitore ?? null,
-          codiceFornitore: p.codiceFornitore ?? null,
-          leadTimeGiorni: p.leadTimeGiorni ?? null,
-          macchinaCompatibile: p.macchinaCompatibile ?? null,
-          stato: p.stato,
-          completezza: p.completezza,
-          daVerificare: p.daVerificare,
-          sorgentiJson: p.sorgenti as unknown as Prisma.InputJsonValue,
-          succedaneiJson: p.succedanei as unknown as Prisma.InputJsonValue,
-          conflictFieldsJson: (p.conflictFields ??
-            []) as unknown as Prisma.InputJsonValue,
-        },
+        update: sparePartWriteData(p),
       })
     )
   );
@@ -244,6 +171,5 @@ export async function POST(req: Request) {
       files: progress,
     },
     extractedRows: extractedAll.length,
-    source: getAnthropicKey() ? "anthropic+heuristic" : "heuristic",
   });
 }

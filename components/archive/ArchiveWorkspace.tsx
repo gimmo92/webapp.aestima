@@ -32,6 +32,10 @@ import {
   type GapUpdatePayload,
 } from "./ArchiveGapsSidebar";
 import { PartsArchive } from "./PartsArchive";
+import {
+  ColumnMappingModal,
+  type MappingFilePreview,
+} from "./ColumnMappingModal";
 
 type Phase = "source" | "processing" | "done";
 type ArchiveTab = "organizzato" | "sorgente" | "verificare" | "ricambi";
@@ -116,6 +120,14 @@ export function ArchiveWorkspace() {
     label: string;
     pct: number;
   } | null>(null);
+  const [mappingFiles, setMappingFiles] = useState<MappingFilePreview[] | null>(
+    null
+  );
+  const [mappingSource, setMappingSource] = useState<"ai" | "heuristic">(
+    "heuristic"
+  );
+  const [mappingError, setMappingError] = useState<string | null>(null);
+  const [mappingApplying, setMappingApplying] = useState(false);
   const organizingRef = useRef(false);
 
   useEffect(() => {
@@ -236,6 +248,94 @@ export function ArchiveWorkspace() {
     void runOrganize(visibleFiles);
   }, [runOrganize, visibleFiles]);
 
+  const openColumnMapping = useCallback(async (fileIds?: string[]) => {
+    setExtracting(true);
+    setMappingError(null);
+    setExtractProgress({ label: "Analisi colonne Excel…", pct: 15 });
+    try {
+      const res = await fetch("/api/archive/extract-parts/preview", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(fileIds?.length ? { fileIds } : {}),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        setExtractProgress({
+          label:
+            (data as { error?: string; message?: string })?.error ||
+            (data as { message?: string })?.message ||
+            "Analisi fallita",
+          pct: 100,
+        });
+        return;
+      }
+      const files = (data?.files as MappingFilePreview[]) ?? [];
+      if (files.length === 0) {
+        setExtractProgress({
+          label:
+            (data as { message?: string })?.message ||
+            "Nessun Excel/CSV da mappare.",
+          pct: 100,
+        });
+        return;
+      }
+      setMappingSource(data.source === "ai" ? "ai" : "heuristic");
+      setMappingFiles(files);
+      setExtractProgress(null);
+    } catch {
+      setExtractProgress({ label: "Errore di rete", pct: 100 });
+    } finally {
+      setExtracting(false);
+      window.setTimeout(() => setExtractProgress(null), 4000);
+    }
+  }, []);
+
+  const confirmColumnMapping = useCallback(
+    async (
+      mappings: Record<
+        string,
+        {
+          sheetName: string;
+          headerIdx: number;
+          columns: Record<string, string>;
+        }
+      >
+    ) => {
+      setMappingApplying(true);
+      setMappingError(null);
+      try {
+        const res = await fetch("/api/archive/extract-parts", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            fileIds: Object.keys(mappings),
+            mappings,
+          }),
+        });
+        const data = await res.json().catch(() => null);
+        if (!res.ok) {
+          setMappingError(
+            (data as { error?: string })?.error || "Importazione fallita"
+          );
+          return;
+        }
+        setSpareParts((data.parts as SparePart[]) ?? []);
+        setMappingFiles(null);
+        setArchiveTab("ricambi");
+        setExtractProgress({
+          label: `Importati ${data.extractedRows ?? 0} righe · ${(data.parts as SparePart[])?.length ?? 0} ricambi`,
+          pct: 100,
+        });
+        window.setTimeout(() => setExtractProgress(null), 4000);
+      } catch {
+        setMappingError("Errore di rete");
+      } finally {
+        setMappingApplying(false);
+      }
+    },
+    []
+  );
+
   const uploadFiles = useCallback(
     (files: File[]) => {
       if (files.length === 0) return;
@@ -259,9 +359,17 @@ export function ArchiveWorkspace() {
           for (const f of added) next.set(f.id, fallbackResult(f));
           return next;
         });
+        const sheetIds = added
+          .filter(
+            (f) => f.ext === "xlsx" || /\.(xlsx|xls|csv)$/i.test(f.name)
+          )
+          .map((f) => f.id);
+        if (cloud && sheetIds.length > 0) {
+          void openColumnMapping(sheetIds);
+        }
       })();
     },
-    [deletedIds, runOrganize]
+    [deletedIds, openColumnMapping, runOrganize]
   );
 
   const deleteFile = useCallback(
@@ -376,48 +484,9 @@ export function ArchiveWorkspace() {
   );
 
   const handleExtractParts = useCallback(async () => {
-    if (extracting) return;
-    setExtracting(true);
-    setExtractProgress({ label: "Estrazione in corso…", pct: 5 });
-    try {
-      const tick = window.setInterval(() => {
-        setExtractProgress((prev) =>
-          prev
-            ? {
-                label: prev.label,
-                pct: Math.min(90, prev.pct + 7),
-              }
-            : prev
-        );
-      }, 400);
-      const res = await fetch("/api/archive/extract-parts", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({}),
-      });
-      window.clearInterval(tick);
-      if (!res.ok) {
-        const err = await res.json().catch(() => null);
-        setExtractProgress({
-          label: (err as { message?: string })?.message || "Estrazione fallita",
-          pct: 100,
-        });
-        return;
-      }
-      const data = await res.json();
-      setSpareParts((data.parts as SparePart[]) ?? []);
-      setExtractProgress({
-        label: `Estratti ${data.extractedRows ?? 0} righe · ${(data.parts as SparePart[])?.length ?? 0} ricambi`,
-        pct: 100,
-      });
-      setArchiveTab("ricambi");
-    } catch {
-      setExtractProgress({ label: "Errore di rete", pct: 100 });
-    } finally {
-      setExtracting(false);
-      window.setTimeout(() => setExtractProgress(null), 4000);
-    }
-  }, [extracting]);
+    if (extracting || mappingApplying) return;
+    await openColumnMapping();
+  }, [extracting, mappingApplying, openColumnMapping]);
 
   const handleSparePatch = useCallback(
     (part: SparePart) => {
@@ -700,6 +769,20 @@ export function ArchiveWorkspace() {
 
       {apiFile && (
         <ArchiveApiModal file={apiFile} onClose={() => setApiFile(null)} />
+      )}
+      {mappingFiles && (
+        <ColumnMappingModal
+          files={mappingFiles}
+          source={mappingSource}
+          applying={mappingApplying}
+          error={mappingError}
+          onCancel={() => {
+            if (!mappingApplying) setMappingFiles(null);
+          }}
+          onConfirm={(mappings) => {
+            void confirmColumnMapping(mappings);
+          }}
+        />
       )}
       </div>
 

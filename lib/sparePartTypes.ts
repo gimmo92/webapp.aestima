@@ -21,21 +21,33 @@ export interface SparePartSuccedaneo {
   note?: string;
 }
 
+/** Foto associate al ricambio (path Excel, URL remoto o file caricato). */
+export interface SparePartImage {
+  path?: string;
+  url?: string;
+  role?: "primary" | "extra" | "thumbnail";
+}
+
 export interface SparePart {
   id: string;
   codice: string;
   codiceOEM?: string;
+  nome?: string;
   descrizione: string;
   categoria?: string;
   um?: string;
   prezzoListino?: number | null;
   fornitore?: string;
   codiceFornitore?: string;
+  brand?: string;
+  produttore?: string;
   leadTimeGiorni?: number | null;
   macchinaCompatibile?: string;
+  disponibile?: boolean | null;
   stato: SparePartStatus;
   /** 0–100 */
   completezza: number;
+  immagini: SparePartImage[];
   sorgenti: SparePartSource[];
   succedanei: SparePartSuccedaneo[];
   /** True se valori in conflitto tra sorgenti (non sovrascritti). */
@@ -64,12 +76,12 @@ export const SPARE_COMPLETENESS_FIELDS = [
 export function computeSpareCompleteness(part: Partial<SparePart>): number {
   const checks: boolean[] = [
     Boolean(part.codice?.trim()),
-    Boolean(part.descrizione?.trim()),
+    Boolean(part.descrizione?.trim() || part.nome?.trim()),
     part.prezzoListino != null && part.prezzoListino > 0,
-    Boolean(part.fornitore?.trim()),
+    Boolean(part.fornitore?.trim() || part.produttore?.trim() || part.brand?.trim()),
     Boolean(part.macchinaCompatibile?.trim()),
     Boolean(part.categoria?.trim()),
-    Boolean(part.um?.trim()),
+    Boolean(part.um?.trim()) || (part.immagini?.length ?? 0) > 0,
   ];
   const ok = checks.filter(Boolean).length;
   return Math.round((ok / checks.length) * 100);
