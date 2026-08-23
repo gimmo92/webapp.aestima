@@ -68,6 +68,7 @@ function toSparePartProposal(
     price: part.price,
     availability: part.stock > 0 ? "disponibile" : "da_ordinare",
     leadTimeDays: part.stock > 0 ? undefined : part.leadTimeDays,
+    confidence: 90,
   };
 }
 

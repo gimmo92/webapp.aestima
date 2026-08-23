@@ -15,13 +15,15 @@ export interface ChatMessage {
   attachments?: ChatAttachmentPayload[];
 }
 
-/** Ricambio proposto dall'agente (solo se trovato in distinta). */
+/** Ricambio proposto dall'agente (solo se trovato in distinta/catalogo). */
 export interface SparePartProposal {
   code: string;
   description: string;
   price: number;
   availability: "disponibile" | "da_ordinare";
   leadTimeDays?: number;
+  /** 0–100: quanto il match è affidabile (foto, codice, descrizione). */
+  confidence?: number;
 }
 
 /** Ticket aperto — solo per messaggi storici salvati in conversazione. */

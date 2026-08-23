@@ -16,7 +16,9 @@ import {
 import { buildMachinesContext } from "@/lib/serviceChatData";
 import {
   anonymousServiceChatContext,
+  clampConfidence,
   loadServiceChatCompanyContext,
+  mergeSparePartConfidence,
   serializeChatPark,
   type ServiceChatCompanyContext,
 } from "@/lib/serviceChatCompanyContext";
@@ -115,7 +117,7 @@ Ragiona ESCLUSIVAMENTE sui dati nel contesto. Non usare conoscenza esterna.
 Rispondi ESCLUSIVAMENTE con JSON valido (senza markdown):
 {
   "message": "testo per l'utente in ${langIt}",
-  "spareParts": null oppure [{"code":"...","description":"...","price":123.45,"availability":"disponibile"|"da_ordinare","leadTimeDays":0}],
+  "spareParts": null oppure [{"code":"...","description":"...","price":123.45,"availability":"disponibile"|"da_ordinare","leadTimeDays":0,"confidence":85}],
   "kbMatch": null oppure {"entryId":"KB-101","symptom":"breve sintomo della voce usata"},
   "quickReplies": null oppure [{"label":"...","value":"..."}]
 }
@@ -124,7 +126,7 @@ Regole JSON:
 - "message" sempre obbligatorio.
 - "kbMatch": SOLO quando risolvi usando la KB.
 - "quickReplies": 2-5 opzioni quando chiedi scelte; sintomi dalla KB se troubleshooting.
-- "spareParts": SOLO voci del catalogo/parco di questa company (codice reale). Se manca il prezzo usa 0.
+- "spareParts": SOLO voci del catalogo/parco di questa company (codice reale). Se manca il prezzo usa 0. "confidence" è 0-100 (quanto il pezzo corrisponde a foto/descrizione).
 
 ## DATI DI CONTESTO (unica fonte di verità)
 ${machinesContext}
@@ -204,6 +206,9 @@ function normalizeSpareParts(raw: unknown): SparePartProposal[] | undefined {
     const availability =
       p.availability === "da_ordinare" ? "da_ordinare" : "disponibile";
     if (!code || !description || Number.isNaN(price)) continue;
+    const confidence = clampConfidence(
+      p.confidence ?? p.confidenza ?? p.score
+    );
     parts.push({
       code,
       description,
@@ -211,6 +216,7 @@ function normalizeSpareParts(raw: unknown): SparePartProposal[] | undefined {
       availability,
       leadTimeDays:
         typeof p.leadTimeDays === "number" ? p.leadTimeDays : undefined,
+      confidence,
     });
   }
   return parts.length > 0 ? parts : undefined;
@@ -424,6 +430,12 @@ export async function POST(req: Request) {
     ) {
       next.spareParts = company.catalogHits;
     }
+    if (next.spareParts?.length) {
+      next.spareParts = mergeSparePartConfidence(
+        next.spareParts,
+        company.catalogHits
+      );
+    }
     if (machines.length === 0) {
       next.quickReplies = ensureMachineOtherOption(next.quickReplies, []);
     }
@@ -515,6 +527,10 @@ export async function POST(req: Request) {
       if (!spareParts?.length && company.catalogHits.length > 0) {
         spareParts = company.catalogHits;
       }
+    }
+
+    if (spareParts?.length) {
+      spareParts = mergeSparePartConfidence(spareParts, company.catalogHits);
     }
 
     const response: ServiceChatResponse = {

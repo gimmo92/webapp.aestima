@@ -27,7 +27,19 @@ export function collectChatResults(messages: ChatResultSource[]) {
 
   for (const m of messages) {
     for (const part of m.spareParts ?? []) {
-      sparePartsMap.set(part.code, part);
+      const prev = sparePartsMap.get(part.code);
+      if (!prev) {
+        sparePartsMap.set(part.code, part);
+        continue;
+      }
+      sparePartsMap.set(part.code, {
+        ...prev,
+        ...part,
+        confidence:
+          Math.max(prev.confidence ?? 0, part.confidence ?? 0) ||
+          prev.confidence ||
+          part.confidence,
+      });
     }
     if (m.kbMatch) {
       kbMatch = m.kbMatch;
@@ -37,7 +49,9 @@ export function collectChatResults(messages: ChatResultSource[]) {
     if (m.ticket) ticket = m.ticket;
   }
 
-  const spareParts = [...sparePartsMap.values()];
+  const spareParts = [...sparePartsMap.values()].sort(
+    (a, b) => (b.confidence ?? 0) - (a.confidence ?? 0)
+  );
   return {
     spareParts,
     kbMatch,

@@ -44,25 +44,44 @@ export function SparePartCard({
             {compact ? part.code : t("spare.identified")}
           </span>
         </div>
-        <span
-          className={[
-            "inline-flex shrink-0 items-center gap-1.5 rounded-full py-0.5 text-[11px] font-semibold",
-            compact ? "px-2" : "px-2.5",
-            available ? "bg-ok/15 text-ok" : "bg-warn/15 text-warn",
-          ].join(" ")}
-        >
+        <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
           <span
             className={[
-              "h-1.5 w-1.5 rounded-full",
-              available ? "bg-ok" : "bg-warn",
+              "inline-flex items-center gap-1.5 rounded-full py-0.5 text-[11px] font-semibold",
+              compact ? "px-2" : "px-2.5",
+              available ? "bg-ok/15 text-ok" : "bg-warn/15 text-warn",
             ].join(" ")}
-          />
-          {available
-            ? compact
-              ? t("spare.availableShort")
-              : t("spare.available")
-            : `${t("spare.toOrder")}${part.leadTimeDays ? ` · ${part.leadTimeDays} gg` : ""}`}
-        </span>
+          >
+            <span
+              className={[
+                "h-1.5 w-1.5 rounded-full",
+                available ? "bg-ok" : "bg-warn",
+              ].join(" ")}
+            />
+            {available
+              ? compact
+                ? t("spare.availableShort")
+                : t("spare.available")
+              : `${t("spare.toOrder")}${part.leadTimeDays ? ` · ${part.leadTimeDays} gg` : ""}`}
+          </span>
+          {typeof part.confidence === "number" && (
+            <span
+              className={[
+                "inline-flex items-center rounded-full py-0.5 font-semibold",
+                compact ? "px-2 text-[11px]" : "px-2.5 text-[11px]",
+                part.confidence >= 80
+                  ? "bg-ok/15 text-ok"
+                  : part.confidence >= 55
+                    ? "bg-warn/15 text-warn"
+                    : "border border-border bg-surface text-ink-muted",
+              ].join(" ")}
+              title={t("spare.confidence")}
+              aria-label={`${t("spare.confidence")}: ${Math.round(part.confidence)}%`}
+            >
+              {Math.round(part.confidence)}%
+            </span>
+          )}
+        </div>
       </div>
       <div
         className={

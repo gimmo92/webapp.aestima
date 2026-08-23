@@ -85,9 +85,11 @@ function scoreRow(row: SpareRow, tokens: string[]): number {
   return score;
 }
 
-function formatHits(rows: SpareRow[]): string {
-  return rows
-    .map((r) => {
+function formatHits(scored: Array<{ r: SpareRow; s: number }>): string {
+  const topScore = scored[0]?.s ?? 0;
+  return scored
+    .slice(0, 40)
+    .map(({ r, s }, i) => {
       const price =
         r.prezzoListino != null ? ` | €${r.prezzoListino}` : "";
       const oem = r.codiceOEM ? ` | OEM ${r.codiceOEM}` : "";
@@ -97,17 +99,55 @@ function formatHits(rows: SpareRow[]): string {
         ? ` | macchina ${r.macchinaCompatibile}`
         : "";
       const desc = (r.descrizione || r.nome || "").slice(0, 140);
-      return `- ${r.codice}${oem}: ${desc}${brandBit}${price}${machine}`;
+      const conf = scoreToConfidence(s, i, topScore);
+      return `- ${r.codice}${oem}: ${desc}${brandBit}${price}${machine} | confidenza ${conf}%`;
     })
     .join("\n");
 }
 
-function hitsToProposals(rows: SpareRow[]): SparePartProposal[] {
-  return rows.slice(0, 6).map((r) => ({
+function scoreToConfidence(score: number, rank: number, topScore: number): number {
+  if (score <= 0) return Math.max(28, 45 - rank * 4);
+  const rel = topScore > 0 ? score / topScore : 0;
+  return Math.max(32, Math.min(97, Math.round(rel * 88 + 8 - rank * 5)));
+}
+
+function hitsToProposals(
+  scored: Array<{ r: SpareRow; s: number }>
+): SparePartProposal[] {
+  const topScore = scored[0]?.s ?? 0;
+  return scored.slice(0, 6).map(({ r, s }, i) => ({
     code: r.codice,
     description: (r.descrizione || r.nome || r.codice).slice(0, 180),
     price: r.prezzoListino ?? 0,
     availability: r.disponibile === false ? "da_ordinare" : "disponibile",
+    confidence: scoreToConfidence(s, i, topScore),
+  }));
+}
+
+export function clampConfidence(value: unknown): number | undefined {
+  if (value == null || value === "") return undefined;
+  const n =
+    typeof value === "number"
+      ? value
+      : Number(String(value).trim().replace(/%/g, "").replace(",", "."));
+  if (!Number.isFinite(n)) return undefined;
+  const pct = n >= 0 && n <= 1 ? n * 100 : n;
+  return Math.max(0, Math.min(100, Math.round(pct)));
+}
+
+export function mergeSparePartConfidence(
+  parts: SparePartProposal[],
+  catalogHits: SparePartProposal[]
+): SparePartProposal[] {
+  const byCode = new Map(
+    catalogHits.map((h) => [h.code.toLowerCase(), h.confidence])
+  );
+  return parts.map((p, i) => ({
+    ...p,
+    confidence:
+      clampConfidence(p.confidence) ??
+      byCode.get(p.code.toLowerCase()) ??
+      Math.max(30, 78 - i * 10),
   }));
 }
 
@@ -169,15 +209,16 @@ export async function loadServiceChatCompanyContext(
         ]
       : [];
   const tokens = tokenize(`${userQuery} ${photoHints.join(" ")}`);
-  let hits = rows
+  const scored = rows
     .map((r) => ({ r, s: scoreRow(r, tokens) }))
     .filter((x) => x.s > 0)
     .sort((a, b) => b.s - a.s)
-    .slice(0, 40)
-    .map((x) => x.r);
-  if (hits.length === 0 && rows.length > 0) {
-    hits = rows.slice(0, 25);
-  }
+    .slice(0, 40);
+  const scoredHits =
+    scored.length > 0
+      ? scored
+      : rows.slice(0, 25).map((r, i) => ({ r, s: Math.max(1, 6 - i) }));
+  const hits = scoredHits.map((x) => x.r);
 
   const brands = [
     ...new Set(
@@ -202,7 +243,7 @@ Slug: ${companySlug}
 Brand/fornitori: ${brands.join(", ") || "n/d"}
 Usa SOLO questi articoli per proposte ricambi. Non usare listini Vallmec/VLM se non compaiono qui.
 
-${hits.length > 0 ? `Voci più pertinenti alla richiesta:\n${formatHits(hits)}` : "(Nessun match forte sulla query: usa l'elenco codici e la foto/descrizione.)"}
+${hits.length > 0 ? `Voci più pertinenti alla richiesta:\n${formatHits(scoredHits)}` : "(Nessun match forte sulla query: usa l'elenco codici e la foto/descrizione.)"}
 
 Campione codici in catalogo: ${sampleCodes(rows)}
 
@@ -225,7 +266,7 @@ REGOLE ANTI-CONTAMINAZIONE
     machines,
     catalogCount: rows.length,
     catalogBlock,
-    catalogHits: hitsToProposals(hits),
+    catalogHits: hitsToProposals(scoredHits),
   };
 }
 

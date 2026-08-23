@@ -160,6 +160,7 @@ export const en: Messages = {
     description: "Description",
     code: "Code",
     listPrice: "List price",
+    confidence: "Confidence",
   },
   kb: {
     reference: "Knowledge base reference",

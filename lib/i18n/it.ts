@@ -164,6 +164,7 @@ export const it = {
     description: "Descrizione",
     code: "Codice",
     listPrice: "Prezzo listino",
+    confidence: "Confidenza",
   },
   kb: {
     reference: "Referenza knowledge base",
