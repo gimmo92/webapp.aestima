@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getCurrentUser } from "@/lib/auth/user";
 import {
   callAnthropicConversation,
   getAnthropicKey,
@@ -13,6 +14,12 @@ import {
   isReadyForKbSearch,
 } from "@/lib/knowledgeSearch";
 import { buildMachinesContext } from "@/lib/serviceChatData";
+import {
+  anonymousServiceChatContext,
+  loadServiceChatCompanyContext,
+  serializeChatPark,
+  type ServiceChatCompanyContext,
+} from "@/lib/serviceChatCompanyContext";
 import { buildServiceChatFallback } from "@/lib/serviceChatFallback";
 import { documentAttachmentNote } from "@/lib/serviceChatAttachments";
 import { normalizeApiQuickReplies, ensureMachineOtherOption } from "@/lib/serviceChatQuickReplies";
@@ -33,28 +40,37 @@ import type {
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const MACHINES_CONTEXT = buildMachinesContext();
-
 function buildSystemPrompt(
   knowledgeBase: KnowledgeEntry[],
   kbSearchBlock: string,
-  locale: "it" | "en" = "it"
+  locale: "it" | "en" = "it",
+  company: ServiceChatCompanyContext
 ): string {
   const kbContext = formatKnowledgeForPrompt(knowledgeBase);
+  const machinesContext = buildMachinesContext(company.machines);
   const lang = locale === "en" ? "English" : "Italian";
   const langIt = locale === "en" ? "inglese" : "italiano";
+  const hasPark = company.machines.length > 0;
   return `Sei l'agente di assistenza service after-sales di "aftercore".
 Parli in ${langIt} (${lang}), tono professionale e chiaro, come un tecnico esperto ma accessibile.
+Lavori SOLO per la company indicata nel contesto. Non mescolare cataloghi o parchi di altre aziende.
+
+## COMPANY E CATALOGO (fonte primaria ricambi)
+${company.catalogBlock}
 
 ## FLUSSO OBBLIGATORIO
-1. **Identifica la macchina**: chiedi modello o matricola se mancano.
-2. **Capisci il bisogno**: distingui RICAMBIO vs MALFUNZIONAMENTO.
-3. **Ramo ricambi**: cerca il pezzo SOLO nella distinta della macchina identificata.
+1. **Capisci il bisogno**: distingui RICAMBIO vs MALFUNZIONAMENTO.
+2. **Ramo ricambi**: cerca il pezzo nel CATALOGO RICAMBI CARICATO (codice, OEM, descrizione, foto). Non aspettare la matricola se la foto/descrizione basta a trovare candidati.
+3. **Macchina**: ${
+    hasPark
+      ? "puoi proporre quickReplies SOLO con le macchine del parco di questa company."
+      : "questa company NON ha parco macchine. VIETATO chiedere matricola/modello. VIETATO elencare impianti (VLM-2200 o altri). Cerca SUBITO nel catalogo dalla foto/descrizione e proponi i match in spareParts. quickReplies=null o opzioni sul ricambio, mai matricole."
+  }
 
 ## OPZIONE "ALTRO"
 Se l'utente sceglie "Altro — preferisco descrivere liberamente" (bubble iniziali):
 - Invitalo a descrivere liberamente la richiesta (ricambio, guasto o altro).
-- Suggerisci modello/matricola come opzione utile, con quickReplies delle macchine disponibili.
+- ${hasPark ? "Suggerisci modello/matricola come opzione utile, con quickReplies delle macchine disponibili." : "Non chiedere la macchina e non mostrare matricole."}
 - NON bloccare la conversazione. Rispondi SEMPRE con JSON valido e "message" non vuoto.
 
 Se l'utente sceglie "La macchina non è in elenco — indico modello o matricola" (bubble selezione macchina):
@@ -63,7 +79,7 @@ Se l'utente sceglie "La macchina non è in elenco — indico modello o matricola
 
 ## FLUSSO TROUBLESHOOTING — ORDINE RIGIDO (non saltare passi)
 **Fase A** — Utente segnala malfunzionamento senza macchina:
-- Chiedi matricola/modello. quickReplies con le macchine disponibili più opzione "Altro" (macchina non in elenco).
+- ${hasPark ? "Chiedi matricola/modello. quickReplies con le macchine disponibili più opzione \"Altro\" (macchina non in elenco)." : "NON chiedere la macchina. Chiedi sintomi/foto e cerca nel catalogo o in KB solo dopo aver capito il pezzo/problema."}
 - NON cercare nella KB. kbMatch=null. NON proporre soluzioni.
 
 **Fase B** — Utente indica SOLO la macchina (es. "Matricola MX-4521 — Rettificatrice RX-400"):
@@ -83,11 +99,13 @@ Se l'utente sceglie "La macchina non è in elenco — indico modello o matricola
 - Nel "message" includi sempre la referenza alla scheda KB quando usi una voce.
 
 ## ALLEGATI
-- Analizza le FOTO per matricola, modello, codici o sintomi visibili.
+- Analizza le FOTO per identificare il componente (forma, codice, brand) e cerca match nel catalogo.
 - Per DOCUMENTI non visualizzabili usa il nome file e invita l'utente ad aggiungere contesto.
 
 ## REGOLA CRITICA — MAI INVENTARE
-- Se il pezzo NON è in distinta, o il problema NON ha casi simili nella KB: NON inventare.
+- Se il pezzo NON è nel catalogo di questa company, o il problema NON ha casi simili nella KB: NON inventare.
+- Vietato citare Vallmec, VLM-2200 o matricole demo.
+- Se la company non ha parco macchine: NON chiedere su quale macchina è montato il pezzo.
 - Invita l'utente a fornire più dettagli: la conversazione resta aperta e un operatore può intervenire.
 
 ## VINCOLI
@@ -106,9 +124,10 @@ Regole JSON:
 - "message" sempre obbligatorio.
 - "kbMatch": SOLO quando risolvi usando la KB.
 - "quickReplies": 2-5 opzioni quando chiedi scelte; sintomi dalla KB se troubleshooting.
+- "spareParts": SOLO voci del catalogo/parco di questa company (codice reale). Se manca il prezzo usa 0.
 
 ## DATI DI CONTESTO (unica fonte di verità)
-${MACHINES_CONTEXT}
+${machinesContext}
 
 ${kbContext}
 
@@ -179,7 +198,9 @@ function normalizeSpareParts(raw: unknown): SparePartProposal[] | undefined {
     const p = item as Record<string, unknown>;
     const code = String(p.code ?? "").trim();
     const description = String(p.description ?? "").trim();
-    const price = Number(p.price);
+    const rawPrice = p.price;
+    const price =
+      rawPrice == null || rawPrice === "" ? 0 : Number(rawPrice);
     const availability =
       p.availability === "da_ordinare" ? "da_ordinare" : "disponibile";
     if (!code || !description || Number.isNaN(price)) continue;
@@ -363,20 +384,65 @@ export async function POST(req: Request) {
     );
   }
 
+  const lastUser = [...messages].reverse().find((m) => m.role === "user");
+  const hasImages = messages.some((m) =>
+    m.attachments?.some((a) => a.kind === "image")
+  );
+  const userQuery = [
+    ...messages.filter((m) => m.role === "user").map((m) => m.content),
+    hasImages ? "foto ricambio componente" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  let company = anonymousServiceChatContext();
+  try {
+    const me = await getCurrentUser();
+    if (me) {
+      company = await loadServiceChatCompanyContext(
+        me.companyId,
+        me.company.name,
+        me.company.slug,
+        userQuery
+      );
+    }
+  } catch (err) {
+    console.error("Service chat company context:", err);
+  }
+
+  const machines = company.machines;
+  const park = serializeChatPark(machines);
+
+  const withPark = (
+    payload: ServiceChatResponse
+  ): ServiceChatResponse => {
+    const next = { ...payload, machines: park };
+    if (
+      machines.length === 0 &&
+      !next.spareParts?.length &&
+      company.catalogHits.length > 0
+    ) {
+      next.spareParts = company.catalogHits;
+    }
+    if (machines.length === 0) {
+      next.quickReplies = ensureMachineOtherOption(next.quickReplies, []);
+    }
+    return next;
+  };
+
   const apiKey = getAnthropicKey();
   if (!apiKey) {
     return NextResponse.json(
-      buildServiceChatFallback(messages, knowledgeBase)
+      withPark(buildServiceChatFallback(messages, knowledgeBase, machines))
     );
   }
 
-  const lastUser = [...messages].reverse().find((m) => m.role === "user");
   const recentContext = messages
     .slice(-6)
     .map((m) => m.content)
     .join(" ");
   const readyForKb = lastUser
-    ? isReadyForKbSearch(messages, lastUser.content)
+    ? isReadyForKbSearch(messages, lastUser.content, machines)
     : false;
   const candidates =
     readyForKb && lastUser
@@ -385,7 +451,12 @@ export async function POST(req: Request) {
   const kbSearchBlock = formatKbCandidatesForPrompt(candidates, readyForKb);
   const troubleshootingTurn = readyForKb;
 
-  const systemPrompt = buildSystemPrompt(knowledgeBase, kbSearchBlock, locale);
+  const systemPrompt = buildSystemPrompt(
+    knowledgeBase,
+    kbSearchBlock,
+    locale,
+    company
+  );
 
   try {
     const llm = await callAnthropicConversation({
@@ -397,7 +468,7 @@ export async function POST(req: Request) {
     if (!llm.ok) {
       console.error("Service chat Anthropic fallback:", llm.message);
       return NextResponse.json(
-        buildServiceChatFallback(messages, knowledgeBase)
+        withPark(buildServiceChatFallback(messages, knowledgeBase, machines))
       );
     }
 
@@ -407,8 +478,9 @@ export async function POST(req: Request) {
         "Service chat JSON parse fallback — raw:",
         llm.text.slice(0, 500)
       );
-      const fallback = buildServiceChatFallback(messages, knowledgeBase);
-      return NextResponse.json(fallback);
+      return NextResponse.json(
+        withPark(buildServiceChatFallback(messages, knowledgeBase, machines))
+      );
     }
 
     let kbMatch = buildKbMatch(parsed.kbMatch, knowledgeBase);
@@ -428,22 +500,38 @@ export async function POST(req: Request) {
       message = ensureKbSearchIntro(message);
     }
 
+    let spareParts = normalizeSpareParts(parsed.spareParts);
+    let quickReplies = ensureMachineOtherOption(
+      normalizeApiQuickReplies(parsed.quickReplies),
+      machines
+    );
+
+    if (machines.length === 0) {
+      if (/matricola|vlm-?\s*2200|quale macchina|parco macchine/i.test(message)) {
+        message = spareParts?.length || company.catalogHits.length
+          ? "Ho cercato nel catalogo ricambi a partire da foto e descrizione. Ecco i match più vicini: verifica codice e descrizione, oppure indicami marca o codice visibile sul pezzo."
+          : "In questa company non c'è un parco macchine: cerco nel catalogo ricambi. Inviami codice, marca o una foto più nitida del pezzo.";
+      }
+      if (!spareParts?.length && company.catalogHits.length > 0) {
+        spareParts = company.catalogHits;
+      }
+    }
+
     const response: ServiceChatResponse = {
       message,
-      spareParts: normalizeSpareParts(parsed.spareParts),
+      spareParts,
       kbMatch,
       kbSearching: troubleshootingTurn,
-      quickReplies: ensureMachineOtherOption(
-        normalizeApiQuickReplies(parsed.quickReplies)
-      ),
+      quickReplies,
       source: "anthropic",
+      machines: park,
     };
 
     return NextResponse.json(response);
   } catch (err) {
     console.error("Service chat route error:", err);
     return NextResponse.json(
-      buildServiceChatFallback(messages, knowledgeBase)
+      withPark(buildServiceChatFallback(messages, knowledgeBase, machines))
     );
   }
 }

@@ -28,6 +28,8 @@ export interface ServiceMachine {
   parts: ServiceSparePart[];
 }
 
+export type ChatMachine = ServiceMachine;
+
 export interface TroubleshootingCase {
   id: string;
   /** Modello o matricola di riferimento */
@@ -119,21 +121,24 @@ export const TROUBLESHOOTING_KB: TroubleshootingCase[] = [
 ];
 
 /** Serializza anagrafica macchine per il system prompt dell'agente. */
-export function buildMachinesContext(): string {
-  if (SERVICE_MACHINES.length === 0) {
-    return "=== ANAGRAFICA MACCHINE E DISTINTE ===\n(Nessuna macchina in anagrafica)";
+export function buildMachinesContext(machines: ServiceMachine[] = SERVICE_MACHINES): string {
+  if (machines.length === 0) {
+    return "=== ANAGRAFICA MACCHINE E DISTINTE ===\n(Nessuna macchina in anagrafica per questa company)";
   }
 
-  const machinesBlock = SERVICE_MACHINES.map((m) => {
-    const partsList = m.parts
-      .map((p) => {
-        const avail =
-          p.stock > 0
-            ? `disponibile (${p.stock} pz)`
-            : `da ordinare (${p.leadTimeDays} gg)`;
-        return `    - ${p.code}: ${p.description} | €${p.price} | ${avail}`;
-      })
-      .join("\n");
+  const machinesBlock = machines.map((m) => {
+    const partsList =
+      m.parts.length === 0
+        ? "    (nessuna distinta locale — usa il catalogo ricambi della company)"
+        : m.parts
+            .map((p) => {
+              const avail =
+                p.stock > 0
+                  ? `disponibile (${p.stock} pz)`
+                  : `da ordinare (${p.leadTimeDays} gg)`;
+              return `    - ${p.code}: ${p.description} | €${p.price} | ${avail}`;
+            })
+            .join("\n");
     return [
       `Macchina: ${m.model}`,
       `  Matricola: ${m.serial}`,

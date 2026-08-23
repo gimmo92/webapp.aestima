@@ -56,6 +56,8 @@ export interface ServiceChatResponse {
   kbSearching?: boolean;
   quickReplies?: QuickReplyOption[];
   source: "anthropic" | "fallback";
+  /** Parco macchine della company attiva (mai il demo Vallmec se non è Spark). */
+  machines?: Array<{ model: string; serial: string }>;
 }
 
 /** Messaggio visualizzato nella UI (include metadati strutturati). */

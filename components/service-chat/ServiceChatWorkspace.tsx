@@ -128,6 +128,9 @@ export function ServiceChatWorkspace({
   const [pendingAttachments, setPendingAttachments] = useState<ChatAttachment[]>(
     []
   );
+  const [parkMachines, setParkMachines] = useState<
+    { model: string; serial: string }[]
+  >([]);
   const [attachError, setAttachError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [kbSearching, setKbSearching] = useState(false);
@@ -495,7 +498,7 @@ export function ServiceChatWorkspace({
         attachments: m.attachments?.map(toAttachmentPayload),
       }));
 
-      setKbSearching(isReadyForKbSearch(apiMessages, content));
+      setKbSearching(isReadyForKbSearch(apiMessages, content, parkMachines));
       setLoading(true);
 
       try {
@@ -524,12 +527,20 @@ export function ServiceChatWorkspace({
         }
 
         const userTurns = history.filter((m) => m.role === "user").length;
+        if (Array.isArray(data.machines)) {
+          setParkMachines(data.machines);
+        }
+        const machinesForReplies = Array.isArray(data.machines)
+          ? data.machines
+          : parkMachines;
         const quickReplies = withHumanEscalationBubble(
           ensureMachineOtherOption(
             data.quickReplies ??
               inferQuickReplies(history, data.message, {
                 hasSpareParts: Boolean(data.spareParts?.length),
-              })
+                machines: machinesForReplies,
+              }),
+            machinesForReplies
           ),
           userTurns,
           {
@@ -592,6 +603,9 @@ export function ServiceChatWorkspace({
       updateConversation,
       knowledgeBase,
       escalateToTicket,
+      parkMachines,
+      locale,
+      t,
     ]
   );
 

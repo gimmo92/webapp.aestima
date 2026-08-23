@@ -467,6 +467,6 @@ export function formatKnowledgeForPrompt(entries: KnowledgeEntry[]): string {
     .join("\n\n")
     .replace(
       /^/,
-      "=== BASE DI CONOSCENZA TROUBLESHOOTING VALLMEC / VLM (appresa dagli interventi) ===\n"
+      "=== BASE DI CONOSCENZA TROUBLESHOOTING (appresa dagli interventi di questa company) ===\n"
     );
 }

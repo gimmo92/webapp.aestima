@@ -1,5 +1,7 @@
-import { SERVICE_MACHINES } from "./serviceChatData";
+import type { ServiceMachine } from "./serviceChatData";
 import type { KnowledgeEntry } from "./knowledgeTypes";
+
+type MachineRef = Pick<ServiceMachine, "model" | "serial">;
 
 // Ricerca euristica nella KB lato server (in produzione: embedding / vector search).
 
@@ -57,10 +59,14 @@ export function userHistoryText(
 }
 
 export function machineIdentifiedInHistory(
-  messages: { role: string; content: string }[]
+  messages: { role: string; content: string }[],
+  machines: MachineRef[] = []
 ): boolean {
   const haystack = userHistoryText(messages);
-  return SERVICE_MACHINES.some(
+  if (machines.length === 0) {
+    return /matricola|modello|serial/i.test(haystack) && haystack.length > 12;
+  }
+  return machines.some(
     (m) =>
       haystack.includes(m.serial.toLowerCase()) ||
       haystack.includes(m.model.toLowerCase())
@@ -68,22 +74,28 @@ export function machineIdentifiedInHistory(
 }
 
 /** Ultimo messaggio utente = solo matricola/modello, senza descrizione guasto. */
-export function isMachineIdentificationOnly(text: string): boolean {
+export function isMachineIdentificationOnly(
+  text: string,
+  machines: MachineRef[] = []
+): boolean {
   const trimmed = text.trim();
   if (!trimmed) return false;
 
   const lower = trimmed.toLowerCase();
-  const hasMachine = SERVICE_MACHINES.some(
-    (m) =>
-      lower.includes(m.serial.toLowerCase()) ||
-      lower.includes(m.model.toLowerCase())
-  );
+  const hasMachine =
+    machines.length === 0
+      ? /matricola|modello/i.test(lower)
+      : machines.some(
+          (m) =>
+            lower.includes(m.serial.toLowerCase()) ||
+            lower.includes(m.model.toLowerCase())
+        );
   if (!hasMachine) return false;
 
   if (INTENT_ONLY_PATTERNS.some((p) => p.test(trimmed))) return false;
 
   let stripped = lower;
-  for (const m of SERVICE_MACHINES) {
+  for (const m of machines) {
     stripped = stripped.replaceAll(m.serial.toLowerCase(), "");
     stripped = stripped.replaceAll(m.model.toLowerCase(), "");
   }
@@ -134,10 +146,11 @@ export function isTroubleshootingQuery(text: string): boolean {
 
 export function isReadyForKbSearch(
   messages: { role: string; content: string }[],
-  lastUserText: string
+  lastUserText: string,
+  machines: MachineRef[] = []
 ): boolean {
-  if (!machineIdentifiedInHistory(messages)) return false;
-  if (isMachineIdentificationOnly(lastUserText)) return false;
+  if (!machineIdentifiedInHistory(messages, machines)) return false;
+  if (isMachineIdentificationOnly(lastUserText, machines)) return false;
   return isSymptomDescription(lastUserText);
 }
 

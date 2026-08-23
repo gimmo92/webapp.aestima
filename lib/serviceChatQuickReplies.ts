@@ -1,4 +1,4 @@
-import { SERVICE_MACHINES } from "./serviceChatData";
+import type { ServiceMachine } from "./serviceChatData";
 import {
   machineIdentifiedInHistory,
   userHistoryText,
@@ -30,10 +30,15 @@ export const MACHINE_NOT_LISTED_QUICK_REPLY: QuickReplyOption = {
   value: "La macchina non è in elenco — indico modello o matricola",
 };
 
-/** Macchine presenti nella base dati demo. */
-export function machineQuickReplies(): QuickReplyOption[] {
+/** Macchine presenti nella company (o demo Spark). Senza parco: nessuna bubble. */
+export function machineQuickReplies(
+  machines: Pick<ServiceMachine, "model" | "serial">[] = []
+): QuickReplyOption[] {
+  if (machines.length === 0) {
+    return [];
+  }
   return [
-    ...SERVICE_MACHINES.map((m) => ({
+    ...machines.map((m) => ({
       label: `${m.model} · ${m.serial}`,
       value: `Matricola ${m.serial} — ${m.model}`,
     })),
@@ -41,26 +46,70 @@ export function machineQuickReplies(): QuickReplyOption[] {
   ];
 }
 
-function isMachineSelectionReplies(replies: QuickReplyOption[]): boolean {
-  const serials = SERVICE_MACHINES.map((m) => m.serial.toLowerCase());
+function isMachineSelectionReplies(
+  replies: QuickReplyOption[],
+  machines: Pick<ServiceMachine, "model" | "serial">[]
+): boolean {
+  const serials = machines.map((m) => m.serial.toLowerCase()).filter(Boolean);
+  if (serials.length === 0) return false;
   return replies.some((r) => {
     const hay = `${r.label} ${r.value}`.toLowerCase();
     return serials.some((s) => hay.includes(s));
   });
 }
 
+const DEMO_MACHINE_LEAK =
+  /vallmec|valmec|vlm-?\s*2200|vlm-?\s*1800|matricola\s*[:.—–-]?\s*13\d{2}|matricola\s*[:.—–-]?\s*14\d{2}|\b1389\b|\b1418\b|\b1412\b|\b1432\b/i;
+
+const MACHINE_PARK_REPLY =
+  /matricola|vlm-?\s*\d|vallmec|valmec|parco macchine|macchina non è in elenco|quale macchina|modello o la matricola/i;
+
+/** Toglie bubble di matricole demo se non appartengono alla company. */
+export function filterHallucinatedMachineReplies(
+  replies: QuickReplyOption[] | undefined,
+  machines: Pick<ServiceMachine, "model" | "serial">[]
+): QuickReplyOption[] | undefined {
+  if (!replies?.length) return replies;
+  const allowed = new Set(
+    machines.flatMap((m) => [
+      m.serial.toLowerCase(),
+      m.model.toLowerCase(),
+    ])
+  );
+  const filtered = replies.filter((r) => {
+    const hay = `${r.label} ${r.value}`.toLowerCase();
+    if (!DEMO_MACHINE_LEAK.test(hay)) return true;
+    return [...allowed].some((a) => a && hay.includes(a));
+  });
+  return filtered.length > 0 ? filtered : undefined;
+}
+
 /** Aggiunge "Altro" se le bubble elencano macchine note ma manca l'opzione manuale. */
 export function ensureMachineOtherOption(
-  replies: QuickReplyOption[] | undefined
+  replies: QuickReplyOption[] | undefined,
+  machines: Pick<ServiceMachine, "model" | "serial">[] = []
 ): QuickReplyOption[] | undefined {
-  if (!replies?.length || !isMachineSelectionReplies(replies)) return replies;
-  const hasOther = replies.some(
+  const cleaned = filterHallucinatedMachineReplies(replies, machines);
+  if (!cleaned?.length) return undefined;
+
+  if (machines.length === 0) {
+    const withoutPark = cleaned.filter((r) => {
+      const hay = `${r.label} ${r.value}`;
+      return !MACHINE_PARK_REPLY.test(hay) && !DEMO_MACHINE_LEAK.test(hay);
+    });
+    return withoutPark.length > 0 ? withoutPark : undefined;
+  }
+
+  if (!isMachineSelectionReplies(cleaned, machines)) {
+    return cleaned;
+  }
+  const hasOther = cleaned.some(
     (r) =>
       r.value === MACHINE_NOT_LISTED_QUICK_REPLY.value ||
       /non è in elenco/i.test(r.value)
   );
-  if (hasOther) return replies;
-  return [...replies, MACHINE_NOT_LISTED_QUICK_REPLY];
+  if (hasOther) return cleaned;
+  return [...cleaned, MACHINE_NOT_LISTED_QUICK_REPLY];
 }
 
 /** Sintomi comuni dalla KB troubleshooting (label brevi per proiettore). */
@@ -126,23 +175,29 @@ export function normalizeApiQuickReplies(raw: unknown): QuickReplyOption[] | und
 export function inferQuickReplies(
   messages: { role: string; content: string; id?: string }[],
   assistantContent: string,
-  opts?: { isWelcome?: boolean; hasSpareParts?: boolean }
+  opts?: {
+    isWelcome?: boolean;
+    hasSpareParts?: boolean;
+    machines?: Pick<ServiceMachine, "model" | "serial" | "parts">[];
+  }
 ): QuickReplyOption[] | undefined {
   if (opts?.hasSpareParts) return undefined;
 
   if (opts?.isWelcome) return WELCOME_QUICK_REPLIES;
 
+  const machines = opts?.machines ?? [];
+  const catalogOnly = machines.length === 0;
   const text = assistantContent.toLowerCase();
   const users = messages.filter((m) => m.role === "user");
   const userText = userHistoryText(messages);
-  const machineKnown = machineIdentifiedInHistory(messages);
+  const machineKnown = machineIdentifiedInHistory(messages, machines);
 
   const lastUser = users[users.length - 1];
   if (lastUser && isMachineNotListedIntent(lastUser.content)) {
     return undefined;
   }
   if (lastUser && isFreeDescriptionIntent(lastUser.content) && !machineKnown) {
-    return machineQuickReplies();
+    return catalogOnly ? undefined : machineQuickReplies(machines);
   }
 
   const asksMachine =
@@ -157,21 +212,22 @@ export function inferQuickReplies(
     /malfunzion|non funziona|problema|guasto|errore|sintom/.test(userText);
 
   if (asksMachine && !machineKnown) {
-    return machineQuickReplies();
+    return catalogOnly ? undefined : machineQuickReplies(machines);
   }
 
   const spareIntent = /ricamb|pezzo|codice|componente|distinta/.test(userText);
   if (
     machineKnown &&
     lastUser &&
-    isMachineIdentificationOnly(lastUser.content)
+    isMachineIdentificationOnly(lastUser.content, machines)
   ) {
     if (spareIntent && !malfunctionIntent) {
-      const machine = SERVICE_MACHINES.find((m) =>
-        userText.includes(m.serial.toLowerCase()) ||
-        userText.includes(m.model.toLowerCase())
+      const machine = machines.find(
+        (m) =>
+          userText.includes(m.serial.toLowerCase()) ||
+          userText.includes(m.model.toLowerCase())
       );
-      if (machine) {
+      if (machine && "parts" in machine && machine.parts?.length) {
         return machine.parts.slice(0, 4).map((p) => ({
           label:
             p.description.length > 42
@@ -184,15 +240,20 @@ export function inferQuickReplies(
     return symptomQuickReplies();
   }
 
-  if (asksSymptom || (malfunctionIntent && machineKnown && lastUser && !isMachineIdentificationOnly(lastUser.content))) {
+  if (
+    asksSymptom ||
+    (malfunctionIntent &&
+      machineKnown &&
+      lastUser &&
+      !isMachineIdentificationOnly(lastUser.content, machines))
+  ) {
     return symptomQuickReplies();
   }
 
-  // Primo scambio dopo scelta intent: se manca la macchina, proponi modelli.
   if (users.length === 1 && !machineKnown) {
-    const spareIntent = /ricamb|pezzo|codice|componente/.test(userText);
-    if (spareIntent || malfunctionIntent) {
-      return machineQuickReplies();
+    const spareIntentFirst = /ricamb|pezzo|codice|componente/.test(userText);
+    if (spareIntentFirst || malfunctionIntent) {
+      return catalogOnly ? undefined : machineQuickReplies(machines);
     }
   }
 

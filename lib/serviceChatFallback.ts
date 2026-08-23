@@ -11,7 +11,7 @@ import {
   machineQuickReplies,
   symptomQuickReplies,
 } from "./serviceChatQuickReplies";
-import { SERVICE_MACHINES, type ServiceMachine } from "./serviceChatData";
+import type { ServiceMachine } from "./serviceChatData";
 import type { KnowledgeEntry } from "./knowledgeTypes";
 import type {
   ChatMessage,
@@ -28,10 +28,11 @@ const KB_SEARCH_INTRO =
   "Un attimo, verifico nella knowledge base se questo problema è già stato risolto in passato…";
 
 function findMachineFromMessages(
-  messages: ChatMessage[]
+  messages: ChatMessage[],
+  machines: ServiceMachine[]
 ): ServiceMachine | undefined {
   const haystack = userHistoryText(messages);
-  return SERVICE_MACHINES.find(
+  return machines.find(
     (m) =>
       haystack.includes(m.serial.toLowerCase()) ||
       haystack.includes(m.model.toLowerCase())
@@ -86,12 +87,23 @@ function findPartInMachine(
   });
 }
 
-function askMachineMessage(sparePartFocus = true): ServiceChatResponse {
+function askMachineMessage(
+  sparePartFocus = true,
+  machines: ServiceMachine[] = []
+): ServiceChatResponse {
+  if (machines.length === 0) {
+    return {
+      message: sparePartFocus
+        ? "Cerco il ricambio nel catalogo della tua company a partire da foto e descrizione. Non mi serve la matricola della macchina: indica codice, marca o dettagli del pezzo se la foto non basta."
+        : "Descrivi pure la richiesta. In questa company non uso un parco macchine: procedo dal catalogo ricambi.",
+      source: "fallback",
+    };
+  }
   return {
     message: sparePartFocus
       ? "Per cercare il ricambio corretto nella distinta tecnica, ho bisogno di identificare la macchina. Puoi indicarmi il modello o la matricola dell'impianto?"
       : "Per indirizzarti al meglio, puoi indicarmi il modello o la matricola dell'impianto?",
-    quickReplies: machineQuickReplies(),
+    quickReplies: machineQuickReplies(machines),
     source: "fallback",
   };
 }
@@ -105,11 +117,20 @@ function machineNotListedMessage(sparePartFocus = true): ServiceChatResponse {
   };
 }
 
-function freeDescriptionMessage(): ServiceChatResponse {
+function freeDescriptionMessage(
+  machines: ServiceMachine[] = []
+): ServiceChatResponse {
+  if (machines.length === 0) {
+    return {
+      message:
+        "Certo, descrivi pure la richiesta (ricambio, guasto o altro). Cerco nel catalogo della company: non mi serve la matricola di una macchina.",
+      source: "fallback",
+    };
+  }
   return {
     message:
       "Certo, puoi descrivere liberamente la tua richiesta: ricambio, malfunzionamento o qualsiasi altra necessità.\n\nSe conosci modello o matricola dell'impianto, indicameli — altrimenti procedi pure con la descrizione del problema.",
-    quickReplies: machineQuickReplies(),
+    quickReplies: machineQuickReplies(machines),
     source: "fallback",
   };
 }
@@ -153,18 +174,19 @@ function buildKbFallback(
 
 export function buildServiceChatFallback(
   messages: ChatMessage[],
-  knowledgeBase: KnowledgeEntry[]
+  knowledgeBase: KnowledgeEntry[],
+  machines: ServiceMachine[] = []
 ): ServiceChatResponse {
   const lastUser = [...messages].reverse().find((m) => m.role === "user");
   const lastUserText = lastUser?.content?.trim() ?? "";
-  const machine = findMachineFromMessages(messages);
+  const machine = findMachineFromMessages(messages, machines);
   const recentContext = messages
     .slice(-6)
     .map((m) => m.content)
     .join(" ");
 
   if (lastUser && isFreeDescriptionIntent(lastUserText)) {
-    return freeDescriptionMessage();
+    return freeDescriptionMessage(machines);
   }
 
   if (lastUser && isMachineNotListedIntent(lastUserText)) {
@@ -173,7 +195,7 @@ export function buildServiceChatFallback(
 
   if (
     lastUser &&
-    isReadyForKbSearch(messages, lastUserText) &&
+    isReadyForKbSearch(messages, lastUserText, machines) &&
     machine
   ) {
     const candidates = findKbCandidates(
@@ -196,7 +218,7 @@ export function buildServiceChatFallback(
   if (
     lastUser &&
     machine &&
-    isMachineIdentificationOnly(lastUserText)
+    isMachineIdentificationOnly(lastUserText, machines)
   ) {
     if (spareIntentInHistory(messages) && !malfunctionIntentInHistory(messages)) {
       return askSparePartMessage(machine);
@@ -235,15 +257,15 @@ export function buildServiceChatFallback(
         source: "fallback",
       };
     }
-    if (!machineIdentifiedInHistory(messages)) {
-      return askMachineMessage(true);
+    if (!machineIdentifiedInHistory(messages, machines)) {
+      return askMachineMessage(true, machines);
     }
     return askSparePartMessage(machine);
   }
 
-  if (!machineIdentifiedInHistory(messages)) {
+  if (!machineIdentifiedInHistory(messages, machines)) {
     const spareFocus = spareIntentInHistory(messages);
-    return askMachineMessage(spareFocus);
+    return askMachineMessage(spareFocus, machines);
   }
 
   if (machine) {
@@ -260,7 +282,7 @@ export function buildServiceChatFallback(
   return {
     message:
       "Non sono riuscito a elaborare la risposta. Puoi riformulare la richiesta indicando matricola dell'impianto e il ricambio o il problema riscontrato?",
-    quickReplies: machineQuickReplies(),
+    quickReplies: machineQuickReplies(machines),
     source: "fallback",
   };
 }
