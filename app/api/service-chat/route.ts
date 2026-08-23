@@ -17,6 +17,7 @@ import { buildMachinesContext } from "@/lib/serviceChatData";
 import {
   anonymousServiceChatContext,
   clampConfidence,
+  filterPartsByVisualQuery,
   loadServiceChatCompanyContext,
   mergeSparePartConfidence,
   serializeChatPark,
@@ -126,7 +127,7 @@ Regole JSON:
 - "message" sempre obbligatorio.
 - "kbMatch": SOLO quando risolvi usando la KB.
 - "quickReplies": 2-5 opzioni quando chiedi scelte; sintomi dalla KB se troubleshooting.
-- "spareParts": SOLO voci del catalogo/parco di questa company (codice reale). Se manca il prezzo usa 0. "confidence" è 0-100 (quanto il pezzo corrisponde a foto/descrizione).
+- "spareParts": SOLO voci del catalogo il cui TIPO coincide con la foto/descrizione (codice reale). Se in foto c'è una ruota dentata/ingranaggio NON proporre regolatori, filtri, valvole o altri pezzi diversi. Se manca il prezzo usa 0. "confidence" è 0-100. Se non c'è un match credibile: spareParts=null. Meglio zero risultati che risultati sbagliati. La lista "voci più pertinenti" è solo un ranking testuale: ignorala se non combacia con la foto.
 
 ## DATI DI CONTESTO (unica fonte di verità)
 ${machinesContext}
@@ -405,13 +406,9 @@ export async function POST(req: Request) {
   }
 
   const lastUser = [...messages].reverse().find((m) => m.role === "user");
-  const hasImages = messages.some((m) =>
-    m.attachments?.some((a) => a.kind === "image")
-  );
-  const userQuery = [
-    ...messages.filter((m) => m.role === "user").map((m) => m.content),
-    hasImages ? "foto ricambio componente" : "",
-  ]
+  const userQuery = messages
+    .filter((m) => m.role === "user")
+    .map((m) => m.content)
     .filter(Boolean)
     .join(" ");
 
@@ -437,13 +434,6 @@ export async function POST(req: Request) {
     payload: ServiceChatResponse
   ): ServiceChatResponse => {
     const next = { ...payload, machines: park };
-    if (
-      machines.length === 0 &&
-      !next.spareParts?.length &&
-      company.catalogHits.length > 0
-    ) {
-      next.spareParts = company.catalogHits;
-    }
     if (next.spareParts?.length) {
       next.spareParts = mergeSparePartConfidence(
         next.spareParts,
@@ -527,6 +517,18 @@ export async function POST(req: Request) {
     }
 
     let spareParts = normalizeSpareParts(parsed.spareParts);
+    const visualQuery = [lastUser?.content ?? "", message]
+      .filter(Boolean)
+      .join(" ");
+    const refinedHits = company.rankCatalog(visualQuery);
+    if (spareParts?.length) {
+      const filtered = filterPartsByVisualQuery(spareParts, visualQuery);
+      spareParts = filtered.length > 0 ? filtered : undefined;
+    }
+    if (!spareParts?.length) {
+      const strong = refinedHits.filter((h) => (h.confidence ?? 0) >= 50);
+      spareParts = strong.length > 0 ? strong.slice(0, 4) : undefined;
+    }
     const quickReplies = ensureMachineOtherOption(
       normalizeApiQuickReplies(parsed.quickReplies),
       machines
@@ -534,17 +536,14 @@ export async function POST(req: Request) {
 
     if (machines.length === 0) {
       if (/matricola|vlm-?\s*2200|quale macchina|parco macchine/i.test(message)) {
-        message = spareParts?.length || company.catalogHits.length
+        message = spareParts?.length
           ? "Ho cercato nel catalogo ricambi a partire da foto e descrizione. Ecco i match più vicini: verifica codice e descrizione, oppure indicami marca o codice visibile sul pezzo."
           : "In questa company non c'è un parco macchine: cerco nel catalogo ricambi. Inviami codice, marca o una foto più nitida del pezzo.";
-      }
-      if (!spareParts?.length && company.catalogHits.length > 0) {
-        spareParts = company.catalogHits;
       }
     }
 
     if (spareParts?.length) {
-      spareParts = mergeSparePartConfidence(spareParts, company.catalogHits);
+      spareParts = mergeSparePartConfidence(spareParts, refinedHits);
     }
 
     const response: ServiceChatResponse = {
