@@ -24,6 +24,14 @@ export interface SparePartProposal {
   leadTimeDays?: number;
   /** 0–100: quanto il match è affidabile (foto, codice, descrizione). */
   confidence?: number;
+  oemCode?: string;
+  name?: string;
+  brand?: string;
+  manufacturer?: string;
+  supplier?: string;
+  category?: string;
+  unit?: string;
+  compatibleMachine?: string;
 }
 
 /** Ticket aperto — solo per messaggi storici salvati in conversazione. */

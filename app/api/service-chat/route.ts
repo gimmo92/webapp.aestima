@@ -209,6 +209,10 @@ function normalizeSpareParts(raw: unknown): SparePartProposal[] | undefined {
     const confidence = clampConfidence(
       p.confidence ?? p.confidenza ?? p.score
     );
+    const opt = (v: unknown) => {
+      const s = String(v ?? "").trim();
+      return s || undefined;
+    };
     parts.push({
       code,
       description,
@@ -217,6 +221,16 @@ function normalizeSpareParts(raw: unknown): SparePartProposal[] | undefined {
       leadTimeDays:
         typeof p.leadTimeDays === "number" ? p.leadTimeDays : undefined,
       confidence,
+      oemCode: opt(p.oemCode ?? p.codiceOEM),
+      name: opt(p.name ?? p.nome),
+      brand: opt(p.brand),
+      manufacturer: opt(p.manufacturer ?? p.produttore),
+      supplier: opt(p.supplier ?? p.fornitore),
+      category: opt(p.category ?? p.categoria),
+      unit: opt(p.unit ?? p.um),
+      compatibleMachine: opt(
+        p.compatibleMachine ?? p.macchinaCompatibile
+      ),
     });
   }
   return parts.length > 0 ? parts : undefined;

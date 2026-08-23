@@ -69,6 +69,8 @@ interface Props {
   /** Overlay a destra (embed / viewport stretta) invece della colonna fissa. */
   overlay?: boolean;
   onClose?: () => void;
+  onRemoveSparePart?: (code: string) => void;
+  onOpenSparePart?: (part: SparePartProposal) => void;
 }
 
 /** Pannello risultati chat: ricambi, KB e ticket — fuori dal thread. */
@@ -78,6 +80,8 @@ export function ChatResultsSidebar({
   onKbFeedback,
   overlay = false,
   onClose,
+  onRemoveSparePart,
+  onOpenSparePart,
 }: Props) {
   const { t } = useI18n();
   const { spareParts, kbMatch, kbFeedback, ticket, hasResults } =
@@ -167,7 +171,12 @@ export function ChatResultsSidebar({
             <p className="mb-2 px-0.5 text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
               {t("results.spareSection")}
             </p>
-            <SparePartCardList parts={spareParts} compact />
+            <SparePartCardList
+              parts={spareParts}
+              compact
+              onRemove={onRemoveSparePart}
+              onOpen={onOpenSparePart}
+            />
           </section>
         )}
       </div>

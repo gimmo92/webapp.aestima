@@ -8,19 +8,42 @@ import { useI18n } from "@/lib/i18n";
 export function SparePartCard({
   part,
   compact = false,
+  onRemove,
+  onOpen,
 }: {
   part: SparePartProposal;
   compact?: boolean;
+  onRemove?: (code: string) => void;
+  onOpen?: (part: SparePartProposal) => void;
 }) {
   const available = part.availability === "disponibile";
   const { t } = useI18n();
 
   return (
-    <div className="overflow-hidden rounded-xl border border-border bg-surface-2/50">
+    <div className="relative overflow-hidden rounded-xl border border-border bg-surface-2/50">
+      {onRemove && (
+        <button
+          type="button"
+          onClick={() => onRemove(part.code)}
+          className="absolute right-1.5 top-1.5 z-10 rounded-md p-0.5 text-ink-faint transition-colors hover:bg-surface hover:text-ink"
+          aria-label={t("spare.remove")}
+          title={t("spare.remove")}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path
+              d="M6 6l12 12M18 6 6 18"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+            />
+          </svg>
+        </button>
+      )}
       <div
         className={[
           "flex items-center justify-between gap-3 border-b border-border",
           compact ? "px-3 py-2" : "px-4 py-2.5",
+          onRemove ? "pr-8" : "",
         ].join(" ")}
       >
         <div className="flex min-w-0 items-center gap-2 text-sm font-semibold text-ink">
@@ -40,9 +63,20 @@ export function SparePartCard({
             />
             <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.7" />
           </svg>
-          <span className="truncate">
-            {compact ? part.code : t("spare.identified")}
-          </span>
+          {compact && onOpen ? (
+            <button
+              type="button"
+              onClick={() => onOpen(part)}
+              className="truncate text-left font-mono text-brand underline-offset-2 hover:underline"
+              title={t("spare.openSheet")}
+            >
+              {part.code}
+            </button>
+          ) : (
+            <span className="truncate">
+              {compact ? part.code : t("spare.identified")}
+            </span>
+          )}
         </div>
         <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
           <span
@@ -92,7 +126,18 @@ export function SparePartCard({
           <p className="mb-0.5 text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
             {t("spare.description")}
           </p>
-          <p className="text-sm font-medium text-ink">{part.description}</p>
+          {onOpen ? (
+            <button
+              type="button"
+              onClick={() => onOpen(part)}
+              className="text-left text-sm font-medium text-ink underline-offset-2 hover:text-brand hover:underline"
+              title={t("spare.openSheet")}
+            >
+              {part.description}
+            </button>
+          ) : (
+            <p className="text-sm font-medium text-ink">{part.description}</p>
+          )}
         </div>
         <div className="space-y-2">
           {!compact && (
@@ -100,9 +145,20 @@ export function SparePartCard({
               <span className="text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
                 {t("spare.code")}
               </span>
-              <span className="font-mono text-sm font-semibold text-brand">
-                {part.code}
-              </span>
+              {onOpen ? (
+                <button
+                  type="button"
+                  onClick={() => onOpen(part)}
+                  className="font-mono text-sm font-semibold text-brand underline-offset-2 hover:underline"
+                  title={t("spare.openSheet")}
+                >
+                  {part.code}
+                </button>
+              ) : (
+                <span className="font-mono text-sm font-semibold text-brand">
+                  {part.code}
+                </span>
+              )}
             </div>
           )}
           <div className="flex items-center justify-between gap-3">
@@ -123,14 +179,24 @@ export function SparePartCard({
 export function SparePartCardList({
   parts,
   compact = false,
+  onRemove,
+  onOpen,
 }: {
   parts: SparePartProposal[];
   compact?: boolean;
+  onRemove?: (code: string) => void;
+  onOpen?: (part: SparePartProposal) => void;
 }) {
   return (
     <div className="space-y-2">
       {parts.map((part) => (
-        <SparePartCard key={part.code} part={part} compact={compact} />
+        <SparePartCard
+          key={part.code}
+          part={part}
+          compact={compact}
+          onRemove={onRemove}
+          onOpen={onOpen}
+        />
       ))}
     </div>
   );

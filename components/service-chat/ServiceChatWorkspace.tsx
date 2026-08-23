@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ChatAttachmentList } from "./ChatAttachmentList";
 import { ChatHistorySidebar } from "./ChatHistorySidebar";
 import { ChatResultsSidebar, collectChatResults } from "./ChatResultsSidebar";
+import { SparePartDetailSheet } from "./SparePartDetailSheet";
 import { QuickReplyBubbles } from "./QuickReplyBubbles";
 import { EmbedCodeButtons } from "./EmbedCodeButtons";
 import { newMessageId } from "@/lib/conversationData";
@@ -21,7 +22,7 @@ import {
   inferQuickReplies,
   ensureMachineOtherOption,
 } from "@/lib/serviceChatQuickReplies";
-import type { DisplayMessage } from "@/lib/serviceChatTypes";
+import type { DisplayMessage, SparePartProposal } from "@/lib/serviceChatTypes";
 import { useI18n, translate, type TranslateFn } from "@/lib/i18n";
 import { DEFAULT_LOCALE } from "@/lib/i18n/locale";
 import { isReadyForKbSearch } from "@/lib/knowledgeSearch";
@@ -135,6 +136,9 @@ export function ServiceChatWorkspace({
   const [loading, setLoading] = useState(false);
   const [kbSearching, setKbSearching] = useState(false);
   const [overlayResultsOpen, setOverlayResultsOpen] = useState(false);
+  const [openSparePart, setOpenSparePart] = useState<SparePartProposal | null>(
+    null
+  );
   const hadResultsRef = useRef(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -645,6 +649,7 @@ export function ServiceChatWorkspace({
     setPendingAttachments([]);
     setAttachError(null);
     setOverlayResultsOpen(false);
+    setOpenSparePart(null);
     hadResultsRef.current = false;
     syncedAgentCountRef.current = 0;
     inputRef.current?.focus();
@@ -668,6 +673,7 @@ export function ServiceChatWorkspace({
       setAttachError(null);
       setInput("");
       setOverlayResultsOpen(false);
+      setOpenSparePart(null);
       hadResultsRef.current = false;
       setConversationId(id);
       syncFromStored(conv);
@@ -783,6 +789,24 @@ export function ServiceChatWorkspace({
     },
     [messages, handleKbFeedback]
   );
+
+  const handleRemoveSparePart = useCallback((code: string) => {
+    setMessages((prev) =>
+      prev.map((m) => {
+        if (!m.spareParts?.length) return m;
+        const spareParts = m.spareParts.filter((p) => p.code !== code);
+        return {
+          ...m,
+          spareParts: spareParts.length > 0 ? spareParts : undefined,
+        };
+      })
+    );
+    setOpenSparePart((cur) => (cur?.code === code ? null : cur));
+  }, []);
+
+  const handleOpenSparePart = useCallback((part: SparePartProposal) => {
+    setOpenSparePart(part);
+  }, []);
 
   return (
     <div className="relative flex min-h-0 flex-1">
@@ -1107,6 +1131,8 @@ export function ServiceChatWorkspace({
           messages={messages}
           searching={kbSearching}
           onKbFeedback={handleSidebarKbFeedback}
+          onRemoveSparePart={handleRemoveSparePart}
+          onOpenSparePart={handleOpenSparePart}
         />
       )}
       {embed && overlayResultsOpen && (
@@ -1123,6 +1149,8 @@ export function ServiceChatWorkspace({
             searching={kbSearching}
             onKbFeedback={handleSidebarKbFeedback}
             onClose={() => setOverlayResultsOpen(false)}
+            onRemoveSparePart={handleRemoveSparePart}
+            onOpenSparePart={handleOpenSparePart}
           />
         </>
       )}
@@ -1153,6 +1181,12 @@ export function ServiceChatWorkspace({
             )}
           </button>
         )}
+      {openSparePart && (
+        <SparePartDetailSheet
+          part={openSparePart}
+          onClose={() => setOpenSparePart(null)}
+        />
+      )}
     </div>
   );
 }

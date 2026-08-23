@@ -121,6 +121,13 @@ function hitsToProposals(
     price: r.prezzoListino ?? 0,
     availability: r.disponibile === false ? "da_ordinare" : "disponibile",
     confidence: scoreToConfidence(s, i, topScore),
+    oemCode: r.codiceOEM ?? undefined,
+    name: r.nome ?? undefined,
+    brand: r.brand ?? undefined,
+    manufacturer: r.produttore ?? undefined,
+    supplier: r.fornitore ?? undefined,
+    category: r.categoria ?? undefined,
+    compatibleMachine: r.macchinaCompatibile ?? undefined,
   }));
 }
 
@@ -140,15 +147,19 @@ export function mergeSparePartConfidence(
   catalogHits: SparePartProposal[]
 ): SparePartProposal[] {
   const byCode = new Map(
-    catalogHits.map((h) => [h.code.toLowerCase(), h.confidence])
+    catalogHits.map((h) => [h.code.toLowerCase(), h])
   );
-  return parts.map((p, i) => ({
-    ...p,
-    confidence:
-      clampConfidence(p.confidence) ??
-      byCode.get(p.code.toLowerCase()) ??
-      Math.max(30, 78 - i * 10),
-  }));
+  return parts.map((p, i) => {
+    const hit = byCode.get(p.code.toLowerCase());
+    return {
+      ...hit,
+      ...p,
+      confidence:
+        clampConfidence(p.confidence) ??
+        hit?.confidence ??
+        Math.max(30, 78 - i * 10),
+    };
+  });
 }
 
 function sampleCodes(rows: SpareRow[]): string {
