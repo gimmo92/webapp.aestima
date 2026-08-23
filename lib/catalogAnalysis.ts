@@ -1,4 +1,5 @@
 import { CATALOG_SOURCES } from "./catalogAnalysisData";
+import type { ExtractedRow } from "./extractSpareParts";
 import type {
   CatalogArticle,
   CatalogFinding,
@@ -8,6 +9,7 @@ import type {
   PriceProposal,
 } from "./catalogAnalysisTypes";
 import {
+  CATEGORY_LABELS,
   CATEGORY_MULTIPLIERS,
   HIGH_CONFIDENCE_THRESHOLD,
   MINUTES_PER_FINDING_MANUAL,
@@ -88,6 +90,50 @@ export function buildCatalogSummary(articles: CatalogArticle[]): CatalogSummary 
     inErp,
     notInErp: articles.length - inErp,
   };
+}
+
+const PART_CATEGORIES = new Set<string>(Object.keys(CATEGORY_LABELS));
+
+function mapPartCategory(raw?: string): PartCategory | null {
+  if (!raw?.trim()) return null;
+  const n = raw
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
+  if (PART_CATEGORIES.has(n)) return n as PartCategory;
+  if (/elettr|sensor|plc|inverter/.test(n)) return "elettrica";
+  if (/pneum|valvol|cilindr/.test(n)) return "pneumatica";
+  if (/meccan|cuscin|guarniz/.test(n)) return "meccanica";
+  if (/trasm|cinghia|catena|ridutt/.test(n)) return "trasmissione";
+  if (/sicurez|safety/.test(n)) return "sicurezza";
+  if (/\bkit\b/.test(n)) return "kit";
+  return null;
+}
+
+/** Righe Excel estratte → articoli per l'analisi catalogo. */
+export function extractedRowsToCatalogArticles(
+  rows: ExtractedRow[]
+): CatalogArticle[] {
+  return rows.map((row, i) => ({
+    id: `xlsx-${row.codice}-${i}`,
+    code: row.codice,
+    description: row.descrizione || row.nome || row.codice,
+    sourceId: "listino-2026",
+    location: [
+      row.source.fileName,
+      row.source.sheet,
+      row.source.row != null ? `r.${row.source.row}` : "",
+    ]
+      .filter(Boolean)
+      .join(" · "),
+    listPrice: row.prezzoListino ?? null,
+    purchasePrice: null,
+    category: mapPartCategory(row.categoria),
+    inErp: false,
+    movements24m: 1,
+    erpAvailable: false,
+  }));
 }
 
 export function buildImpact(findings: CatalogFinding[]): ImpactSummary {
@@ -227,7 +273,10 @@ function findErpDiscrepancies(articles: CatalogArticle[]): CatalogFinding[] {
     if (!anyCatalog) continue;
 
     const missingErp = rows.every((r) => !r.inErp);
+    // Senza anagrafica ERP nel file, ogni riga sarebbe "assente": rumore.
     if (missingErp) {
+      const catalogHasErp = articles.some((a) => a.inErp);
+      if (!catalogHasErp) continue;
       out.push({
         id: `erp-miss-${code}`,
         kind: "erp_discrepancy",

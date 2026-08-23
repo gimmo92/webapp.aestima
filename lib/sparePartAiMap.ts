@@ -61,3 +61,63 @@ export async function suggestColumnMapping(
   }
   return { map: merged, source: "ai" };
 }
+
+export type ExcelMappingPreview = {
+  fileId: string;
+  fileName: string;
+  sheetName: string;
+  headerIdx: number;
+  rowCount: number;
+  columns: {
+    index: number;
+    header: string;
+    sample: string[];
+    field: ColumnKey;
+  }[];
+};
+
+function pickBestSheet(
+  sheets: { sheetName: string; grid: string[][] }[]
+): { sheetName: string; grid: string[][] } | null {
+  const ranked = [...sheets].sort((a, b) => b.grid.length - a.grid.length);
+  return ranked[0] ?? null;
+}
+
+/** Anteprima mapping da un buffer Excel/CSV (archivio o upload catalogo). */
+export async function mappingPreviewFromExcel(
+  buffer: Buffer,
+  fileName: string,
+  fileId: string
+): Promise<{ preview: ExcelMappingPreview; source: "ai" | "heuristic" } | null> {
+  const { findHeaderRow, sheetsFromExcelBuffer } = await import(
+    "@/lib/extractSpareParts"
+  );
+  const sheets = await sheetsFromExcelBuffer(buffer, fileName);
+  const best = pickBestSheet(sheets);
+  if (!best) return null;
+  const headerIdx = findHeaderRow(best.grid);
+  const headers = (best.grid[headerIdx] ?? []).map((h) => String(h ?? ""));
+  const sampleRows = best.grid
+    .slice(headerIdx + 1, headerIdx + 4)
+    .map((r) => headers.map((_, i) => String(r[i] ?? "")));
+  const suggested = await suggestColumnMapping(headers, sampleRows);
+  return {
+    source: suggested.source,
+    preview: {
+      fileId,
+      fileName,
+      sheetName: best.sheetName,
+      headerIdx,
+      rowCount: Math.max(0, best.grid.length - headerIdx - 1),
+      columns: headers.map((header, index) => ({
+        index,
+        header: header || `(colonna ${index + 1})`,
+        sample: sampleRows
+          .map((r) => r[index] ?? "")
+          .filter(Boolean)
+          .slice(0, 3),
+        field: suggested.map[index] ?? "ignore",
+      })),
+    },
+  };
+}

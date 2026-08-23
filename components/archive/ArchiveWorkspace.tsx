@@ -102,7 +102,12 @@ export function ArchiveWorkspace() {
   const [results, setResults] = useState<Map<string, ClassifyResult>>(new Map());
   const [apiSource, setApiSource] = useState<"anthropic" | "mock">("mock");
   const [query, setQuery] = useState(() => searchParams.get("q") ?? "");
-  const [archiveTab, setArchiveTab] = useState<ArchiveTab>("organizzato");
+  const [archiveTab, setArchiveTab] = useState<ArchiveTab>(() => {
+    const t = searchParams.get("tab");
+    return t === "ricambi" || t === "sorgente" || t === "verificare" || t === "organizzato"
+      ? t
+      : "organizzato";
+  });
   const [viewMode, setViewMode] = useState<ArchiveViewMode>("macchina");
   const [resolved, setResolved] = useState<Record<string, string>>({});
   const [resolvedCliente, setResolvedCliente] = useState<Record<string, string>>(
@@ -129,6 +134,18 @@ export function ArchiveWorkspace() {
   const [mappingError, setMappingError] = useState<string | null>(null);
   const [mappingApplying, setMappingApplying] = useState(false);
   const organizingRef = useRef(false);
+
+  useEffect(() => {
+    const t = searchParams.get("tab");
+    if (
+      t === "ricambi" ||
+      t === "sorgente" ||
+      t === "verificare" ||
+      t === "organizzato"
+    ) {
+      setArchiveTab(t);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     let cancelled = false;

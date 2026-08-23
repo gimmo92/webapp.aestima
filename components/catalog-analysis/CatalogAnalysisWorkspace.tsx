@@ -9,6 +9,10 @@ import {
 } from "react";
 import { ConfidenceBadge } from "@/components/archive/ConfidenceBadge";
 import {
+  ColumnMappingModal,
+  type MappingFilePreview,
+} from "@/components/archive/ColumnMappingModal";
+import {
   CATALOG_SOURCES,
   DEMO_CATALOG_ARTICLES,
 } from "@/lib/catalogAnalysisData";
@@ -34,9 +38,31 @@ import {
   type UploadedCatalogFile,
 } from "./CatalogUploadZone";
 
+const EXCEL_EXT = new Set(["xlsx", "xls", "csv"]);
+
+function mergeUploads(
+  prev: UploadedCatalogFile[],
+  files: UploadedCatalogFile[]
+): UploadedCatalogFile[] {
+  const names = new Set(prev.map((f) => f.name.toLowerCase()));
+  const next = [...prev];
+  for (const f of files) {
+    if (names.has(f.name.toLowerCase())) continue;
+    next.push(f);
+    names.add(f.name.toLowerCase());
+  }
+  return next;
+}
+
+function excelUploads(files: UploadedCatalogFile[]): UploadedCatalogFile[] {
+  return files.filter(
+    (f) => !f.demo && f.file && EXCEL_EXT.has(f.ext.toLowerCase())
+  );
+}
+
 // Stato solo in React (niente localStorage / sessionStorage).
-// I file caricati definiscono il catalogo da analizzare; l'estrazione
-// articoli resta sul dataset demo Vallmec (in produzione: parse del file).
+// Excel reale: mapping colonne → analisi → scrittura in Archivio ricambi.
+// "Usa dati di esempio": dataset Vallmec, senza persistenza.
 
 type Phase = "idle" | "analyzing" | "done";
 
@@ -81,6 +107,19 @@ export function CatalogAnalysisWorkspace() {
   );
   const [error, setError] = useState<string | null>(null);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedCatalogFile[]>([]);
+  const [mappingFiles, setMappingFiles] = useState<MappingFilePreview[] | null>(
+    null
+  );
+  const [mappingSource, setMappingSource] = useState<"ai" | "heuristic">(
+    "heuristic"
+  );
+  const [mappingError, setMappingError] = useState<string | null>(null);
+  const [mappingApplying, setMappingApplying] = useState(false);
+  const [mappingLoading, setMappingLoading] = useState(false);
+  const [importedRows, setImportedRows] = useState(0);
+  const [sparePartsCount, setSparePartsCount] = useState(0);
+  const [persisted, setPersisted] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const hasCatalog = uploadedFiles.length > 0;
 
@@ -120,66 +159,203 @@ export function CatalogAnalysisWorkspace() {
 
   const addUploadedFiles = useCallback((files: UploadedCatalogFile[]) => {
     setUploadedFiles((prev) => {
-      const names = new Set(prev.map((f) => f.name.toLowerCase()));
-      const next = [...prev];
-      for (const f of files) {
-        if (names.has(f.name.toLowerCase())) continue;
-        next.push(f);
-        names.add(f.name.toLowerCase());
+      const next = mergeUploads(prev, files);
+      const excel = excelUploads(next);
+      if (excel.length) {
+        void requestMappingPreview(excel);
       }
       return next;
     });
     setError(null);
+    setNotice(null);
   }, []);
 
   const removeUploadedFile = useCallback((id: string) => {
     setUploadedFiles((prev) => prev.filter((f) => f.id !== id));
   }, []);
 
-  const startAnalysis = useCallback(async () => {
-    if (uploadedFiles.length === 0) {
-      setError("Carica almeno un file di catalogo, oppure usa i dati di esempio.");
-      return;
-    }
+  const applyAnalysisPayload = (data: {
+    summary: CatalogSummary;
+    findings?: CatalogFinding[];
+    impact?: ImpactSummary;
+    articles?: CatalogArticle[];
+    source?: string;
+    persisted?: boolean;
+    importedRows?: number;
+    sparePartsCount?: number;
+  }) => {
+    setSummary(data.summary);
+    setFindings(data.findings ?? []);
+    setImpact(data.impact ?? buildImpact(data.findings ?? []));
+    setArticles(data.articles ?? DEMO_CATALOG_ARTICLES);
+    setApiSource(data.source === "anthropic" ? "anthropic" : "mock");
+    setPersisted(Boolean(data.persisted));
+    setImportedRows(data.importedRows ?? 0);
+    setSparePartsCount(data.sparePartsCount ?? 0);
+    const open: Partial<Record<FindingKind, boolean>> = {};
+    for (const f of data.findings ?? []) open[f.kind] = true;
+    setOpenKinds(open);
+  };
 
+  const requestMappingPreview = useCallback(
+    async (excel: UploadedCatalogFile[]) => {
+      setMappingLoading(true);
+      setMappingError(null);
+      setError(null);
+      try {
+        const form = new FormData();
+        for (const f of excel) {
+          form.append("files", f.file!);
+          form.append("fileIds", f.id);
+        }
+        const res = await fetch("/api/catalog-analyze/preview", {
+          method: "POST",
+          body: form,
+        });
+        const data = await res.json().catch(() => null);
+        if (!res.ok) {
+          setError(
+            (data as { error?: string })?.error ||
+              "Impossibile leggere le colonne del file."
+          );
+          return;
+        }
+        const files = (data?.files as MappingFilePreview[]) ?? [];
+        if (files.length === 0) {
+          setError(
+            (data as { message?: string })?.message ||
+              "Nessun foglio Excel/CSV leggibile. Per un catalogo reale serve un listino .xlsx/.csv."
+          );
+          return;
+        }
+        setMappingSource(data.source === "ai" ? "ai" : "heuristic");
+        setMappingFiles(files);
+      } catch {
+        setError("Errore di rete durante la lettura delle colonne.");
+      } finally {
+        setMappingLoading(false);
+      }
+    },
+    []
+  );
+
+  const runDemoAnalysis = useCallback(async () => {
     setPhase("analyzing");
     setTick(0);
     setApiDone(false);
     setError(null);
+    setNotice(null);
     setDecisions({});
     setCorrectingId(null);
     setCorrectionNote("");
     setFindings([]);
     setImpact(null);
     setOpenKinds({});
+    setPersisted(false);
+    setImportedRows(0);
+    setSparePartsCount(0);
 
     try {
       const res = await fetch("/api/catalog-analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          fileNames: uploadedFiles.map((f) => f.name),
-        }),
+        body: JSON.stringify({ demo: true }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      setSummary(data.summary);
-      setFindings(data.findings ?? []);
-      setImpact(data.impact ?? buildImpact(data.findings ?? []));
-      setArticles(data.articles ?? DEMO_CATALOG_ARTICLES);
-      setApiSource(data.source === "anthropic" ? "anthropic" : "mock");
-      const open: Partial<Record<FindingKind, boolean>> = {};
-      for (const f of data.findings as CatalogFinding[]) {
-        open[f.kind] = true;
-      }
-      setOpenKinds(open);
+      applyAnalysisPayload(await res.json());
     } catch (e) {
       setError(e instanceof Error ? e.message : "Analisi non riuscita");
       setPhase("idle");
     } finally {
       setApiDone(true);
     }
-  }, [uploadedFiles]);
+  }, []);
+
+  const confirmColumnMapping = useCallback(
+    async (
+      mappings: Record<
+        string,
+        {
+          sheetName: string;
+          headerIdx: number;
+          columns: Record<string, string>;
+        }
+      >
+    ) => {
+      const excel = excelUploads(uploadedFiles);
+      if (excel.length === 0) {
+        setMappingError("File Excel non più disponibile. Ricaricalo.");
+        return;
+      }
+      setMappingApplying(true);
+      setMappingError(null);
+      setPhase("analyzing");
+      setTick(0);
+      setApiDone(false);
+      setError(null);
+      setNotice(null);
+      setDecisions({});
+      setCorrectingId(null);
+      setCorrectionNote("");
+      setFindings([]);
+      setImpact(null);
+      setOpenKinds({});
+
+      try {
+        const form = new FormData();
+        for (const f of excel) {
+          form.append("files", f.file!);
+          form.append("fileIds", f.id);
+        }
+        form.append("mappings", JSON.stringify(mappings));
+        const res = await fetch("/api/catalog-analyze", {
+          method: "POST",
+          body: form,
+        });
+        const data = await res.json().catch(() => null);
+        if (!res.ok) {
+          setMappingError(
+            (data as { error?: string })?.error || "Importazione fallita"
+          );
+          setPhase("idle");
+          return;
+        }
+        applyAnalysisPayload(data);
+        setMappingFiles(null);
+        const rows = data.importedRows ?? 0;
+        const parts = data.sparePartsCount ?? 0;
+        setNotice(
+          `${rows} righe importate · ${parts} ricambi in Archivio ricambi.`
+        );
+      } catch {
+        setMappingError("Errore di rete");
+        setPhase("idle");
+      } finally {
+        setMappingApplying(false);
+        setApiDone(true);
+      }
+    },
+    [uploadedFiles]
+  );
+
+  const startAnalysis = useCallback(async () => {
+    if (uploadedFiles.length === 0) {
+      setError("Carica almeno un file di catalogo, oppure usa i dati di esempio.");
+      return;
+    }
+    if (uploadedFiles.every((f) => f.demo)) {
+      await runDemoAnalysis();
+      return;
+    }
+    const excel = excelUploads(uploadedFiles);
+    if (excel.length === 0) {
+      setError(
+        "Per analizzare un catalogo reale serve un Excel/CSV. I PDF non vengono ancora estratti: carica il listino .xlsx oppure usa i dati di esempio."
+      );
+      return;
+    }
+    await requestMappingPreview(excel);
+  }, [uploadedFiles, runDemoAnalysis, requestMappingPreview]);
 
   const pendingFindings = useMemo(
     () => findings.filter((f) => (decisions[f.id] ?? "pending") === "pending"),
@@ -209,6 +385,8 @@ export function CatalogAnalysisWorkspace() {
   };
 
   const confirmHighConfidence = () => {
+    const n = highConfidencePending.length;
+    if (n === 0) return;
     setDecisions((prev) => {
       const next = { ...prev };
       for (const f of highConfidencePending) {
@@ -216,6 +394,11 @@ export function CatalogAnalysisWorkspace() {
       }
       return next;
     });
+    setNotice(
+      persisted
+        ? `${n} proposte ad alta confidenza confermate. I ricambi sono già in Archivio ricambi.`
+        : `${n} proposte confermate in questa sessione (dati di esempio: non scritti in Archivio).`
+    );
   };
 
   const findingsByKind = useMemo(() => {
@@ -256,6 +439,10 @@ export function CatalogAnalysisWorkspace() {
                 setImpact(null);
                 setDecisions({});
                 setSummary(idleSummary);
+                setNotice(null);
+                setPersisted(false);
+                setImportedRows(0);
+                setSparePartsCount(0);
               }}
               className="rounded-lg border border-border bg-base px-2.5 py-1.5 text-xs font-medium text-ink-muted hover:border-border-strong hover:text-ink"
             >
@@ -313,7 +500,7 @@ export function CatalogAnalysisWorkspace() {
                 <button
                   type="button"
                   onClick={startAnalysis}
-                  disabled={!hasCatalog}
+                  disabled={!hasCatalog || mappingLoading}
                   className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-3 py-1.5 text-sm font-semibold text-white shadow-md shadow-brand/20 transition-colors hover:bg-brand-strong disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   Analizza catalogo
@@ -371,6 +558,25 @@ export function CatalogAnalysisWorkspace() {
         {error && (
           <p className="mt-2 rounded-lg border border-danger/30 bg-danger/5 px-3 py-1.5 text-xs text-danger">
             {error}
+          </p>
+        )}
+        {notice && (
+          <p className="mt-2 rounded-lg border border-ok/30 bg-ok/5 px-3 py-1.5 text-xs text-ok">
+            {notice}{" "}
+            {persisted ? (
+              <a
+                href="/archivio?tab=ricambi"
+                className="font-semibold underline underline-offset-2"
+              >
+                Apri Archivio ricambi
+              </a>
+            ) : null}
+          </p>
+        )}
+        {mappingLoading && (
+          <p className="mt-2 text-xs text-ink-muted">
+            Analizzo le colonne del file… confermerai il mapping prima
+            dell&apos;import.
           </p>
         )}
       </header>
@@ -470,6 +676,24 @@ export function CatalogAnalysisWorkspace() {
           </div>
         )}
       </div>
+
+      {mappingFiles && mappingFiles.length > 0 ? (
+        <ColumnMappingModal
+          files={mappingFiles}
+          source={mappingSource}
+          applying={mappingApplying}
+          error={mappingError}
+          onCancel={() => {
+            if (!mappingApplying) {
+              setMappingFiles(null);
+              setMappingError(null);
+            }
+          }}
+          onConfirm={(mappings) => {
+            void confirmColumnMapping(mappings);
+          }}
+        />
+      ) : null}
     </div>
   );
 }

@@ -14,6 +14,8 @@ export type UploadedCatalogFile = {
   ext: string;
   /** true = file demo / virtuale, non un File reale del browser */
   demo?: boolean;
+  /** Blob originale, necessario per mapping e import */
+  file?: File;
 };
 
 function formatSize(bytes: number): string {
@@ -41,6 +43,7 @@ export function filesFromFileList(list: FileList | File[]): UploadedCatalogFile[
       name: file.name,
       sizeLabel: formatSize(file.size),
       ext,
+      file,
     });
   }
   return out;
@@ -117,7 +120,7 @@ export function CatalogUploadZone({ disabled, onUpload }: Props) {
           <span className="text-brand">scegli i file</span>
         </p>
         <p className="mt-0.5 text-[11px] text-ink-faint">
-          PDF, Excel (.xlsx / .xls), CSV — listino, catalogo o export gestionale
+          PDF, Excel (.xlsx / .xls), CSV — dopo il caricamento Excel confermi la mappa colonne
         </p>
       </button>
     </div>

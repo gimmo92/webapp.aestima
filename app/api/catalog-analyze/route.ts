@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import {
   buildCatalogSummary,
   buildImpact,
+  extractedRowsToCatalogArticles,
   findSubstitutionsMock,
   proposePrice,
   runDeterministicAnalysis,
@@ -11,27 +12,30 @@ import {
   DEMO_CATALOG_ARTICLES,
 } from "@/lib/catalogAnalysisData";
 import type {
+  CatalogArticle,
   CatalogFinding,
   PartCategory,
 } from "@/lib/catalogAnalysisTypes";
 import { CATEGORY_LABELS } from "@/lib/catalogAnalysisTypes";
 import { callAnthropicMessages, getAnthropicKey } from "@/lib/anthropicKey";
-
-// =============================================================
-// POST /api/catalog-analyze
-// -------------------------------------------------------------
-// Analisi di pulizia catalogo ricambi (demo Vallmec).
-// Deterministico: duplicati, obsoleti, gap ERP, prezzi, descrizioni.
-// Fuzzy (Anthropic se chiave presente): sostituzioni, categoria
-// per articoli senza categoria. Fallback mock altrimenti.
-//
-// In produzione: input = PDF/export gestionale reali del cliente.
-// =============================================================
+import { getCurrentUser } from "@/lib/auth/user";
+import {
+  extractRowsFromMappedWorkbook,
+  mergeExtractedParts,
+  type ColumnMappingPayload,
+  type ExtractedRow,
+} from "@/lib/extractSpareParts";
+import { persistSparePartsForCompany } from "@/lib/persistSpareParts";
+import { prisma } from "@/lib/prisma";
+import { mapSparePart } from "@/lib/workspace/mappers";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 const CATEGORIES = Object.keys(CATEGORY_LABELS) as PartCategory[];
+const EXCEL_EXT = new Set(["xlsx", "xls", "csv"]);
+const AI_CODE_LIMIT = 80;
 
 type FuzzyPayload = {
   substitutions?: {
@@ -56,27 +60,31 @@ function parseFuzzyJson(text: string): FuzzyPayload | null {
 }
 
 async function enrichWithAnthropic(
-  findings: CatalogFinding[]
+  findings: CatalogFinding[],
+  articles: CatalogArticle[]
 ): Promise<{ findings: CatalogFinding[]; source: "anthropic" | "mock" }> {
-  const key = getAnthropicKey();
-  if (!key) {
+  if (!getAnthropicKey()) {
     return { findings, source: "mock" };
   }
 
-  const uncategorized = DEMO_CATALOG_ARTICLES.filter((a) => a.category == null);
-  const codeIndex = new Map(
-    DEMO_CATALOG_ARTICLES.map((a) => [
-      a.code,
-      { code: a.code, description: a.description, obsolete: Boolean(a.obsoleteFlag) },
-    ])
-  );
-  const uniqueCodes = [...codeIndex.values()];
+  const uncategorized = articles.filter((a) => a.category == null);
+  const uniqueCodes = [
+    ...new Map(
+      articles.map((a) => [
+        a.code,
+        {
+          code: a.code,
+          description: a.description,
+          obsolete: Boolean(a.obsoleteFlag),
+        },
+      ])
+    ).values(),
+  ];
 
-  const prompt = `Sei l'agente di pulizia catalogo ricambi di aftercore (macchine packaging / Vallmec).
-Analizza questi articoli e proponi SOLO:
-1) possibili sostituzioni vecchio→nuovo (stesso pezzo in versioni diverse / fuori produzione)
-2) categoria per articoli senza categoria
-
+  const result = await callAnthropicMessages({
+    system: "Rispondi esclusivamente con JSON valido, senza markdown.",
+    user: `Sei l'agente di pulizia catalogo ricambi di aftercore.
+Proponi SOLO sostituzioni vecchio→nuovo e categorie per articoli senza categoria.
 Categorie ammesse: ${CATEGORIES.join(", ")}.
 
 Articoli:
@@ -93,37 +101,22 @@ Rispondi SOLO con JSON:
 {
   "substitutions": [{"oldCode":"...","newCode":"...","confidence":0.0,"reason":"..."}],
   "categories": [{"code":"...","category":"...","confidence":0.0}]
-}`;
-
-  const result = await callAnthropicMessages({
-    system:
-      "Rispondi esclusivamente con JSON valido, senza markdown.",
-    user: prompt,
+}`,
     maxTokens: 1200,
   });
 
-  if (!result.ok) {
-    return { findings, source: "mock" };
-  }
-
+  if (!result.ok) return { findings, source: "mock" };
   const fuzzy = parseFuzzyJson(result.text);
-  if (!fuzzy) {
-    return { findings, source: "mock" };
-  }
+  if (!fuzzy) return { findings, source: "mock" };
 
   let next = findings.filter((f) => f.kind !== "substitution");
-  const byCode = new Map<string, (typeof DEMO_CATALOG_ARTICLES)[0]>();
-  for (const a of DEMO_CATALOG_ARTICLES) {
+  const byCode = new Map<string, CatalogArticle>();
+  for (const a of articles) {
     if (!byCode.has(a.code)) byCode.set(a.code, a);
   }
 
-  const subs =
-    fuzzy.substitutions && fuzzy.substitutions.length > 0
-      ? fuzzy.substitutions
-      : null;
-
-  if (subs) {
-    for (const sub of subs) {
+  if (fuzzy.substitutions && fuzzy.substitutions.length > 0) {
+    for (const sub of fuzzy.substitutions) {
       const oldA = byCode.get(sub.oldCode);
       const newA = byCode.get(sub.newCode);
       if (!oldA || !newA) continue;
@@ -145,7 +138,7 @@ Rispondi SOLO con JSON:
       });
     }
   } else {
-    next = [...next, ...findSubstitutionsMock(DEMO_CATALOG_ARTICLES)];
+    next = [...next, ...findSubstitutionsMock(articles)];
   }
 
   if (fuzzy.categories?.length) {
@@ -156,13 +149,16 @@ Rispondi SOLO con JSON:
       if (!cat || !CATEGORIES.includes(cat.category)) return f;
       const article = byCode.get(code);
       if (!article?.purchasePrice) return f;
-      const proposal = proposePrice(article.purchasePrice, cat.category);
       return {
         ...f,
         confidence: Math.max(f.confidence, Number(cat.confidence) || 0.8),
         summary: `Categoria proposta: ${CATEGORY_LABELS[cat.category]}. Prezzo da acquisto × moltiplicatore.`,
-        priceProposal: proposal,
-        detail: { ...f.detail, categoryMissing: false, categorySource: "anthropic" },
+        priceProposal: proposePrice(article.purchasePrice, cat.category),
+        detail: {
+          ...f.detail,
+          categoryMissing: false,
+          categorySource: "anthropic",
+        },
         source: "anthropic",
       };
     });
@@ -171,23 +167,124 @@ Rispondi SOLO con JSON:
   return { findings: next, source: "anthropic" };
 }
 
-export async function POST() {
-  // In produzione: riceverebbe file/export del cliente.
-  const articles = DEMO_CATALOG_ARTICLES;
+async function analyzeArticles(articles: CatalogArticle[]) {
   const summary = buildCatalogSummary(articles);
   let findings = runDeterministicAnalysis(articles);
-
-  const enriched = await enrichWithAnthropic(findings);
-  findings = enriched.findings;
-
-  const impact = buildImpact(findings);
-
-  return NextResponse.json({
+  let source: "anthropic" | "mock" = "mock";
+  const uniqueCodes = new Set(articles.map((a) => a.code)).size;
+  if (uniqueCodes <= AI_CODE_LIMIT) {
+    const enriched = await enrichWithAnthropic(findings, articles);
+    findings = enriched.findings;
+    source = enriched.source;
+  }
+  return {
     summary,
     findings,
-    impact,
-    source: enriched.source,
+    impact: buildImpact(findings),
+    source,
     sources: CATALOG_SOURCES,
     articles,
+  };
+}
+
+async function extractFromForm(
+  form: FormData,
+  mappings: Record<string, ColumnMappingPayload>
+): Promise<ExtractedRow[]> {
+  const blobs = form.getAll("files");
+  const ids = form.getAll("fileIds");
+  const extracted: ExtractedRow[] = [];
+
+  for (let i = 0; i < blobs.length; i++) {
+    const blob = blobs[i];
+    if (!(blob instanceof File)) continue;
+    const name = blob.name || `catalogo-${i + 1}.xlsx`;
+    const ext = name.split(".").pop()?.toLowerCase() ?? "";
+    if (!EXCEL_EXT.has(ext)) continue;
+    const fileId =
+      typeof ids[i] === "string" && ids[i] ? String(ids[i]) : name;
+    const mapping = mappings[fileId] ?? mappings[name];
+    if (!mapping) continue;
+    const buffer = Buffer.from(await blob.arrayBuffer());
+    try {
+      extracted.push(
+        ...(await extractRowsFromMappedWorkbook(buffer, name, fileId, mapping))
+      );
+    } catch (err) {
+      console.error("catalog extract fail", name, err);
+    }
+  }
+  return extracted;
+}
+
+export async function POST(req: Request) {
+  const contentType = req.headers.get("content-type") ?? "";
+
+  if (contentType.includes("multipart/form-data")) {
+    const me = await getCurrentUser();
+    if (!me) {
+      return NextResponse.json({ error: "Non autenticato" }, { status: 401 });
+    }
+
+    const form = await req.formData();
+    const mappingsRaw = form.get("mappings");
+    if (typeof mappingsRaw !== "string" || !mappingsRaw.trim()) {
+      return NextResponse.json(
+        {
+          error:
+            "Mappatura colonne mancante. Conferma la schermata di mapping.",
+        },
+        { status: 400 }
+      );
+    }
+
+    let mappings: Record<string, ColumnMappingPayload>;
+    try {
+      mappings = JSON.parse(mappingsRaw) as Record<
+        string,
+        ColumnMappingPayload
+      >;
+    } catch {
+      return NextResponse.json(
+        { error: "Mappatura colonne non valida." },
+        { status: 400 }
+      );
+    }
+
+    const extracted = await extractFromForm(form, mappings);
+    const articles = extractedRowsToCatalogArticles(extracted);
+    if (articles.length === 0) {
+      return NextResponse.json(
+        {
+          error:
+            "Nessun ricambio estratto. Controlla che almeno una colonna sia mappata su Codice.",
+        },
+        { status: 400 }
+      );
+    }
+
+    const existing = await prisma.sparePart.findMany({
+      where: { companyId: me.companyId },
+    });
+    const merged = mergeExtractedParts(
+      existing.map(mapSparePart),
+      extracted
+    );
+    const saved = await persistSparePartsForCompany(me.companyId, merged);
+    const result = await analyzeArticles(articles);
+    return NextResponse.json({
+      ...result,
+      persisted: true,
+      importedRows: extracted.length,
+      sparePartsCount: saved.length,
+    });
+  }
+
+  const result = await analyzeArticles(DEMO_CATALOG_ARTICLES);
+  return NextResponse.json({
+    ...result,
+    persisted: false,
+    importedRows: 0,
+    sparePartsCount: 0,
   });
 }

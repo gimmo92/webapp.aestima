@@ -472,3 +472,33 @@ export function mergeExtractedParts(
     a.codice.localeCompare(b.codice, "it")
   );
 }
+
+export type ColumnMappingPayload = {
+  sheetName?: string;
+  headerIdx?: number;
+  columns: Record<string, string>;
+};
+
+/** Estrae ricambi da un workbook usando la mappa colonne confermata. */
+export async function extractRowsFromMappedWorkbook(
+  buffer: Buffer,
+  fileName: string,
+  fileId: string,
+  mapping: ColumnMappingPayload
+): Promise<ExtractedRow[]> {
+  const colMap = normalizeColumnMap(mapping.columns);
+  if (!Object.values(colMap).includes("codice")) return [];
+  const sheets = await sheetsFromExcelBuffer(buffer, fileName);
+  const preferred =
+    sheets.find((s) => s.sheetName === mapping.sheetName) ?? sheets[0];
+  if (!preferred) return [];
+  const headerIdx =
+    mapping.headerIdx != null && mapping.headerIdx >= 0
+      ? mapping.headerIdx
+      : findHeaderRow(preferred.grid);
+  return rowsFromGrid(preferred.grid, headerIdx, colMap, {
+    fileId,
+    fileName,
+    sheet: preferred.sheetName,
+  });
+}
