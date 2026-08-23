@@ -287,7 +287,8 @@ export function rowsFromGrid(
   for (let r = headerIdx + 1; r < grid.length; r++) {
     const row = grid[r] ?? [];
     if (isJunkRow(row.map((c) => String(c ?? "")))) continue;
-    const codice = cell(row, codiceIdx);
+    const codice =
+      cell(row, codiceIdx) || cell(row, byKey.get("codiceOEM"));
     const nome = cell(row, nomeIdx) || undefined;
     const descrizione = cell(row, descIdx) || nome || codice;
     if (!codice) continue;
@@ -487,7 +488,8 @@ export async function extractRowsFromMappedWorkbook(
   mapping: ColumnMappingPayload
 ): Promise<ExtractedRow[]> {
   const colMap = normalizeColumnMap(mapping.columns);
-  if (!Object.values(colMap).includes("codice")) return [];
+  const mapped = Object.values(colMap);
+  if (!mapped.includes("codice") && !mapped.includes("codiceOEM")) return [];
   const sheets = await sheetsFromExcelBuffer(buffer, fileName);
   const preferred =
     sheets.find((s) => s.sheetName === mapping.sheetName) ?? sheets[0];

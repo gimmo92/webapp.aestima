@@ -251,33 +251,49 @@ export async function POST(req: Request) {
       );
     }
 
-    const extracted = await extractFromForm(form, mappings);
-    const articles = extractedRowsToCatalogArticles(extracted);
-    if (articles.length === 0) {
+    try {
+      const extracted = await extractFromForm(form, mappings);
+      const articles = extractedRowsToCatalogArticles(extracted);
+      if (articles.length === 0) {
+        return NextResponse.json(
+          {
+            error:
+              "Nessun ricambio estratto. Controlla che almeno una colonna sia mappata su Codice (o su Codice OEM / MPN).",
+          },
+          { status: 400 }
+        );
+      }
+
+      const existing = await prisma.sparePart.findMany({
+        where: { companyId: me.companyId },
+      });
+      const merged = mergeExtractedParts(
+        existing.map(mapSparePart),
+        extracted
+      );
+      const extractedCodes = new Set(
+        extracted.map((r) => r.codice.toUpperCase())
+      );
+      const toSave = merged.filter((p) =>
+        extractedCodes.has(p.codice.toUpperCase())
+      );
+      const saved = await persistSparePartsForCompany(me.companyId, toSave);
+      const result = await analyzeArticles(articles);
+      return NextResponse.json({
+        ...result,
+        persisted: true,
+        importedRows: extracted.length,
+        sparePartsCount: saved.length,
+      });
+    } catch (err) {
+      console.error("catalog-analyze import fail", err);
+      const message =
+        err instanceof Error ? err.message : "Errore interno durante l'import.";
       return NextResponse.json(
-        {
-          error:
-            "Nessun ricambio estratto. Controlla che almeno una colonna sia mappata su Codice.",
-        },
-        { status: 400 }
+        { error: `Importazione fallita: ${message}` },
+        { status: 500 }
       );
     }
-
-    const existing = await prisma.sparePart.findMany({
-      where: { companyId: me.companyId },
-    });
-    const merged = mergeExtractedParts(
-      existing.map(mapSparePart),
-      extracted
-    );
-    const saved = await persistSparePartsForCompany(me.companyId, merged);
-    const result = await analyzeArticles(articles);
-    return NextResponse.json({
-      ...result,
-      persisted: true,
-      importedRows: extracted.length,
-      sparePartsCount: saved.length,
-    });
   }
 
   const result = await analyzeArticles(DEMO_CATALOG_ARTICLES);
