@@ -4,28 +4,31 @@ import type { ReactNode } from "react";
 import { euro } from "@/lib/quote";
 import type { SparePartProposal } from "@/lib/serviceChatTypes";
 import { useI18n } from "@/lib/i18n";
-import { sparePartSheetPath } from "@/lib/sparePartSheet";
 
 function SheetLink({
   part,
   className,
   children,
+  onOpen,
 }: {
   part: SparePartProposal;
   className: string;
   children: ReactNode;
+  onOpen?: (part: SparePartProposal) => void;
 }) {
   const { t } = useI18n();
+  if (!onOpen) {
+    return <span className={className}>{children}</span>;
+  }
   return (
-    <a
-      href={sparePartSheetPath(part.code)}
-      target="_blank"
-      rel="noopener noreferrer"
+    <button
+      type="button"
+      onClick={() => onOpen(part)}
       className={className}
       title={t("spare.openSheet")}
     >
       {children}
-    </a>
+    </button>
   );
 }
 
@@ -34,10 +37,12 @@ export function SparePartCard({
   part,
   compact = false,
   onRemove,
+  onOpen,
 }: {
   part: SparePartProposal;
   compact?: boolean;
   onRemove?: (code: string) => void;
+  onOpen?: (part: SparePartProposal) => void;
 }) {
   const available = part.availability === "disponibile";
   const { t } = useI18n();
@@ -89,6 +94,7 @@ export function SparePartCard({
           {compact ? (
             <SheetLink
               part={part}
+              onOpen={onOpen}
               className="truncate text-left font-mono text-brand underline-offset-2 hover:underline"
             >
               {part.code}
@@ -147,6 +153,7 @@ export function SparePartCard({
           </p>
           <SheetLink
             part={part}
+            onOpen={onOpen}
             className="text-left text-sm font-medium text-ink underline-offset-2 hover:text-brand hover:underline"
           >
             {part.description}
@@ -160,6 +167,7 @@ export function SparePartCard({
               </span>
               <SheetLink
                 part={part}
+                onOpen={onOpen}
                 className="font-mono text-sm font-semibold text-brand underline-offset-2 hover:underline"
               >
                 {part.code}
@@ -185,10 +193,12 @@ export function SparePartCardList({
   parts,
   compact = false,
   onRemove,
+  onOpen,
 }: {
   parts: SparePartProposal[];
   compact?: boolean;
   onRemove?: (code: string) => void;
+  onOpen?: (part: SparePartProposal) => void;
 }) {
   return (
     <div className="space-y-2">
@@ -198,6 +208,7 @@ export function SparePartCardList({
           part={part}
           compact={compact}
           onRemove={onRemove}
+          onOpen={onOpen}
         />
       ))}
     </div>

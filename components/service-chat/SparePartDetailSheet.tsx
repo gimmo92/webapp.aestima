@@ -125,7 +125,13 @@ function TableRow({
 }
 
 /** Scheda ricambio a pagina intera, in tabella. */
-export function SparePartDetailSheet({ part }: { part: SparePartProposal }) {
+export function SparePartDetailSheet({
+  part,
+  onOpenPart,
+}: {
+  part: SparePartProposal;
+  onOpenPart?: (part: SparePartProposal) => void;
+}) {
   const { t } = useI18n();
   const router = useRouter();
   const [rows, setRows] = useState<Record<string, unknown>[]>([]);
@@ -385,12 +391,35 @@ export function SparePartDetailSheet({ part }: { part: SparePartProposal }) {
                       className="border-b border-border/70 last:border-0 hover:bg-brand-soft/30"
                     >
                       <td className="px-4 py-2.5">
-                        <Link
-                          href={sparePartSheetPath(item.part.codice)}
-                          className="font-mono text-sm font-semibold text-brand underline-offset-2 hover:underline"
-                        >
-                          {item.part.codice}
-                        </Link>
+                        {onOpenPart ? (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              onOpenPart({
+                                code: item.part.codice,
+                                description:
+                                  item.part.nome || item.part.descrizione,
+                                price: item.part.prezzoListino ?? 0,
+                                availability:
+                                  item.part.disponibile === false
+                                    ? "da_ordinare"
+                                    : "disponibile",
+                                name: item.part.nome ?? undefined,
+                                oemCode: item.part.codiceOEM ?? undefined,
+                              })
+                            }
+                            className="font-mono text-sm font-semibold text-brand underline-offset-2 hover:underline"
+                          >
+                            {item.part.codice}
+                          </button>
+                        ) : (
+                          <Link
+                            href={sparePartSheetPath(item.part.codice)}
+                            className="font-mono text-sm font-semibold text-brand underline-offset-2 hover:underline"
+                          >
+                            {item.part.codice}
+                          </Link>
+                        )}
                       </td>
                       <td className="px-4 py-2.5 text-sm text-ink">
                         {item.part.nome || item.part.descrizione}

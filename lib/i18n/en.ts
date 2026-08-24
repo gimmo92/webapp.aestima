@@ -128,6 +128,7 @@ export const en: Messages = {
     maxAttachments: "Maximum {n} attachments per message.",
     attachFail: "Could not attach the file.",
     deleteConfirm: "Delete this conversation? This cannot be undone.",
+    tab: "Chat",
   },
   history: {
     title: "Conversations",
@@ -164,6 +165,8 @@ export const en: Messages = {
     remove: "Remove spare part",
     openSheet: "Open spare part sheet",
     sheetTitle: "Spare part sheet",
+    workspaceTabs: "Open tabs",
+    closeTab: "Close tab",
     colField: "Field",
     colValue: "Value",
     colReason: "Reason",

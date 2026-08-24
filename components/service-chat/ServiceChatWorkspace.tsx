@@ -21,11 +21,13 @@ import {
   inferQuickReplies,
   ensureMachineOtherOption,
 } from "@/lib/serviceChatQuickReplies";
-import type { DisplayMessage } from "@/lib/serviceChatTypes";
+import type { DisplayMessage, SparePartProposal } from "@/lib/serviceChatTypes";
 import { useI18n, translate, type TranslateFn } from "@/lib/i18n";
 import { DEFAULT_LOCALE } from "@/lib/i18n/locale";
 import { isReadyForKbSearch } from "@/lib/knowledgeSearch";
 import { useSpeechDictation } from "@/lib/useSpeechDictation";
+import { SparePartDetailSheet } from "./SparePartDetailSheet";
+import { WorkspaceTabBar } from "./WorkspaceTabBar";
 import {
   buildTicketDescription,
   buildTicketSummary,
@@ -61,6 +63,10 @@ let msgCounter = 0;
 function nextId() {
   msgCounter += 1;
   return `msg-${Date.now()}-${msgCounter}`;
+}
+
+function partTabId(code: string) {
+  return `part:${code.trim().toUpperCase()}`;
 }
 
 function stripQuickReplies(msgs: DisplayMessage[]): DisplayMessage[] {
@@ -136,6 +142,9 @@ export function ServiceChatWorkspace({
   const [kbSearching, setKbSearching] = useState(false);
   const [overlayResultsOpen, setOverlayResultsOpen] = useState(false);
   const hadResultsRef = useRef(false);
+  const CHAT_TAB_ID = "chat";
+  const [openParts, setOpenParts] = useState<SparePartProposal[]>([]);
+  const [activeTab, setActiveTab] = useState(CHAT_TAB_ID);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -797,6 +806,37 @@ export function ServiceChatWorkspace({
     );
   }, []);
 
+  const openSparePart = useCallback((part: SparePartProposal) => {
+    const id = partTabId(part.code);
+    setOpenParts((prev) => {
+      const i = prev.findIndex((p) => partTabId(p.code) === id);
+      if (i >= 0) {
+        const next = [...prev];
+        next[i] = { ...next[i], ...part };
+        return next;
+      }
+      return [...prev, part];
+    });
+    setActiveTab(id);
+  }, []);
+
+  const closeSparePartTab = useCallback((tabId: string) => {
+    setOpenParts((prev) => prev.filter((p) => partTabId(p.code) !== tabId));
+    setActiveTab((cur) => (cur === tabId ? "chat" : cur));
+  }, []);
+
+  const workspaceTabs = useMemo(
+    () => [
+      { id: CHAT_TAB_ID, title: t("chat.tab") },
+      ...openParts.map((p) => ({
+        id: partTabId(p.code),
+        title: p.code,
+        closable: true,
+      })),
+    ],
+    [CHAT_TAB_ID, openParts, t]
+  );
+
   return (
     <div className="relative flex min-h-0 flex-1">
       {!embed && (
@@ -810,6 +850,22 @@ export function ServiceChatWorkspace({
         />
       )}
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+      {openParts.length > 0 && (
+        <WorkspaceTabBar
+          tabs={workspaceTabs}
+          activeId={activeTab}
+          onSelect={setActiveTab}
+          onClose={closeSparePartTab}
+        />
+      )}
+      <div className="relative flex min-h-0 flex-1">
+      <div
+        className={
+          activeTab === CHAT_TAB_ID
+            ? "flex min-h-0 min-w-0 flex-1 flex-col"
+            : "hidden"
+        }
+      >
       {showHeader && (
       <div
         className={[
@@ -1115,12 +1171,29 @@ export function ServiceChatWorkspace({
       </div>
       </div>
 
+      {openParts.map((part) => {
+        const id = partTabId(part.code);
+        return (
+          <div
+            key={id}
+            className={
+              activeTab === id
+                ? "min-h-0 min-w-0 flex-1 overflow-y-auto bg-grid"
+                : "hidden"
+            }
+          >
+            <SparePartDetailSheet part={part} onOpenPart={openSparePart} />
+          </div>
+        );
+      })}
+
       {!embed && (
         <ChatResultsSidebar
           messages={messages}
           searching={kbSearching}
           onKbFeedback={handleSidebarKbFeedback}
           onRemoveSparePart={handleRemoveSparePart}
+          onOpenSparePart={openSparePart}
         />
       )}
       {embed && overlayResultsOpen && (
@@ -1138,6 +1211,7 @@ export function ServiceChatWorkspace({
             onKbFeedback={handleSidebarKbFeedback}
             onClose={() => setOverlayResultsOpen(false)}
             onRemoveSparePart={handleRemoveSparePart}
+            onOpenSparePart={openSparePart}
           />
         </>
       )}
@@ -1168,6 +1242,8 @@ export function ServiceChatWorkspace({
             )}
           </button>
         )}
+      </div>
+      </div>
     </div>
   );
 }

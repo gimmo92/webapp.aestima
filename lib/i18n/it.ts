@@ -131,6 +131,7 @@ export const it = {
     maxAttachments: "Massimo {n} allegati per messaggio.",
     attachFail: "Impossibile allegare il file.",
     deleteConfirm: "Eliminare questa conversazione? L'azione non si può annullare.",
+    tab: "Chat",
   },
   history: {
     title: "Conversazioni",
@@ -168,6 +169,8 @@ export const it = {
     remove: "Rimuovi ricambio",
     openSheet: "Apri scheda ricambio",
     sheetTitle: "Scheda ricambio",
+    workspaceTabs: "Schede aperte",
+    closeTab: "Chiudi scheda",
     colField: "Campo",
     colValue: "Valore",
     colReason: "Motivo",
