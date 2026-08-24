@@ -166,6 +166,37 @@ const TYPE_GROUPS = [
 
 const MIN_HIT_SCORE = 3;
 
+function normalizePartCode(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+/** Codici tipo 14067P-001 / F0046-00093 scritti dall'utente. */
+function extractPartCodes(query: string): string[] {
+  const raw = query.match(/[A-Za-z0-9]+(?:[-./][A-Za-z0-9]+)*/g) ?? [];
+  return [
+    ...new Set(
+      raw
+        .map((c) => c.trim())
+        .filter((c) => c.length >= 4 && /\d/.test(c))
+    ),
+  ];
+}
+
+function isExactPartCode(candidate: string, query: string): boolean {
+  const needle = normalizePartCode(candidate);
+  if (needle.length < 4) return false;
+  return extractPartCodes(query).some(
+    (c) => normalizePartCode(c) === needle
+  );
+}
+
+function rowHasExactCode(row: SpareRow, query: string): boolean {
+  return (
+    isExactPartCode(row.codice, query) ||
+    Boolean(row.codiceOEM && isExactPartCode(row.codiceOEM, query))
+  );
+}
+
 function tokenize(query: string): string[] {
   return query
     .toLowerCase()
@@ -209,8 +240,11 @@ function rowHaystack(row: SpareRow): string {
 function scoreRow(
   row: SpareRow,
   tokens: string[],
-  requiredGroup: string[] | null
+  requiredGroup: string[] | null,
+  query: string
 ): number {
+  if (rowHasExactCode(row, query)) return 100;
+
   const hay = rowHaystack(row);
   if (requiredGroup && !requiredGroup.some((t) => hay.includes(t))) return 0;
 
@@ -238,13 +272,15 @@ function scoreRow(
 
 function scoreToConfidence(score: number, rank: number, topScore: number): number {
   if (score <= 0) return 0;
+  if (score >= 100) return 100;
   const abs = Math.min(88, 18 + score * 5);
   const rel = topScore > 0 ? (score / topScore) * 12 : 0;
   return Math.max(22, Math.min(96, Math.round(abs + rel - rank * 4)));
 }
 
 function hitsToProposals(
-  scored: Array<{ r: SpareRow; s: number }>
+  scored: Array<{ r: SpareRow; s: number }>,
+  query: string
 ): SparePartProposal[] {
   const topScore = scored[0]?.s ?? 0;
   return scored.slice(0, 12).map(({ r, s }, i) => ({
@@ -252,7 +288,9 @@ function hitsToProposals(
     description: (r.descrizione || r.nome || r.codice).slice(0, 180),
     price: r.prezzoListino ?? 0,
     availability: r.disponibile === false ? "da_ordinare" : "disponibile",
-    confidence: scoreToConfidence(s, i, topScore),
+    confidence: rowHasExactCode(r, query)
+      ? 100
+      : scoreToConfidence(s, i, topScore),
     oemCode: r.codiceOEM ?? undefined,
     name: r.nome ?? undefined,
     brand: r.brand ?? undefined,
@@ -286,7 +324,10 @@ export function mergeSparePartConfidence(
     return {
       ...hit,
       ...p,
-      confidence: clampConfidence(p.confidence) ?? hit?.confidence,
+      confidence: Math.max(
+        clampConfidence(p.confidence) ?? 0,
+        hit?.confidence ?? 0
+      ) || clampConfidence(p.confidence) || hit?.confidence,
     };
   });
 }
@@ -296,14 +337,26 @@ export function rankCatalogHits(
   query: string
 ): SparePartProposal[] {
   const tokens = expandTokens(tokenize(query));
-  if (tokens.length === 0) return [];
   const required = requiredTypeGroup(tokens);
   const scored = rows
-    .map((r) => ({ r, s: scoreRow(r, tokens, required) }))
-    .filter((x) => x.s >= MIN_HIT_SCORE)
+    .map((r) => ({ r, s: scoreRow(r, tokens, required, query) }))
+    .filter((x) => x.s >= MIN_HIT_SCORE || rowHasExactCode(x.r, query))
     .sort((a, b) => b.s - a.s)
     .slice(0, 12);
-  return hitsToProposals(scored);
+  return hitsToProposals(scored, query);
+}
+
+export function applyExactCodeConfidence(
+  parts: SparePartProposal[],
+  query: string
+): SparePartProposal[] {
+  if (!query.trim()) return parts;
+  return parts.map((p) =>
+    isExactPartCode(p.code, query) ||
+    (p.oemCode ? isExactPartCode(p.oemCode, query) : false)
+      ? { ...p, confidence: 100 }
+      : p
+  );
 }
 
 function partHaystack(part: SparePartProposal): string {
@@ -328,7 +381,12 @@ export function filterPartsByVisualQuery(
   const tokens = expandTokens(tokenize(query));
   const required = requiredTypeGroup(tokens);
   if (!required) return parts;
-  return parts.filter((p) => required.some((t) => partHaystack(p).includes(t)));
+  return parts.filter(
+    (p) =>
+      isExactPartCode(p.code, query) ||
+      (p.oemCode ? isExactPartCode(p.oemCode, query) : false) ||
+      required.some((t) => partHaystack(p).includes(t))
+  );
 }
 
 export function mergeProposedParts(
@@ -377,6 +435,27 @@ function mergeRows(base: SpareRow[], extra: SpareRow[]): SpareRow[] {
   const map = new Map(base.map((r) => [r.codice.toLowerCase(), r]));
   for (const r of extra) map.set(r.codice.toLowerCase(), r);
   return [...map.values()];
+}
+
+async function fetchRowsByExactCodes(
+  companyId: string,
+  query: string
+): Promise<SpareRow[]> {
+  const codes = extractPartCodes(query);
+  if (codes.length === 0) return [];
+  return prisma.sparePart.findMany({
+    where: {
+      companyId,
+      OR: codes.flatMap((code) => [
+        { codice: { equals: code, mode: "insensitive" } },
+        { codiceOEM: { equals: code, mode: "insensitive" } },
+        { codice: { contains: code, mode: "insensitive" } },
+        { codiceOEM: { contains: code, mode: "insensitive" } },
+      ]),
+    },
+    select: CATALOG_SELECT,
+    take: 20,
+  });
 }
 
 async function fetchRowsByType(
@@ -487,8 +566,11 @@ REGOLE ANTI-CONTAMINAZIONE
     catalogBlock,
     catalogHits,
     rankCatalog: async (query) => {
-      const extra = await fetchRowsByType(companyId, query);
-      return rankCatalogHits(mergeRows(rows, extra), query);
+      const extra = await Promise.all([
+        fetchRowsByType(companyId, query),
+        fetchRowsByExactCodes(companyId, query),
+      ]);
+      return rankCatalogHits(mergeRows(rows, extra.flat()), query);
     },
   };
 }

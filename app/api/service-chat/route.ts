@@ -18,6 +18,7 @@ import {
   anonymousServiceChatContext,
   clampConfidence,
   filterPartsByVisualQuery,
+  applyExactCodeConfidence,
   loadServiceChatCompanyContext,
   mergeProposedParts,
   mergeSparePartConfidence,
@@ -128,7 +129,7 @@ Regole JSON:
 - "message" sempre obbligatorio.
 - "kbMatch": SOLO quando risolvi usando la KB.
 - "quickReplies": 2-5 opzioni quando chiedi scelte; sintomi dalla KB se troubleshooting.
-- "spareParts": SOLO voci del catalogo il cui TIPO coincide con la foto/descrizione (codice reale). Se in foto c'è una ruota dentata/ingranaggio NON proporre regolatori, filtri, valvole o altri pezzi diversi. Se manca il prezzo usa 0. "confidence" è 0-100. Se non c'è un match credibile: spareParts=null. Meglio zero risultati che risultati sbagliati. La lista "voci più pertinenti" è solo un ranking testuale: ignorala se non combacia con la foto.
+- "spareParts": SOLO voci del catalogo il cui TIPO coincide con la foto/descrizione (codice reale). Se l'utente indica un part number/codice identico a una voce di catalogo, confidence DEVE essere 100. Se in foto c'è una ruota dentata/ingranaggio NON proporre regolatori, filtri, valvole o altri pezzi diversi. Se manca il prezzo usa 0. "confidence" è 0-100. Se non c'è un match credibile: spareParts=null. Meglio zero risultati che risultati sbagliati. La lista "voci più pertinenti" è solo un ranking testuale: ignorala se non combacia con la foto.
 
 ## DATI DI CONTESTO (unica fonte di verità)
 ${machinesContext}
@@ -440,6 +441,10 @@ export async function POST(req: Request) {
         next.spareParts,
         company.catalogHits
       );
+      next.spareParts = applyExactCodeConfidence(
+        next.spareParts,
+        userQuery
+      );
     }
     if (machines.length === 0) {
       next.quickReplies = ensureMachineOtherOption(next.quickReplies, []);
@@ -541,6 +546,10 @@ export async function POST(req: Request) {
 
     if (spareParts?.length) {
       spareParts = mergeSparePartConfidence(spareParts, refinedHits);
+      spareParts = applyExactCodeConfidence(
+        spareParts,
+        lastUser?.content ?? userQuery
+      );
     }
 
     const response: ServiceChatResponse = {
