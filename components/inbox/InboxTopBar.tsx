@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { Logo } from "@/components/Logo";
 import { logoutAction } from "@/app/actions/auth";
 import { useI18n } from "@/lib/i18n";
+import { isTicketingHiddenForCompany } from "@/lib/companyFeatures";
 
 const NAV = [
   {
@@ -147,7 +148,7 @@ const PUBLIC_PATHS = [
 
 type MeInfo = {
   name: string;
-  company: { name: string };
+  company: { name: string; slug?: string };
 };
 
 export function InboxTopBar({
@@ -174,7 +175,6 @@ export function InboxTopBar({
   useEffect(() => {
     if (companyName || userName) {
       setLoggedIn(true);
-      return;
     }
     let cancelled = false;
     fetch("/api/me")
@@ -184,12 +184,14 @@ export function InboxTopBar({
         if (data?.user) {
           setMe(data.user);
           setLoggedIn(true);
-        } else if (isPublic) {
+        } else if (isPublic && !companyName && !userName) {
           setLoggedIn(false);
         }
       })
       .catch(() => {
-        if (!cancelled && isPublic) setLoggedIn(false);
+        if (!cancelled && isPublic && !companyName && !userName) {
+          setLoggedIn(false);
+        }
       });
     return () => {
       cancelled = true;
@@ -198,13 +200,20 @@ export function InboxTopBar({
 
   const displayCompany = companyName || me?.company.name;
   const displayUser = userName || me?.name;
+  const hideTicketing = isTicketingHiddenForCompany({
+    name: displayCompany,
+    slug: me?.company.slug,
+  });
+  const navItems = hideTicketing
+    ? NAV.filter((item) => item.href !== "/ticket")
+    : NAV;
 
   return (
     <header className="flex shrink-0 items-center justify-between gap-4 border-b border-border bg-surface/70 px-5 py-3 backdrop-blur-md">
       <div className="flex min-w-0 flex-1 items-center gap-5">
         <Logo height={28} />
         <nav className="flex items-center gap-1 overflow-x-auto">
-          {NAV.map((item) => {
+          {navItems.map((item) => {
             const active =
               pathname === item.href || pathname.startsWith(`${item.href}/`);
             return (

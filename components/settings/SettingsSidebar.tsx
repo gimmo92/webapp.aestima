@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
+import { isTicketingHiddenForCompany } from "@/lib/companyFeatures";
 
 const ITEMS = [
   {
@@ -56,6 +58,27 @@ const ITEMS = [
 export function SettingsSidebar() {
   const pathname = usePathname();
   const { t } = useI18n();
+  const [hideTicketing, setHideTicketing] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/me")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (cancelled) return;
+        setHideTicketing(isTicketingHiddenForCompany(data?.user?.company));
+      })
+      .catch(() => {
+        /* ignore */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const items = hideTicketing
+    ? ITEMS.filter((item) => item.href !== "/impostazioni/ticketing")
+    : ITEMS;
 
   return (
     <aside className="flex h-full w-52 shrink-0 flex-col border-r border-border bg-surface/60">
@@ -65,7 +88,7 @@ export function SettingsSidebar() {
         </p>
       </div>
       <nav className="flex flex-col gap-0.5 p-2" aria-label={t("settings.navAria")}>
-        {ITEMS.map((item) => {
+        {items.map((item) => {
           const active =
             pathname === item.href || pathname.startsWith(`${item.href}/`);
           return (
