@@ -196,6 +196,7 @@ export const en: Messages = {
     substituteOem: "Same OEM code",
     substituteSimilar: "Similar in catalog",
     createOffer: "Create quote",
+    createOrder: "Create order",
     addToOffer: "Add to quote",
     goToOffer: "Go to quote",
     pickOffer: "Choose a quote",

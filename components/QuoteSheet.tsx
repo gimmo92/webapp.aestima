@@ -15,9 +15,16 @@ interface Props {
   customerName?: string;
   /** Matricola di riferimento da mostrare in intestazione cliente. */
   serial?: string;
+  /** Mostra il documento come ordine invece che preventivo. */
+  asOrder?: boolean;
 }
 
-export function QuoteSheet({ quote, customerName, serial }: Props) {
+export function QuoteSheet({
+  quote,
+  customerName,
+  serial,
+  asOrder = false,
+}: Props) {
   return (
     <article
       id="quote-printable"
@@ -39,7 +46,7 @@ export function QuoteSheet({ quote, customerName, serial }: Props) {
         </div>
         <div className="sm:text-right">
           <p className="text-lg font-bold uppercase tracking-wide text-slate-900">
-            Preventivo
+            {asOrder ? "Ordine" : "Preventivo"}
           </p>
           <p className="mt-1 font-mono text-sm text-slate-600">{quote.number}</p>
           <p className="text-sm text-slate-500">Data: {quote.date}</p>
@@ -79,7 +86,7 @@ export function QuoteSheet({ quote, customerName, serial }: Props) {
         {/* Oggetto dell'offerta */}
         <div className="mb-5 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
           <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-            Oggetto dell&apos;offerta
+            {asOrder ? "Oggetto dell'ordine" : "Oggetto dell'offerta"}
           </p>
           <p className="mt-1 text-base font-semibold leading-snug text-slate-900">
             {quote.componentTitle}

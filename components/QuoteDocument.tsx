@@ -11,9 +11,16 @@ interface Props {
   analysis: AnalysisResult;
   onRestart: () => void;
   onBack: () => void;
+  asOrder?: boolean;
 }
 
-export function QuoteDocument({ quote, analysis, onRestart, onBack }: Props) {
+export function QuoteDocument({
+  quote,
+  analysis,
+  onRestart,
+  onBack,
+  asOrder = false,
+}: Props) {
   const [approved, setApproved] = useState(false);
 
   // "Esporta PDF": usa il dialog di stampa del browser (Salva come PDF).
@@ -26,10 +33,12 @@ export function QuoteDocument({ quote, analysis, onRestart, onBack }: Props) {
         <div>
           <div className="mb-1.5 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-brand">
             <span className="h-1.5 w-1.5 rounded-full bg-brand" />
-            Passo 4 — Preventivo pronto
+            {asOrder ? "Passo 4 — Ordine pronto" : "Passo 4 — Preventivo pronto"}
           </div>
           <h2 className="text-xl font-bold text-ink sm:text-2xl">
-            Bozza di offerta, pronta per la tua revisione
+            {asOrder
+              ? "Bozza di ordine, pronta per la tua revisione"
+              : "Bozza di offerta, pronta per la tua revisione"}
           </h2>
         </div>
       </div>
@@ -45,12 +54,18 @@ export function QuoteDocument({ quote, analysis, onRestart, onBack }: Props) {
               strokeLinejoin="round"
             />
           </svg>
-          Preventivo approvato dal tecnico — pronto per l&apos;invio al cliente.
+          {asOrder
+            ? "Ordine approvato dal tecnico — pronto per l'invio."
+            : "Preventivo approvato dal tecnico — pronto per l'invio al cliente."}
         </div>
       )}
 
       {/* ---- Documento su carta intestata ---- */}
-      <QuoteSheet quote={quote} serial={analysis.numero_serie} />
+      <QuoteSheet
+        quote={quote}
+        serial={analysis.numero_serie}
+        asOrder={asOrder}
+      />
 
       {/* ---- Azioni (nascoste in stampa) ---- */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

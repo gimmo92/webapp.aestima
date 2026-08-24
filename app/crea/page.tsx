@@ -152,6 +152,7 @@ function CreaOffertaWorkspace() {
               analysis={analysis}
               onRestart={restart}
               onBack={fromDraft ? restart : () => setStep(3)}
+              asOrder={searchParams.get("ordine") === "1"}
             />
           )}
         </div>

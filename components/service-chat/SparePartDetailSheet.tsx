@@ -250,14 +250,23 @@ export function SparePartDetailSheet({
     [isObsolete, currentLike, catalogParts]
   );
 
-  const goToOffer = () => {
+  const addPartToDraft = () => {
     addToQuoteDraft({
       code: part.code,
       description: name || description,
       unitPrice: price ?? 0,
       qty: 1,
     });
+  };
+
+  const goToOffer = () => {
+    addPartToDraft();
     router.push("/crea?draft=1");
+  };
+
+  const goToOrder = () => {
+    addPartToDraft();
+    router.push("/crea?draft=1&ordine=1");
   };
 
   const reasonLabel = (reason: SubstituteReason) => {
@@ -434,6 +443,18 @@ export function SparePartDetailSheet({
               </table>
             </div>
           )}
+        </div>
+      )}
+
+      {isObsolete && (
+        <div className="mt-8">
+          <button
+            type="button"
+            onClick={goToOrder}
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-brand px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-brand/20 transition-colors hover:bg-brand-strong"
+          >
+            {t("spare.createOrder")}
+          </button>
         </div>
       )}
 

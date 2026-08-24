@@ -200,6 +200,7 @@ export const it = {
     substituteOem: "Stesso codice OEM",
     substituteSimilar: "Simile in catalogo",
     createOffer: "Crea offerta",
+    createOrder: "Crea ordine",
     addToOffer: "Aggiungi a offerta",
     goToOffer: "Vai all'offerta",
     pickOffer: "Scegli un'offerta",
