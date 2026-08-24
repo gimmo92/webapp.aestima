@@ -122,11 +122,14 @@ export function ChatHistorySidebar({
                     </button>
                     <button
                       type="button"
-                      onClick={() => onDelete(conversation.id)}
-                      disabled={disabled}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        onDelete(conversation.id);
+                      }}
                       title={t("history.delete")}
                       aria-label={`${t("history.delete")} ${conversationTitle(conversation, untitled)}`}
-                      className="mt-2 mr-1 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-ink-faint transition-colors hover:bg-danger/10 hover:text-danger disabled:opacity-40"
+                      className="mt-2 mr-1 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-ink-faint transition-colors hover:bg-danger/10 hover:text-danger"
                     >
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
                         <path

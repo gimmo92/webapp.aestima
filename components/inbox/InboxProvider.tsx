@@ -39,9 +39,13 @@ import type { KnowledgeEntry } from "@/lib/knowledgeTypes";
 import { newConversationId, newMessageId } from "@/lib/conversationData";
 import {
   CONVERSATIONS_STORAGE_KEY,
+  isConversationDeleted,
+  loadDeletedConversationIds,
   loadStoredConversations,
+  markConversationDeleted,
   mergeConversations,
   saveStoredConversations,
+  sortConversations,
 } from "@/lib/conversationStorage";
 import type {
   AppendConversationMessageInput,
@@ -211,6 +215,7 @@ function nowLabels() {
   return {
     sentLabel: `${String(h).padStart(2, "0")}:${m}`,
     sentFull: `Oggi, ${String(h).padStart(2, "0")}:${m}`,
+    updatedAt: d.toISOString(),
   };
 }
 
@@ -257,6 +262,9 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
       const queued = persistQueueRef.current.splice(0);
       if (cloud) {
         for (const item of queued) persistWorkspace(item.action, item.payload);
+        for (const id of loadDeletedConversationIds()) {
+          persistWorkspace("deleteConversation", { id });
+        }
       }
     };
     void (async () => {
@@ -630,7 +638,7 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
 
   const createConversation = useCallback(
     (input: CreateConversationInput): string => {
-      const { sentLabel, sentFull } = nowLabels();
+      const { sentLabel, sentFull, updatedAt } = nowLabels();
       const id = newConversationId();
       const initial = input.initialMessages ?? [];
       const last = initial[initial.length - 1];
@@ -646,13 +654,14 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
         lastMessageLabel: last?.timestampLabel ?? sentLabel,
         createdFull: sentFull,
         updatedFull: sentFull,
+        updatedAt,
         messages: initial,
         machineModel: input.machineModel,
         machineSerial: input.machineSerial,
         ticketId: input.ticketId,
         visitorOnline: input.channel !== "inbox",
       };
-      setConversations((prev) => [row, ...prev]);
+      setConversations((prev) => sortConversations([row, ...prev]));
       persist("createConversation", row);
       return id;
     },
@@ -661,13 +670,14 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
 
   const updateConversation = useCallback(
     (id: string, input: UpdateConversationInput) => {
-      const { sentLabel, sentFull } = nowLabels();
+      const { sentLabel, sentFull, updatedAt } = nowLabels();
       setConversations((prev) =>
         prev.map((c) => {
           if (c.id !== id) return c;
           const next: ConversationRecord = {
             ...c,
             updatedFull: sentFull,
+            updatedAt,
             lastMessageLabel: sentLabel,
           };
           if (input.status !== undefined) next.status = input.status;
@@ -700,7 +710,8 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
 
   const appendConversationMessage = useCallback(
     (id: string, input: AppendConversationMessageInput) => {
-      const { sentLabel, sentFull } = nowLabels();
+      if (isConversationDeleted(id)) return;
+      const { sentLabel, sentFull, updatedAt } = nowLabels();
       const message = {
         id: newMessageId(),
         role: input.role,
@@ -710,16 +721,19 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
         ticket: input.ticket,
       };
       setConversations((prev) =>
-        prev.map((c) => {
-          if (c.id !== id) return c;
-          return {
-            ...c,
-            messages: [...c.messages, message],
-            lastMessagePreview: input.content.slice(0, 80),
-            lastMessageLabel: sentLabel,
-            updatedFull: sentFull,
-          };
-        })
+        sortConversations(
+          prev.map((c) => {
+            if (c.id !== id) return c;
+            return {
+              ...c,
+              messages: [...c.messages, message],
+              lastMessagePreview: input.content.slice(0, 80),
+              lastMessageLabel: sentLabel,
+              updatedFull: sentFull,
+              updatedAt,
+            };
+          })
+        )
       );
       persist("appendConversationMessage", {
         id,
@@ -732,7 +746,7 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
 
   const takeOverConversation = useCallback(
     (id: string, operatorId: string) => {
-      const { sentLabel, sentFull } = nowLabels();
+      const { sentLabel, sentFull, updatedAt } = nowLabels();
       const notice = {
         id: newMessageId(),
         role: "agent" as const,
@@ -740,19 +754,22 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
         timestampLabel: sentLabel,
       };
       setConversations((prev) =>
-        prev.map((c) => {
-          if (c.id !== id) return c;
-          if (c.assignee === "operatore") return c;
-          return {
-            ...c,
-            assignee: "operatore" as const,
-            assignedOperatorId: operatorId,
-            messages: [...c.messages, notice],
-            lastMessagePreview: notice.content.slice(0, 80),
-            lastMessageLabel: sentLabel,
-            updatedFull: sentFull,
-          };
-        })
+        sortConversations(
+          prev.map((c) => {
+            if (c.id !== id) return c;
+            if (c.assignee === "operatore") return c;
+            return {
+              ...c,
+              assignee: "operatore" as const,
+              assignedOperatorId: operatorId,
+              messages: [...c.messages, notice],
+              lastMessagePreview: notice.content.slice(0, 80),
+              lastMessageLabel: sentLabel,
+              updatedFull: sentFull,
+              updatedAt,
+            };
+          })
+        )
       );
       persist("takeOverConversation", {
         id,
@@ -775,6 +792,7 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
 
   const deleteConversation = useCallback(
     (id: string) => {
+      markConversationDeleted(id);
       setConversations((prev) => prev.filter((c) => c.id !== id));
       persist("deleteConversation", { id });
     },

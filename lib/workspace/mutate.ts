@@ -164,30 +164,12 @@ export async function applyWorkspaceMutation(
     case "appendConversationMessage": {
       const conversationId = asString(p.id);
       const message = p.message as Record<string, unknown>;
-      let conv = await prisma.conversation.findFirst({
+      const conv = await prisma.conversation.findFirst({
         where: { id: conversationId, companyId },
       });
       if (!conv) {
-        await prisma.conversation.create({
-          data: {
-            id: conversationId,
-            companyId,
-            customerName: "Visitatore",
-            status: "aperto",
-            assignee: "ai",
-            channel: "assistenza",
-            lastMessagePreview: asString(message.content).slice(0, 80),
-            lastMessageLabel: asString(message.timestampLabel),
-            visitorOnline: false,
-            createdFull: asString(p.updatedFull),
-            updatedFull: asString(p.updatedFull),
-          },
-        });
-        conv = await prisma.conversation.findFirst({
-          where: { id: conversationId, companyId },
-        });
+        return { ok: true };
       }
-      if (!conv) return { ok: false, error: "Conversazione non trovata" };
       await prisma.$transaction([
         prisma.conversationMessage.create({
           data: {
@@ -215,9 +197,14 @@ export async function applyWorkspaceMutation(
     }
     case "deleteConversation": {
       const id = asString(p.id);
-      await prisma.conversation.deleteMany({
-        where: { id, companyId },
-      });
+      await prisma.$transaction([
+        prisma.conversationMessage.deleteMany({
+          where: { conversationId: id, companyId },
+        }),
+        prisma.conversation.deleteMany({
+          where: { id, companyId },
+        }),
+      ]);
       return { ok: true };
     }
     case "takeOverConversation": {

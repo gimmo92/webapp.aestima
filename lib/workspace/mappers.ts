@@ -61,6 +61,8 @@ type DbConversation = {
   visitorOnline: boolean;
   createdFull: string;
   updatedFull: string;
+  createdAt: Date;
+  updatedAt: Date;
   messages: {
     id: string;
     role: string;
@@ -107,6 +109,7 @@ export function mapConversation(row: DbConversation): ConversationRecord {
     lastMessageLabel: row.lastMessageLabel,
     createdFull: row.createdFull,
     updatedFull: row.updatedFull,
+    updatedAt: row.updatedAt.toISOString(),
     machineModel: row.machineModel ?? undefined,
     machineSerial: row.machineSerial ?? undefined,
     ticketId: row.ticketId ?? undefined,

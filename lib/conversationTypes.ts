@@ -35,6 +35,8 @@ export interface ConversationRecord {
   lastMessageLabel: string;
   createdFull: string;
   updatedFull: string;
+  /** ISO-8601, per ordinamento cronologico. */
+  updatedAt?: string;
   messages: StoredConversationMessage[];
   machineModel?: string;
   machineSerial?: string;

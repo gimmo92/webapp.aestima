@@ -28,6 +28,7 @@ import { isReadyForKbSearch } from "@/lib/knowledgeSearch";
 import { useSpeechDictation } from "@/lib/useSpeechDictation";
 import { SparePartDetailSheet } from "./SparePartDetailSheet";
 import { WorkspaceTabBar } from "./WorkspaceTabBar";
+import { sortConversations } from "@/lib/conversationStorage";
 import {
   buildTicketDescription,
   buildTicketSummary,
@@ -148,6 +149,7 @@ export function ServiceChatWorkspace({
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const requestGenRef = useRef(0);
 
   const storedConversation = conversationId
     ? getConversationById(conversationId)
@@ -509,6 +511,7 @@ export function ServiceChatWorkspace({
 
       setKbSearching(isReadyForKbSearch(apiMessages, content, parkMachines));
       setLoading(true);
+      const requestGen = requestGenRef.current;
 
       try {
         const res = await fetch("/api/service-chat", {
@@ -517,7 +520,10 @@ export function ServiceChatWorkspace({
           body: JSON.stringify({ messages: apiMessages, knowledgeBase, locale }),
         });
 
+        if (requestGen !== requestGenRef.current) return;
+
         const data = await res.json();
+        if (requestGen !== requestGenRef.current) return;
 
         if (!res.ok) {
           const errMsg: DisplayMessage = {
@@ -585,6 +591,7 @@ export function ServiceChatWorkspace({
           spareParts: data.spareParts,
         });
       } catch {
+        if (requestGen !== requestGenRef.current) return;
         const errMsg: DisplayMessage = {
           id: nextId(),
           role: "assistant",
@@ -598,9 +605,11 @@ export function ServiceChatWorkspace({
           content: errMsg.content,
         });
       } finally {
-        setLoading(false);
-        setKbSearching(false);
-        inputRef.current?.focus();
+        if (requestGen === requestGenRef.current) {
+          setLoading(false);
+          setKbSearching(false);
+          inputRef.current?.focus();
+        }
       }
     },
     [
@@ -638,6 +647,7 @@ export function ServiceChatWorkspace({
   };
 
   const resetChat = () => {
+    requestGenRef.current += 1;
     skipRestoreRef.current = true;
     try {
       sessionStorage.removeItem(chatSessionKey);
@@ -654,13 +664,16 @@ export function ServiceChatWorkspace({
     setPendingAttachments([]);
     setAttachError(null);
     setOverlayResultsOpen(false);
+    setLoading(false);
+    setKbSearching(false);
     hadResultsRef.current = false;
     syncedAgentCountRef.current = 0;
     inputRef.current?.focus();
   };
 
   const historyConversations = useMemo(
-    () => conversations.filter((c) => c.channel === channel),
+    () =>
+      sortConversations(conversations.filter((c) => c.channel === channel)),
     [conversations, channel]
   );
 

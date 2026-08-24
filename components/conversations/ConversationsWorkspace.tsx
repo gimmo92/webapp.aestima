@@ -15,6 +15,7 @@ import type {
   ConversationRecord,
   StoredConversationMessage,
 } from "@/lib/conversationTypes";
+import { sortConversations } from "@/lib/conversationStorage";
 import type { ServiceTicketRecord } from "@/lib/ticketTypes";
 import { useI18n } from "@/lib/i18n";
 
@@ -112,26 +113,28 @@ export function ConversationsWorkspace() {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return conversations.filter((c) => {
-      if (filter === "non_assegnate") {
-        if (c.status !== "aperto" || c.assignee !== "ai") return false;
-      } else if (filter === "miei_aperti") {
-        if (
-          c.status !== "aperto" ||
-          c.assignee !== "operatore" ||
-          c.assignedOperatorId !== CURRENT_OPERATOR.id
-        )
-          return false;
-      } else if (filter === "risolte") {
-        if (c.status !== "risolto") return false;
-      }
-      if (q) {
-        const haystack =
-          `${c.customerName} ${c.customerEmail ?? ""} ${c.lastMessagePreview}`.toLowerCase();
-        if (!haystack.includes(q)) return false;
-      }
-      return true;
-    });
+    return sortConversations(
+      conversations.filter((c) => {
+        if (filter === "non_assegnate") {
+          if (c.status !== "aperto" || c.assignee !== "ai") return false;
+        } else if (filter === "miei_aperti") {
+          if (
+            c.status !== "aperto" ||
+            c.assignee !== "operatore" ||
+            c.assignedOperatorId !== CURRENT_OPERATOR.id
+          )
+            return false;
+        } else if (filter === "risolte") {
+          if (c.status !== "risolto") return false;
+        }
+        if (q) {
+          const haystack =
+            `${c.customerName} ${c.customerEmail ?? ""} ${c.lastMessagePreview}`.toLowerCase();
+          if (!haystack.includes(q)) return false;
+        }
+        return true;
+      })
+    );
   }, [conversations, filter, query]);
 
   const selected =
