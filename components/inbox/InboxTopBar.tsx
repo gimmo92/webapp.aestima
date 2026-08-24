@@ -6,7 +6,8 @@ import { usePathname } from "next/navigation";
 import { Logo } from "@/components/Logo";
 import { logoutAction } from "@/app/actions/auth";
 import { useI18n } from "@/lib/i18n";
-import { isTicketingHiddenForCompany } from "@/lib/companyFeatures";
+import { clearCachedCompany } from "@/lib/companyFeatures";
+import { useTicketingHidden } from "@/lib/useTicketingHidden";
 
 const NAV = [
   {
@@ -171,6 +172,7 @@ export function InboxTopBar({
   const [loggedIn, setLoggedIn] = useState(
     Boolean(companyName || userName) || !isPublic
   );
+  const hideTicketing = useTicketingHidden(companyName);
 
   useEffect(() => {
     if (companyName || userName) {
@@ -200,10 +202,6 @@ export function InboxTopBar({
 
   const displayCompany = companyName || me?.company.name;
   const displayUser = userName || me?.name;
-  const hideTicketing = isTicketingHiddenForCompany({
-    name: displayCompany,
-    slug: me?.company.slug,
-  });
   const navItems = hideTicketing
     ? NAV.filter((item) => item.href !== "/ticket")
     : NAV;
@@ -277,7 +275,12 @@ export function InboxTopBar({
           </svg>
           <span className="hidden sm:inline">{t("nav.settings")}</span>
         </Link>
-        <form action={logoutAction}>
+        <form
+          action={logoutAction}
+          onSubmit={() => {
+            clearCachedCompany();
+          }}
+        >
             <button
               type="submit"
               className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-base px-3.5 py-2 text-sm font-semibold text-ink transition-colors hover:border-danger/50 hover:bg-danger/10 hover:text-danger"
