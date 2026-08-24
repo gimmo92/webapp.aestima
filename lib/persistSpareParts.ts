@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@/lib/generated/prisma/client";
 import type { SparePart } from "@/lib/sparePartTypes";
 import { mapSparePart } from "@/lib/workspace/mappers";
+import { applyDiscontinuedToSparePart, cleanupDiscontinuedSpareParts } from "@/lib/discontinuedSparePart";
 
 const UPSERT_CHUNK = 25;
 
@@ -15,27 +16,28 @@ function intOrNull(n: number | null | undefined): number | null {
 }
 
 function sparePartWriteData(p: SparePart) {
+  const part = applyDiscontinuedToSparePart(p);
   return {
-    codiceOEM: p.codiceOEM?.trim() || null,
-    nome: p.nome?.trim() || null,
-    descrizione: p.descrizione?.trim() || p.nome?.trim() || p.codice,
-    categoria: p.categoria?.trim() || null,
-    um: p.um?.trim() || null,
-    prezzoListino: finiteOrNull(p.prezzoListino),
-    fornitore: p.fornitore?.trim() || null,
-    codiceFornitore: p.codiceFornitore?.trim() || null,
-    brand: p.brand?.trim() || null,
-    produttore: p.produttore?.trim() || null,
-    leadTimeGiorni: intOrNull(p.leadTimeGiorni),
-    macchinaCompatibile: p.macchinaCompatibile?.trim() || null,
-    disponibile: p.disponibile ?? null,
-    stato: p.stato || "attivo",
-    completezza: Math.max(0, Math.min(100, Math.round(p.completezza || 0))),
-    daVerificare: Boolean(p.daVerificare),
-    immaginiJson: (p.immagini ?? []) as unknown as Prisma.InputJsonValue,
-    sorgentiJson: (p.sorgenti ?? []) as unknown as Prisma.InputJsonValue,
-    succedaneiJson: (p.succedanei ?? []) as unknown as Prisma.InputJsonValue,
-    conflictFieldsJson: (p.conflictFields ??
+    codiceOEM: part.codiceOEM?.trim() || null,
+    nome: part.nome?.trim() || null,
+    descrizione: part.descrizione?.trim() || part.nome?.trim() || part.codice,
+    categoria: part.categoria?.trim() || null,
+    um: part.um?.trim() || null,
+    prezzoListino: finiteOrNull(part.prezzoListino),
+    fornitore: part.fornitore?.trim() || null,
+    codiceFornitore: part.codiceFornitore?.trim() || null,
+    brand: part.brand?.trim() || null,
+    produttore: part.produttore?.trim() || null,
+    leadTimeGiorni: intOrNull(part.leadTimeGiorni),
+    macchinaCompatibile: part.macchinaCompatibile?.trim() || null,
+    disponibile: part.disponibile ?? null,
+    stato: part.stato || "attivo",
+    completezza: Math.max(0, Math.min(100, Math.round(part.completezza || 0))),
+    daVerificare: Boolean(part.daVerificare),
+    immaginiJson: (part.immagini ?? []) as unknown as Prisma.InputJsonValue,
+    sorgentiJson: (part.sorgenti ?? []) as unknown as Prisma.InputJsonValue,
+    succedaneiJson: (part.succedanei ?? []) as unknown as Prisma.InputJsonValue,
+    conflictFieldsJson: (part.conflictFields ??
       []) as unknown as Prisma.InputJsonValue,
   };
 }
@@ -68,6 +70,7 @@ export async function persistSparePartsForCompany(
       }
     }
   }
+  await cleanupDiscontinuedSpareParts(companyId);
   const saved = await prisma.sparePart.findMany({
     where: { companyId },
     orderBy: { codice: "asc" },

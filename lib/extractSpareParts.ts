@@ -10,6 +10,7 @@ import {
 } from "./sparePartTypes";
 import type { SpareDbField } from "./sparePartMapping";
 import { isSpareDbField } from "./sparePartMapping";
+import { applyDiscontinuedPrefix, applyDiscontinuedToSparePart } from "./discontinuedSparePart";
 
 /** Normalizza prezzo italiano: "12,50 €" | "1.234,56" | 12.5 → number */
 export function parseItalianPrice(raw: unknown): number | null {
@@ -314,11 +315,18 @@ export function rowsFromGrid(
       });
     }
 
+    const cleaned = applyDiscontinuedPrefix({
+      codice,
+      nome,
+      descrizione,
+      stato,
+    });
+
     out.push({
       codice: codice.toUpperCase(),
       codiceOEM: cell(row, byKey.get("codiceOEM")) || undefined,
-      nome,
-      descrizione,
+      nome: cleaned.nome || undefined,
+      descrizione: cleaned.descrizione || codice,
       categoria: cell(row, byKey.get("categoria")) || undefined,
       um: cell(row, byKey.get("um")) || undefined,
       prezzoListino: parseItalianPrice(prezzoRaw),
@@ -330,7 +338,7 @@ export function rowsFromGrid(
       macchinaCompatibile:
         cell(row, byKey.get("macchinaCompatibile")) || undefined,
       disponibile: parseDisponibile(cell(row, byKey.get("disponibile"))) ?? null,
-      stato,
+      stato: (cleaned.stato as SparePartStatus | undefined) ?? undefined,
       immagini,
       source: { ...sourceBase, row: r + 1 },
     });
@@ -386,10 +394,11 @@ export function mergeExtractedParts(
 ): SparePart[] {
   const byCode = new Map<string, SparePart>();
   for (const p of existing) {
+    const cleaned = applyDiscontinuedToSparePart(p);
     byCode.set(p.codice.toUpperCase(), {
-      ...p,
-      sorgenti: [...p.sorgenti],
-      immagini: [...(p.immagini ?? [])],
+      ...cleaned,
+      sorgenti: [...cleaned.sorgenti],
+      immagini: [...(cleaned.immagini ?? [])],
     });
   }
 

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/user";
 import { prisma } from "@/lib/prisma";
 import { mapSparePart } from "@/lib/workspace/mappers";
+import { cleanupDiscontinuedSpareParts } from "@/lib/discontinuedSparePart";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -13,6 +14,7 @@ export async function GET() {
   }
 
   try {
+    await cleanupDiscontinuedSpareParts(me.companyId);
     const rows = await prisma.sparePart.findMany({
       where: { companyId: me.companyId },
       orderBy: { codice: "asc" },

@@ -22,6 +22,7 @@ import type {
   SparePartSuccedaneo,
 } from "@/lib/sparePartTypes";
 import { computeSpareCompleteness } from "@/lib/sparePartTypes";
+import { applyDiscontinuedToSparePart } from "@/lib/discontinuedSparePart";
 
 type DbLabel = {
   id: string;
@@ -480,5 +481,5 @@ export function mapSparePart(row: {
   if (!part.completezza) {
     part.completezza = computeSpareCompleteness(part);
   }
-  return part;
+  return applyDiscontinuedToSparePart(part);
 }

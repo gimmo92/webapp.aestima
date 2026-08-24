@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@/lib/generated/prisma/client";
 import { normalizeTicketForm } from "@/lib/ticketForm";
+import { applyDiscontinuedPrefix } from "@/lib/discontinuedSparePart";
 
 type MutateBody = {
   action: string;
@@ -593,15 +594,25 @@ export async function applyWorkspaceMutation(
     }
     case "updateSparePart": {
       const id = asString(p.id);
+      const cleaned = applyDiscontinuedPrefix({
+        codice: p.codice ? asString(p.codice) : undefined,
+        nome: p.nome ? asString(p.nome) : null,
+        descrizione: p.descrizione ? asString(p.descrizione) : undefined,
+        stato: p.stato ? asString(p.stato) : undefined,
+      });
       const data: Prisma.SparePartUpdateManyMutationInput = {};
       if (p.codice !== undefined) data.codice = asString(p.codice);
       if (p.codiceOEM !== undefined) {
         data.codiceOEM = p.codiceOEM ? asString(p.codiceOEM) : null;
       }
       if (p.nome !== undefined) {
-        data.nome = p.nome ? asString(p.nome) : null;
+        data.nome = cleaned.nome ? String(cleaned.nome) : null;
       }
-      if (p.descrizione !== undefined) data.descrizione = asString(p.descrizione);
+      if (p.descrizione !== undefined) {
+        data.descrizione = cleaned.descrizione
+          ? String(cleaned.descrizione)
+          : asString(p.descrizione);
+      }
       if (p.categoria !== undefined) {
         data.categoria = p.categoria ? asString(p.categoria) : null;
       }
@@ -643,7 +654,9 @@ export async function applyWorkspaceMutation(
           ? asString(p.macchinaCompatibile)
           : null;
       }
-      if (p.stato !== undefined) data.stato = asString(p.stato);
+      if (p.stato !== undefined || cleaned.stato) {
+        data.stato = asString(cleaned.stato || p.stato);
+      }
       if (p.completezza !== undefined) data.completezza = Number(p.completezza);
       if (p.daVerificare !== undefined) data.daVerificare = asBool(p.daVerificare);
       if (p.immagini !== undefined) {
@@ -672,6 +685,15 @@ export async function applyWorkspaceMutation(
       for (const part of parts) {
         const codice = asString(part.codice);
         if (!codice) continue;
+        const cleaned = applyDiscontinuedPrefix({
+          codice,
+          nome: part.nome ? asString(part.nome) : null,
+          descrizione: asString(part.descrizione) || codice,
+          stato: asString(part.stato) || "attivo",
+        });
+        const nome = cleaned.nome ? String(cleaned.nome) : null;
+        const descrizione = String(cleaned.descrizione || codice);
+        const stato = String(cleaned.stato || "attivo");
         await prisma.sparePart.upsert({
           where: {
             companyId_codice: { companyId, codice },
@@ -681,8 +703,8 @@ export async function applyWorkspaceMutation(
             companyId,
             codice,
             codiceOEM: part.codiceOEM ? asString(part.codiceOEM) : null,
-            nome: part.nome ? asString(part.nome) : null,
-            descrizione: asString(part.descrizione) || codice,
+            nome,
+            descrizione,
             categoria: part.categoria ? asString(part.categoria) : null,
             um: part.um ? asString(part.um) : null,
             prezzoListino:
@@ -702,7 +724,7 @@ export async function applyWorkspaceMutation(
               : null,
             disponibile:
               part.disponibile == null ? null : asBool(part.disponibile),
-            stato: asString(part.stato) || "attivo",
+            stato,
             completezza: Number(part.completezza ?? 0),
             daVerificare: asBool(part.daVerificare),
             immaginiJson: (part.immagini as Prisma.InputJsonValue) ?? [],
@@ -713,8 +735,8 @@ export async function applyWorkspaceMutation(
           },
           update: {
             codiceOEM: part.codiceOEM ? asString(part.codiceOEM) : null,
-            nome: part.nome ? asString(part.nome) : null,
-            descrizione: asString(part.descrizione) || codice,
+            nome,
+            descrizione,
             categoria: part.categoria ? asString(part.categoria) : null,
             um: part.um ? asString(part.um) : null,
             prezzoListino:
@@ -734,7 +756,7 @@ export async function applyWorkspaceMutation(
               : null,
             disponibile:
               part.disponibile == null ? null : asBool(part.disponibile),
-            stato: asString(part.stato) || "attivo",
+            stato,
             completezza: Number(part.completezza ?? 0),
             daVerificare: asBool(part.daVerificare),
             immaginiJson: (part.immagini as Prisma.InputJsonValue) ?? [],
