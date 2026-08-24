@@ -312,23 +312,53 @@ export function clampConfidence(value: unknown): number | undefined {
   return Math.max(0, Math.min(100, Math.round(pct)));
 }
 
+function betterPrice(a?: number, b?: number): number {
+  const av = typeof a === "number" && Number.isFinite(a) ? a : 0;
+  const bv = typeof b === "number" && Number.isFinite(b) ? b : 0;
+  return av > 0 ? av : bv;
+}
+
+function mergePartFields(
+  catalog: SparePartProposal | undefined,
+  overlay: SparePartProposal
+): SparePartProposal {
+  if (!catalog) return overlay;
+  return {
+    ...catalog,
+    ...overlay,
+    price: betterPrice(overlay.price, catalog.price),
+    confidence:
+      Math.max(overlay.confidence ?? 0, catalog.confidence ?? 0) ||
+      overlay.confidence ||
+      catalog.confidence,
+    oemCode: overlay.oemCode || catalog.oemCode,
+    name: overlay.name || catalog.name,
+    brand: overlay.brand || catalog.brand,
+    manufacturer: overlay.manufacturer || catalog.manufacturer,
+    supplier: overlay.supplier || catalog.supplier,
+    category: overlay.category || catalog.category,
+    unit: overlay.unit || catalog.unit,
+    compatibleMachine: overlay.compatibleMachine || catalog.compatibleMachine,
+    leadTimeDays: overlay.leadTimeDays ?? catalog.leadTimeDays,
+    description:
+      overlay.description?.trim() || catalog.description,
+  };
+}
+
 export function mergeSparePartConfidence(
   parts: SparePartProposal[],
   catalogHits: SparePartProposal[]
 ): SparePartProposal[] {
-  const byCode = new Map(
-    catalogHits.map((h) => [h.code.toLowerCase(), h])
-  );
+  const byCode = new Map<string, SparePartProposal>();
+  for (const h of catalogHits) {
+    byCode.set(h.code.toLowerCase(), h);
+    byCode.set(normalizePartCode(h.code), h);
+  }
   return parts.map((p) => {
-    const hit = byCode.get(p.code.toLowerCase());
-    return {
-      ...hit,
-      ...p,
-      confidence: Math.max(
-        clampConfidence(p.confidence) ?? 0,
-        hit?.confidence ?? 0
-      ) || clampConfidence(p.confidence) || hit?.confidence,
-    };
+    const hit =
+      byCode.get(p.code.toLowerCase()) ??
+      byCode.get(normalizePartCode(p.code));
+    return mergePartFields(hit, p);
   });
 }
 
@@ -396,20 +426,13 @@ export function mergeProposedParts(
 ): SparePartProposal[] | undefined {
   const map = new Map<string, SparePartProposal>();
   for (const p of [...fromCatalog, ...(fromLlm ?? [])]) {
-    const key = p.code.toLowerCase();
+    const key = normalizePartCode(p.code) || p.code.toLowerCase();
     const prev = map.get(key);
     if (!prev) {
       map.set(key, p);
       continue;
     }
-    map.set(key, {
-      ...prev,
-      ...p,
-      confidence:
-        Math.max(prev.confidence ?? 0, p.confidence ?? 0) ||
-        prev.confidence ||
-        p.confidence,
-    });
+    map.set(key, mergePartFields(prev, p));
   }
   const all = [...map.values()].sort(
     (a, b) => (b.confidence ?? 0) - (a.confidence ?? 0)
