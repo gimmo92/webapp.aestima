@@ -8,9 +8,8 @@ import { useI18n } from "@/lib/i18n";
 import type { SparePartProposal } from "@/lib/serviceChatTypes";
 import {
   addToQuoteDraft,
-  hasQuoteDraft,
-  readQuoteDraft,
 } from "@/lib/quoteDraft";
+import { AddToOfferMenu } from "./AddToOfferMenu";
 import {
   findSparePartSubstitutes,
   type CatalogPartLike,
@@ -137,7 +136,6 @@ export function SparePartDetailSheet({
   const router = useRouter();
   const [rows, setRows] = useState<Record<string, unknown>[]>([]);
   const [loading, setLoading] = useState(true);
-  const [draftTick, setDraftTick] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -252,21 +250,13 @@ export function SparePartDetailSheet({
     [isObsolete, currentLike, catalogParts]
   );
 
-  const inDraft = readQuoteDraft().some(
-    (l) => l.code.toUpperCase() === part.code.toUpperCase()
-  );
-  const draftExists = draftTick >= 0 && hasQuoteDraft();
-
   const goToOffer = () => {
-    if (!inDraft) {
-      addToQuoteDraft({
-        code: part.code,
-        description: name || description,
-        unitPrice: price ?? 0,
-        qty: 1,
-      });
-      setDraftTick((n) => n + 1);
-    }
+    addToQuoteDraft({
+      code: part.code,
+      description: name || description,
+      unitPrice: price ?? 0,
+      qty: 1,
+    });
     router.push("/crea?draft=1");
   };
 
@@ -276,12 +266,6 @@ export function SparePartDetailSheet({
     if (reason === "oem") return t("spare.substituteOem");
     return t("spare.substituteSimilar");
   };
-
-  const ctaLabel = !draftExists
-    ? t("spare.createOffer")
-    : inDraft
-      ? t("spare.goToOffer")
-      : t("spare.addToOffer");
 
   return (
     <div className="mx-auto w-full max-w-4xl px-5 py-8">
@@ -454,14 +438,15 @@ export function SparePartDetailSheet({
       )}
 
       {!isObsolete && (
-        <div className="mt-8">
+        <div className="mt-8 flex flex-wrap items-end gap-3">
           <button
             type="button"
             onClick={goToOffer}
             className="inline-flex items-center justify-center gap-2 rounded-xl bg-brand px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-brand/20 transition-colors hover:bg-brand-strong"
           >
-            {ctaLabel}
+            {t("spare.createOffer")}
           </button>
+          <AddToOfferMenu partCode={part.code} />
         </div>
       )}
     </div>
