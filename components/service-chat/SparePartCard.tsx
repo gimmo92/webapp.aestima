@@ -1,20 +1,43 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { euro } from "@/lib/quote";
 import type { SparePartProposal } from "@/lib/serviceChatTypes";
 import { useI18n } from "@/lib/i18n";
+import { sparePartSheetPath } from "@/lib/sparePartSheet";
+
+function SheetLink({
+  part,
+  className,
+  children,
+}: {
+  part: SparePartProposal;
+  className: string;
+  children: ReactNode;
+}) {
+  const { t } = useI18n();
+  return (
+    <a
+      href={sparePartSheetPath(part.code)}
+      target="_blank"
+      rel="noopener noreferrer"
+      className={className}
+      title={t("spare.openSheet")}
+    >
+      {children}
+    </a>
+  );
+}
 
 /** Card strutturata per un ricambio proposto dall'agente. */
 export function SparePartCard({
   part,
   compact = false,
   onRemove,
-  onOpen,
 }: {
   part: SparePartProposal;
   compact?: boolean;
   onRemove?: (code: string) => void;
-  onOpen?: (part: SparePartProposal) => void;
 }) {
   const available = part.availability === "disponibile";
   const { t } = useI18n();
@@ -63,19 +86,15 @@ export function SparePartCard({
             />
             <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.7" />
           </svg>
-          {compact && onOpen ? (
-            <button
-              type="button"
-              onClick={() => onOpen(part)}
+          {compact ? (
+            <SheetLink
+              part={part}
               className="truncate text-left font-mono text-brand underline-offset-2 hover:underline"
-              title={t("spare.openSheet")}
             >
               {part.code}
-            </button>
+            </SheetLink>
           ) : (
-            <span className="truncate">
-              {compact ? part.code : t("spare.identified")}
-            </span>
+            <span className="truncate">{t("spare.identified")}</span>
           )}
         </div>
         <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
@@ -126,18 +145,12 @@ export function SparePartCard({
           <p className="mb-0.5 text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
             {t("spare.description")}
           </p>
-          {onOpen ? (
-            <button
-              type="button"
-              onClick={() => onOpen(part)}
-              className="text-left text-sm font-medium text-ink underline-offset-2 hover:text-brand hover:underline"
-              title={t("spare.openSheet")}
-            >
-              {part.description}
-            </button>
-          ) : (
-            <p className="text-sm font-medium text-ink">{part.description}</p>
-          )}
+          <SheetLink
+            part={part}
+            className="text-left text-sm font-medium text-ink underline-offset-2 hover:text-brand hover:underline"
+          >
+            {part.description}
+          </SheetLink>
         </div>
         <div className="space-y-2">
           {!compact && (
@@ -145,20 +158,12 @@ export function SparePartCard({
               <span className="text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
                 {t("spare.code")}
               </span>
-              {onOpen ? (
-                <button
-                  type="button"
-                  onClick={() => onOpen(part)}
-                  className="font-mono text-sm font-semibold text-brand underline-offset-2 hover:underline"
-                  title={t("spare.openSheet")}
-                >
-                  {part.code}
-                </button>
-              ) : (
-                <span className="font-mono text-sm font-semibold text-brand">
-                  {part.code}
-                </span>
-              )}
+              <SheetLink
+                part={part}
+                className="font-mono text-sm font-semibold text-brand underline-offset-2 hover:underline"
+              >
+                {part.code}
+              </SheetLink>
             </div>
           )}
           <div className="flex items-center justify-between gap-3">
@@ -180,12 +185,10 @@ export function SparePartCardList({
   parts,
   compact = false,
   onRemove,
-  onOpen,
 }: {
   parts: SparePartProposal[];
   compact?: boolean;
   onRemove?: (code: string) => void;
-  onOpen?: (part: SparePartProposal) => void;
 }) {
   return (
     <div className="space-y-2">
@@ -195,7 +198,6 @@ export function SparePartCardList({
           part={part}
           compact={compact}
           onRemove={onRemove}
-          onOpen={onOpen}
         />
       ))}
     </div>

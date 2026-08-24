@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useId, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { euro } from "@/lib/quote";
 import { useI18n } from "@/lib/i18n";
@@ -15,6 +16,7 @@ import {
   type CatalogPartLike,
   type SubstituteReason,
 } from "@/lib/sparePartSubstitutes";
+import { sparePartSheetPath } from "@/lib/sparePartSheet";
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object"
@@ -80,8 +82,7 @@ function toCatalogPart(rec: Record<string, unknown> | null): CatalogPartLike | n
     : [];
   return {
     codice,
-    descrizione:
-      pickString(rec, "descrizione", "description") ?? codice,
+    descrizione: pickString(rec, "descrizione", "description") ?? codice,
     nome: pickString(rec, "nome", "name"),
     codiceOEM: pickString(rec, "codiceOEM", "codiceOem", "oemCode"),
     stato: pickString(rec, "stato", "status"),
@@ -96,24 +97,7 @@ function toCatalogPart(rec: Record<string, unknown> | null): CatalogPartLike | n
   };
 }
 
-function catalogToProposal(
-  rec: Record<string, unknown>,
-  fallback?: SparePartProposal
-): SparePartProposal {
-  const like = toCatalogPart(rec);
-  const code = like?.codice ?? fallback?.code ?? "";
-  const available = like?.disponibile === true;
-  return {
-    code,
-    description: like?.descrizione ?? fallback?.description ?? code,
-    price: like?.prezzoListino ?? fallback?.price ?? 0,
-    availability: available ? "disponibile" : "da_ordinare",
-    oemCode: like?.codiceOEM ?? fallback?.oemCode,
-    name: like?.nome ?? fallback?.name,
-  };
-}
-
-function Field({
+function TableRow({
   label,
   value,
   mono,
@@ -124,46 +108,29 @@ function Field({
 }) {
   if (value == null || value === "") return null;
   return (
-    <div className="flex items-start justify-between gap-4 border-b border-border/70 py-2.5 last:border-0">
-      <span className="shrink-0 text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
+    <tr className="border-b border-border/70 last:border-0">
+      <th className="w-48 px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
         {label}
-      </span>
-      <span
+      </th>
+      <td
         className={[
-          "text-right text-sm font-medium text-ink",
+          "px-4 py-2.5 text-sm font-medium text-ink",
           mono ? "font-mono text-brand" : "",
         ].join(" ")}
       >
         {value}
-      </span>
-    </div>
+      </td>
+    </tr>
   );
 }
 
-/** Scheda read-only con i dati di catalogo del ricambio identificato. */
-export function SparePartDetailSheet({
-  part,
-  onClose,
-  onOpenPart,
-}: {
-  part: SparePartProposal;
-  onClose: () => void;
-  onOpenPart?: (next: SparePartProposal) => void;
-}) {
+/** Scheda ricambio a pagina intera, in tabella. */
+export function SparePartDetailSheet({ part }: { part: SparePartProposal }) {
   const { t } = useI18n();
   const router = useRouter();
-  const titleId = useId();
   const [rows, setRows] = useState<Record<string, unknown>[]>([]);
   const [loading, setLoading] = useState(true);
   const [draftTick, setDraftTick] = useState(0);
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
 
   useEffect(() => {
     let cancelled = false;
@@ -173,7 +140,13 @@ export function SparePartDetailSheet({
       .then((data: unknown) => {
         if (cancelled) return;
         const list = asRecord(data)?.spareParts;
-        setRows(Array.isArray(list) ? list.map((r) => asRecord(r)).filter((r): r is Record<string, unknown> => Boolean(r)) : []);
+        setRows(
+          Array.isArray(list)
+            ? list
+                .map((r) => asRecord(r))
+                .filter((r): r is Record<string, unknown> => Boolean(r))
+            : []
+        );
       })
       .catch(() => {
         if (!cancelled) setRows([]);
@@ -189,8 +162,9 @@ export function SparePartDetailSheet({
   const catalog = useMemo(() => {
     const code = part.code.toLowerCase();
     return (
-      rows.find((row) => pickString(row, "codice", "code")?.toLowerCase() === code) ??
-      null
+      rows.find(
+        (row) => pickString(row, "codice", "code")?.toLowerCase() === code
+      ) ?? null
     );
   }, [rows, part.code]);
 
@@ -204,22 +178,16 @@ export function SparePartDetailSheet({
     pickString(catalog, "produttore", "manufacturer") ?? part.manufacturer;
   const supplier =
     pickString(catalog, "fornitore", "supplier") ?? part.supplier;
-  const supplierCode = pickString(
-    catalog,
-    "codiceFornitore",
-    "supplierCode"
-  );
+  const supplierCode = pickString(catalog, "codiceFornitore", "supplierCode");
   const category =
     pickString(catalog, "categoria", "category") ?? part.category;
   const unit = pickString(catalog, "um", "unit") ?? part.unit;
   const machine =
     pickString(catalog, "macchinaCompatibile", "compatibleMachine") ??
     part.compatibleMachine;
-  const price =
-    pickNumber(catalog, "prezzoListino", "price") ?? part.price;
+  const price = pickNumber(catalog, "prezzoListino", "price") ?? part.price;
   const lead =
-    pickNumber(catalog, "leadTimeGiorni", "leadTimeDays") ??
-    part.leadTimeDays;
+    pickNumber(catalog, "leadTimeGiorni", "leadTimeDays") ?? part.leadTimeDays;
   const availableRaw = catalog
     ? catalog.disponibile ?? catalog.available
     : part.availability === "disponibile";
@@ -264,17 +232,13 @@ export function SparePartDetailSheet({
 
   const substitutes = useMemo(
     () =>
-      isObsolete
-        ? findSparePartSubstitutes(currentLike, catalogParts)
-        : [],
+      isObsolete ? findSparePartSubstitutes(currentLike, catalogParts) : [],
     [isObsolete, currentLike, catalogParts]
   );
 
-  const inDraft =
-    draftTick >= 0 &&
-    readQuoteDraft().some(
-      (l) => l.code.toUpperCase() === part.code.toUpperCase()
-    );
+  const inDraft = readQuoteDraft().some(
+    (l) => l.code.toUpperCase() === part.code.toUpperCase()
+  );
   const draftExists = draftTick >= 0 && hasQuoteDraft();
 
   const goToOffer = () => {
@@ -287,7 +251,6 @@ export function SparePartDetailSheet({
       });
       setDraftTick((n) => n + 1);
     }
-    onClose();
     router.push("/crea?draft=1");
   };
 
@@ -305,194 +268,163 @@ export function SparePartDetailSheet({
       : t("spare.addToOffer");
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex justify-end bg-ink/40"
-      onClick={onClose}
-    >
-      <aside
-        className="flex h-full w-full max-w-md flex-col border-l border-border bg-surface shadow-2xl shadow-black/20"
-        onClick={(e) => e.stopPropagation()}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-      >
-        <div className="flex items-start justify-between gap-3 border-b border-border px-4 py-3.5">
-          <div className="min-w-0">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
-              {t("spare.sheetTitle")}
+    <div className="mx-auto w-full max-w-4xl px-5 py-8">
+      <p className="text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
+        {t("spare.sheetTitle")}
+      </p>
+      <h1 className="mt-1 font-mono text-2xl font-bold text-brand">{part.code}</h1>
+      <p className="mt-1 text-sm text-ink-muted">{name || description}</p>
+
+      {isObsolete && (
+        <div className="mt-4 rounded-xl border border-warn/40 bg-warn/10 px-4 py-3">
+          <p className="text-sm font-semibold text-ink">{t("spare.obsoleteBanner")}</p>
+          <p className="mt-0.5 text-[12px] leading-snug text-ink-muted">
+            {t("spare.obsoleteHint")}
+          </p>
+        </div>
+      )}
+
+      {loading && (
+        <p className="mt-4 text-xs text-ink-faint">{t("spare.loadingDetails")}</p>
+      )}
+
+      <div className="mt-6 grid gap-6 lg:grid-cols-[220px_1fr]">
+        {imageUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={imageUrl}
+            alt=""
+            className="h-52 w-full rounded-xl border border-border bg-surface-2 object-contain"
+          />
+        ) : (
+          <div className="hidden rounded-xl border border-dashed border-border bg-surface-2/40 lg:block" />
+        )}
+
+        <div className="overflow-hidden rounded-xl border border-border bg-surface/60">
+          <table className="w-full border-collapse text-left">
+            <thead className="bg-surface-2/80">
+              <tr className="border-b border-border">
+                <th className="px-4 py-2 text-[10px] font-semibold uppercase tracking-wider text-ink-faint">
+                  {t("spare.colField")}
+                </th>
+                <th className="px-4 py-2 text-[10px] font-semibold uppercase tracking-wider text-ink-faint">
+                  {t("spare.colValue")}
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <TableRow label={t("spare.code")} value={part.code} mono />
+              <TableRow label={t("spare.oem")} value={oem} mono />
+              <TableRow label={t("spare.name")} value={name} />
+              <TableRow label={t("spare.description")} value={description} />
+              <TableRow label={t("spare.category")} value={category} />
+              <TableRow label={t("spare.unit")} value={unit} />
+              <TableRow
+                label={t("spare.listPrice")}
+                value={price != null ? euro(price) : undefined}
+              />
+              <TableRow
+                label={t("spare.availability")}
+                value={available ? t("spare.available") : t("spare.toOrder")}
+              />
+              <TableRow
+                label={t("spare.leadTime")}
+                value={
+                  lead != null ? t("spare.leadTimeDays", { n: lead }) : undefined
+                }
+              />
+              <TableRow label={t("spare.brand")} value={brand} />
+              <TableRow label={t("spare.manufacturer")} value={manufacturer} />
+              <TableRow label={t("spare.supplier")} value={supplier} />
+              <TableRow label={t("spare.supplierCode")} value={supplierCode} mono />
+              <TableRow label={t("spare.machine")} value={machine} />
+              <TableRow label={t("spare.status")} value={statusLabel} />
+              {typeof part.confidence === "number" && (
+                <TableRow
+                  label={t("spare.confidence")}
+                  value={`${Math.round(part.confidence)}%`}
+                />
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {isObsolete && (
+        <div className="mt-8">
+          <h2 className="mb-3 text-sm font-semibold text-ink">
+            {t("spare.substitutesTitle")}
+          </h2>
+          {substitutes.length === 0 ? (
+            <p className="rounded-xl border border-border bg-surface/60 px-4 py-4 text-sm text-ink-faint">
+              {t("spare.substitutesEmpty")}
             </p>
-            <h2
-              id={titleId}
-              className="mt-0.5 truncate font-mono text-base font-bold text-brand"
-            >
-              {part.code}
-            </h2>
-            <p className="mt-0.5 line-clamp-2 text-sm text-ink-muted">
-              {name || description}
-            </p>
-          </div>
+          ) : (
+            <div className="overflow-hidden rounded-xl border border-border bg-surface/60">
+              <table className="w-full border-collapse text-left">
+                <thead className="bg-surface-2/80">
+                  <tr className="border-b border-border">
+                    <th className="px-4 py-2 text-[10px] font-semibold uppercase tracking-wider text-ink-faint">
+                      {t("spare.code")}
+                    </th>
+                    <th className="px-4 py-2 text-[10px] font-semibold uppercase tracking-wider text-ink-faint">
+                      {t("spare.description")}
+                    </th>
+                    <th className="px-4 py-2 text-[10px] font-semibold uppercase tracking-wider text-ink-faint">
+                      {t("spare.listPrice")}
+                    </th>
+                    <th className="px-4 py-2 text-[10px] font-semibold uppercase tracking-wider text-ink-faint">
+                      {t("spare.colReason")}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {substitutes.map((item) => (
+                    <tr
+                      key={item.part.codice}
+                      className="border-b border-border/70 last:border-0 hover:bg-brand-soft/30"
+                    >
+                      <td className="px-4 py-2.5">
+                        <Link
+                          href={sparePartSheetPath(item.part.codice)}
+                          className="font-mono text-sm font-semibold text-brand underline-offset-2 hover:underline"
+                        >
+                          {item.part.codice}
+                        </Link>
+                      </td>
+                      <td className="px-4 py-2.5 text-sm text-ink">
+                        {item.part.nome || item.part.descrizione}
+                      </td>
+                      <td className="px-4 py-2.5 text-sm font-semibold tabular-nums text-ink">
+                        {item.part.prezzoListino != null &&
+                        item.part.prezzoListino > 0
+                          ? euro(item.part.prezzoListino)
+                          : "—"}
+                      </td>
+                      <td className="px-4 py-2.5 text-xs text-ink-muted">
+                        {reasonLabel(item.reason)}
+                        {item.tipo ? ` · ${item.tipo}` : ""}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {!isObsolete && (
+        <div className="mt-8">
           <button
             type="button"
-            onClick={onClose}
-            className="rounded-md p-1 text-ink-faint transition-colors hover:bg-surface-2 hover:text-ink"
-            aria-label={t("common.close")}
+            onClick={goToOffer}
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-brand px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-brand/20 transition-colors hover:bg-brand-strong"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-              <path
-                d="M6 6l12 12M18 6 6 18"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-              />
-            </svg>
+            {ctaLabel}
           </button>
         </div>
-
-        <div className="min-h-0 flex-1 overflow-y-auto p-4">
-          {imageUrl && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={imageUrl}
-              alt=""
-              className="mb-4 max-h-44 w-full rounded-xl border border-border bg-surface-2 object-contain"
-            />
-          )}
-
-          {isObsolete && (
-            <div className="mb-4 rounded-xl border border-warn/40 bg-warn/10 px-3 py-2.5">
-              <p className="text-sm font-semibold text-ink">
-                {t("spare.obsoleteBanner")}
-              </p>
-              <p className="mt-0.5 text-[11px] leading-snug text-ink-muted">
-                {t("spare.obsoleteHint")}
-              </p>
-            </div>
-          )}
-
-          {loading && (
-            <p className="mb-3 text-xs text-ink-faint">
-              {t("spare.loadingDetails")}
-            </p>
-          )}
-
-          <div className="rounded-xl border border-border bg-surface-2/40 px-3">
-            <Field label={t("spare.code")} value={part.code} mono />
-            <Field label={t("spare.oem")} value={oem} mono />
-            <Field label={t("spare.name")} value={name} />
-            <Field label={t("spare.description")} value={description} />
-            <Field label={t("spare.category")} value={category} />
-            <Field label={t("spare.unit")} value={unit} />
-            <Field
-              label={t("spare.listPrice")}
-              value={price != null ? euro(price) : undefined}
-            />
-            <Field
-              label={t("spare.availability")}
-              value={
-                available ? t("spare.available") : t("spare.toOrder")
-              }
-            />
-            <Field
-              label={t("spare.leadTime")}
-              value={
-                lead != null
-                  ? t("spare.leadTimeDays", { n: lead })
-                  : undefined
-              }
-            />
-            <Field label={t("spare.brand")} value={brand} />
-            <Field label={t("spare.manufacturer")} value={manufacturer} />
-            <Field label={t("spare.supplier")} value={supplier} />
-            <Field label={t("spare.supplierCode")} value={supplierCode} mono />
-            <Field label={t("spare.machine")} value={machine} />
-            <Field label={t("spare.status")} value={statusLabel} />
-            {typeof part.confidence === "number" && (
-              <Field
-                label={t("spare.confidence")}
-                value={`${Math.round(part.confidence)}%`}
-              />
-            )}
-          </div>
-
-          {isObsolete && (
-            <div className="mt-4">
-              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
-                {t("spare.substitutesTitle")}
-              </p>
-              {substitutes.length === 0 ? (
-                <p className="rounded-lg border border-border bg-surface-2/40 px-3 py-3 text-sm text-ink-faint">
-                  {t("spare.substitutesEmpty")}
-                </p>
-              ) : (
-                <ul className="space-y-2">
-                  {substitutes.map((item) => {
-                    const rec = rows.find(
-                      (row) =>
-                        pickString(row, "codice", "code")?.toUpperCase() ===
-                        item.part.codice.toUpperCase()
-                    );
-                    return (
-                      <li key={item.part.codice}>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (rec) {
-                              onOpenPart?.(catalogToProposal(rec, part));
-                              return;
-                            }
-                            onOpenPart?.({
-                              code: item.part.codice,
-                              description: item.part.descrizione,
-                              price: item.part.prezzoListino ?? 0,
-                              availability: item.part.disponibile
-                                ? "disponibile"
-                                : "da_ordinare",
-                              name: item.part.nome ?? undefined,
-                              oemCode: item.part.codiceOEM ?? undefined,
-                            });
-                          }}
-                          className="w-full rounded-xl border border-border bg-surface-2/40 px-3 py-2.5 text-left transition-colors hover:border-brand/50 hover:bg-brand-soft/40"
-                        >
-                          <div className="flex items-start justify-between gap-2">
-                            <span className="font-mono text-sm font-semibold text-brand">
-                              {item.part.codice}
-                            </span>
-                            {item.part.prezzoListino != null &&
-                              item.part.prezzoListino > 0 && (
-                                <span className="shrink-0 text-xs font-semibold tabular-nums text-ink">
-                                  {euro(item.part.prezzoListino)}
-                                </span>
-                              )}
-                          </div>
-                          <p className="mt-0.5 line-clamp-2 text-xs text-ink-muted">
-                            {item.part.nome || item.part.descrizione}
-                          </p>
-                          <p className="mt-1 text-[10px] font-medium uppercase tracking-wider text-ink-faint">
-                            {reasonLabel(item.reason)}
-                            {item.tipo ? ` · ${item.tipo}` : ""}
-                          </p>
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-            </div>
-          )}
-        </div>
-
-        {!isObsolete && (
-          <div className="shrink-0 border-t border-border p-4">
-            <button
-              type="button"
-              onClick={goToOffer}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-brand px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-brand/20 transition-colors hover:bg-brand-strong"
-            >
-              {ctaLabel}
-            </button>
-          </div>
-        )}
-      </aside>
+      )}
     </div>
   );
 }
