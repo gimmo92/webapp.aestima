@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { InboxTopBar } from "@/components/inbox/InboxTopBar";
 import { Stepper } from "@/components/Stepper";
 import { RequestInput } from "@/components/RequestInput";
@@ -10,24 +11,66 @@ import { QuoteDocument } from "@/components/QuoteDocument";
 import { SAMPLE_REQUEST } from "@/lib/mockData";
 import { matchAnalysisToData } from "@/lib/match";
 import { mockAnalyze } from "@/lib/mockAnalyze";
-import { buildQuote } from "@/lib/quote";
+import { buildQuote, buildQuoteFromLines } from "@/lib/quote";
+import {
+  clearQuoteDraft,
+  draftToQuoteLines,
+  readQuoteDraft,
+} from "@/lib/quoteDraft";
 import type { AnalysisResult, MatchResult, Quote } from "@/lib/types";
 
-// Flusso guidato a 4 step: dalla richiesta al preventivo.
+function analysisFromQuote(quote: Quote): AnalysisResult {
+  return {
+    macchina: "",
+    numero_serie: "",
+    componente_identificato: quote.componentTitle,
+    urgenza: "normale",
+    note: "",
+    source: "mock",
+  };
+}
 
-export default function CreaOffertaPage() {
-  const [step, setStep] = useState(1);
+function CreaOffertaWorkspace() {
+  const searchParams = useSearchParams();
+  const [step, setStep] = useState(() =>
+    searchParams.get("draft") === "1" && readQuoteDraft().length > 0 ? 4 : 1
+  );
   const [request, setRequest] = useState(SAMPLE_REQUEST);
+  const [fromDraft, setFromDraft] = useState(
+    () => searchParams.get("draft") === "1" && readQuoteDraft().length > 0
+  );
 
-  const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
+  const [analysis, setAnalysis] = useState<AnalysisResult | null>(() => {
+    if (searchParams.get("draft") !== "1") return null;
+    const lines = draftToQuoteLines(readQuoteDraft());
+    if (lines.length === 0) return null;
+    return analysisFromQuote(buildQuoteFromLines(lines));
+  });
   const [match, setMatch] = useState<MatchResult | null>(null);
-  const [quote, setQuote] = useState<Quote | null>(null);
+  const [quote, setQuote] = useState<Quote | null>(() => {
+    if (searchParams.get("draft") !== "1") return null;
+    const lines = draftToQuoteLines(readQuoteDraft());
+    if (lines.length === 0) return null;
+    return buildQuoteFromLines(lines);
+  });
   const [apiDone, setApiDone] = useState(false);
+
+  useEffect(() => {
+    if (searchParams.get("draft") !== "1") return;
+    const lines = draftToQuoteLines(readQuoteDraft());
+    if (lines.length === 0) return;
+    const next = buildQuoteFromLines(lines);
+    setQuote(next);
+    setAnalysis(analysisFromQuote(next));
+    setFromDraft(true);
+    setStep(4);
+  }, [searchParams]);
 
   const handleAnalyze = useCallback(async () => {
     setStep(2);
     setApiDone(false);
     setAnalysis(null);
+    setFromDraft(false);
 
     try {
       const res = await fetch("/api/analyze", {
@@ -59,11 +102,13 @@ export default function CreaOffertaPage() {
   }, [analysis, match]);
 
   const restart = useCallback(() => {
+    clearQuoteDraft();
     setStep(1);
     setAnalysis(null);
     setMatch(null);
     setQuote(null);
     setApiDone(false);
+    setFromDraft(false);
   }, []);
 
   return (
@@ -106,11 +151,19 @@ export default function CreaOffertaPage() {
               quote={quote}
               analysis={analysis}
               onRestart={restart}
-              onBack={() => setStep(3)}
+              onBack={fromDraft ? restart : () => setStep(3)}
             />
           )}
         </div>
       </main>
     </div>
+  );
+}
+
+export default function CreaOffertaPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-base" />}>
+      <CreaOffertaWorkspace />
+    </Suspense>
   );
 }

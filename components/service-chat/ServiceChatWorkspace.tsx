@@ -1185,6 +1185,7 @@ export function ServiceChatWorkspace({
         <SparePartDetailSheet
           part={openSparePart}
           onClose={() => setOpenSparePart(null)}
+          onOpenPart={setOpenSparePart}
         />
       )}
     </div>

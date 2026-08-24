@@ -2,6 +2,7 @@ import { COMPANY } from "./mockData";
 import { quoteLinesFromBom } from "./bomCatalog";
 import type {
   AnalysisResult,
+  Availability,
   BomComponent,
   Machine,
   Quote,
@@ -145,5 +146,36 @@ export function buildQuote(
       availability === "disponibile"
         ? "Merce disponibile a magazzino, pronta per la spedizione."
         : `Componente da ordinare: consegna stimata in ${component.leadTimeDays} giorni lavorativi.`,
+  };
+}
+
+/** Preventivo a partire da righe catalogo (scheda ricambio → Crea offerta). */
+export function buildQuoteFromLines(
+  linesInput: QuoteLine[],
+  opts?: { availability?: Availability; leadTimeDays?: number }
+): Quote {
+  const totals = recomputeTotals(linesInput, 0, VAT_PCT);
+  const first = totals.lines[0];
+  const availability = opts?.availability ?? "da_ordinare";
+  const leadTimeDays = opts?.leadTimeDays ?? 0;
+  return {
+    number: quoteNumber(),
+    date: new Date().toLocaleDateString("it-IT", {
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+    }),
+    customerName: "Cliente (da confermare)",
+    componentTitle: first?.description || first?.code || "Ricambi",
+    componentCode: first?.code || "—",
+    urgencySurchargePct: 0,
+    vatPct: VAT_PCT,
+    availability,
+    leadTimeDays,
+    notes:
+      availability === "disponibile"
+        ? "Merce disponibile a magazzino, pronta per la spedizione."
+        : "Consegna da confermare in base a disponibilità e lead time dei ricambi.",
+    ...totals,
   };
 }
