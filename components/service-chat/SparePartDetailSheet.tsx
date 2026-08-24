@@ -268,7 +268,7 @@ export function SparePartDetailSheet({
   };
 
   return (
-    <div className="mx-auto w-full max-w-4xl px-5 py-8">
+    <div className="mx-auto w-full max-w-4xl px-5 py-8 pb-28">
       <p className="text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
         {t("spare.sheetTitle")}
       </p>
