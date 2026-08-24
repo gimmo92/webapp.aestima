@@ -333,6 +333,7 @@ function mergePartFields(
     ...catalog,
     ...overlay,
     price: betterPrice(overlay.price, catalog.price),
+    availability: catalog.availability,
     confidence:
       Math.max(overlay.confidence ?? 0, catalog.confidence ?? 0) ||
       overlay.confidence ||

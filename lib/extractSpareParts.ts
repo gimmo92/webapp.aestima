@@ -208,8 +208,14 @@ export function normalizeColumnMap(
 export function parseDisponibile(raw: string): boolean | undefined {
   const s = raw.trim().toLowerCase();
   if (!s) return undefined;
-  if (/^(sì|si|yes|true|1|y|ok|in stock|disponibile)$/i.test(s)) return true;
-  if (/^(no|false|0|n|out of stock|non disponibile|esaurito)$/i.test(s)) {
+  if (/^(sì|si|yes|true|1|y|ok|in stock|disponibile|available)$/i.test(s)) {
+    return true;
+  }
+  if (
+    /^(no|false|0|n|out of stock|non disponibile|esaurito|not available|unavailable)$/i.test(
+      s
+    )
+  ) {
     return false;
   }
   return undefined;

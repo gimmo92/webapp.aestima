@@ -8,6 +8,8 @@ import { fillMissingLeadTimes } from "@/lib/fillMissingLeadTimes";
 
 const UPSERT_CHUNK = 25;
 
+const UNAVAILABLE_CODES = new Set(["GBTK000018"]);
+
 function finiteOrNull(n: number | null | undefined): number | null {
   return typeof n === "number" && Number.isFinite(n) ? n : null;
 }
@@ -31,7 +33,9 @@ function sparePartWriteData(p: SparePart) {
     brand: part.brand?.trim() || null,
     produttore: part.produttore?.trim() || null,
     macchinaCompatibile: part.macchinaCompatibile?.trim() || null,
-    disponibile: part.disponibile ?? null,
+    disponibile: UNAVAILABLE_CODES.has(part.codice.trim().toUpperCase())
+      ? false
+      : part.disponibile ?? null,
     stato: part.stato || "attivo",
     completezza: Math.max(0, Math.min(100, Math.round(part.completezza || 0))),
     daVerificare: Boolean(part.daVerificare),
