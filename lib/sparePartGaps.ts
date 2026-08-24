@@ -1,8 +1,12 @@
+import type { TranslateFn } from "@/lib/i18n";
 import type { ArchiveGap, ArchiveGapReport } from "./archiveGaps";
 import type { SparePart } from "./sparePartTypes";
 
 /** Lacune completezza sull'anagrafica ricambi. */
-export function computeSparePartGaps(parts: SparePart[]): ArchiveGapReport {
+export function computeSparePartGaps(
+  parts: SparePart[],
+  t: TranslateFn
+): ArchiveGapReport {
   const priceGaps: ArchiveGap[] = [];
   const dataGaps: ArchiveGap[] = [];
   const seen = new Set<string>();
@@ -30,8 +34,10 @@ export function computeSparePartGaps(parts: SparePart[]): ArchiveGapReport {
         severity: "error",
         machineSerial: p.macchinaCompatibile ?? "—",
         partCode: p.codice,
-        title: "Ricambio senza prezzo",
-        detail: `${p.descrizione || p.codice}: prezzo listino mancante.`,
+        title: t("archive.gapNoPrice"),
+        detail: t("archive.gapNoPriceDetail", {
+          label: p.descrizione || p.codice,
+        }),
         searchQuery: p.codice,
         action: "set_price",
       });
@@ -43,8 +49,8 @@ export function computeSparePartGaps(parts: SparePart[]): ArchiveGapReport {
         severity: "warning",
         machineSerial: p.macchinaCompatibile ?? "—",
         partCode: p.codice,
-        title: "Ricambio senza fornitore",
-        detail: `${p.codice}: fornitore non valorizzato.`,
+        title: t("archive.gapNoSupplier"),
+        detail: t("archive.gapNoSupplierDetail", { code: p.codice }),
         searchQuery: p.codice,
         action: "search",
       });
@@ -56,8 +62,8 @@ export function computeSparePartGaps(parts: SparePart[]): ArchiveGapReport {
         severity: "info",
         machineSerial: "—",
         partCode: p.codice,
-        title: "Ricambio senza macchina",
-        detail: `${p.codice}: macchina compatibile non indicata.`,
+        title: t("archive.gapNoMachine"),
+        detail: t("archive.gapNoMachineDetail", { code: p.codice }),
         searchQuery: p.codice,
         action: "search",
       });
@@ -69,12 +75,13 @@ export function computeSparePartGaps(parts: SparePart[]): ArchiveGapReport {
         severity: "warning",
         machineSerial: p.macchinaCompatibile ?? "—",
         partCode: p.codice,
-        title: "Da verificare",
-        detail: `${p.codice}: conflitti tra sorgenti${
-          p.conflictFields?.length
+        title: t("archive.gapToReview"),
+        detail: t("archive.gapToReviewDetail", {
+          code: p.codice,
+          fields: p.conflictFields?.length
             ? ` (${p.conflictFields.join(", ")})`
-            : ""
-        }.`,
+            : "",
+        }),
         searchQuery: p.codice,
         action: "search",
       });
@@ -89,8 +96,8 @@ export function computeSparePartGaps(parts: SparePart[]): ArchiveGapReport {
       severity: "warning",
       machineSerial: list[0]?.macchinaCompatibile ?? "—",
       partCode: code,
-      title: "Duplicato sospetto",
-      detail: `${list.length} record con codice ${code}.`,
+      title: t("archive.gapDuplicate"),
+      detail: t("archive.gapDuplicateDetail", { n: list.length, code }),
       searchQuery: code,
       action: "search",
     });

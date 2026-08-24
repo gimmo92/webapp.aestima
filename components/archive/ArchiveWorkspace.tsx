@@ -36,6 +36,7 @@ import {
   ColumnMappingModal,
   type MappingFilePreview,
 } from "./ColumnMappingModal";
+import { useI18n } from "@/lib/i18n";
 
 type Phase = "source" | "processing" | "done";
 type ArchiveTab = "organizzato" | "sorgente" | "verificare" | "ricambi";
@@ -96,6 +97,7 @@ function isCloudArchiveId(id: string) {
 }
 
 export function ArchiveWorkspace() {
+  const { t } = useI18n();
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -304,7 +306,7 @@ export function ArchiveWorkspace() {
   const openColumnMapping = useCallback(async (fileIds?: string[]) => {
     setExtracting(true);
     setMappingError(null);
-    setExtractProgress({ label: "Analisi colonne Excel…", pct: 15 });
+    setExtractProgress({ label: t("archive.analyzingColumns"), pct: 15 });
     try {
       const res = await fetch("/api/archive/extract-parts/preview", {
         method: "POST",
@@ -317,7 +319,7 @@ export function ArchiveWorkspace() {
           label:
             (data as { error?: string; message?: string })?.error ||
             (data as { message?: string })?.message ||
-            "Analisi fallita",
+            t("archive.analysisFailed"),
           pct: 100,
         });
         return;
@@ -327,7 +329,7 @@ export function ArchiveWorkspace() {
         setExtractProgress({
           label:
             (data as { message?: string })?.message ||
-            "Nessun Excel/CSV da mappare.",
+            t("archive.noExcelToMap"),
           pct: 100,
         });
         return;
@@ -336,12 +338,12 @@ export function ArchiveWorkspace() {
       setMappingFiles(files);
       setExtractProgress(null);
     } catch {
-      setExtractProgress({ label: "Errore di rete", pct: 100 });
+      setExtractProgress({ label: t("archive.networkError"), pct: 100 });
     } finally {
       setExtracting(false);
       window.setTimeout(() => setExtractProgress(null), 4000);
     }
-  }, []);
+  }, [t]);
 
   const confirmColumnMapping = useCallback(
     async (
@@ -368,7 +370,7 @@ export function ArchiveWorkspace() {
         const data = await res.json().catch(() => null);
         if (!res.ok) {
           setMappingError(
-            (data as { error?: string })?.error || "Importazione fallita"
+            (data as { error?: string })?.error || t("archive.importFailed")
           );
           return;
         }
@@ -376,17 +378,20 @@ export function ArchiveWorkspace() {
         setMappingFiles(null);
         setArchiveTab("ricambi");
         setExtractProgress({
-          label: `Importati ${data.extractedRows ?? 0} righe · ${(data.parts as SparePart[])?.length ?? 0} ricambi`,
+          label: t("archive.importedRows", {
+            rows: data.extractedRows ?? 0,
+            parts: (data.parts as SparePart[])?.length ?? 0,
+          }),
           pct: 100,
         });
         window.setTimeout(() => setExtractProgress(null), 4000);
       } catch {
-        setMappingError("Errore di rete");
+        setMappingError(t("archive.networkError"));
       } finally {
         setMappingApplying(false);
       }
     },
-    []
+    [t]
   );
 
   const uploadFiles = useCallback(
@@ -530,10 +535,10 @@ export function ArchiveWorkspace() {
   const gapReport = useMemo(
     () =>
       archiveTab === "ricambi"
-        ? computeSparePartGaps(spareParts)
+        ? computeSparePartGaps(spareParts, t)
         : computeArchiveGaps(archived, visibleFiles),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- priceRevision intenzionale
-    [archiveTab, spareParts, archived, visibleFiles, priceRevision]
+    [archiveTab, spareParts, archived, visibleFiles, priceRevision, t]
   );
 
   const handleExtractParts = useCallback(async () => {
@@ -659,7 +664,7 @@ export function ArchiveWorkspace() {
   if (!hydrated) {
     return (
       <div className="flex min-h-0 flex-1 items-center justify-center p-8 text-sm text-ink-muted">
-        Caricamento archivio…
+        {t("archive.loading")}
       </div>
     );
   }
@@ -669,16 +674,14 @@ export function ArchiveWorkspace() {
       <div className="flex min-h-0 flex-1 flex-col items-center gap-4 overflow-y-auto p-4">
         <div className="w-full max-w-2xl text-center">
           <h1 className="text-2xl font-bold text-ink">
-            Da file sparsi ad <span className="text-brand">archivio collegato</span>
+            {t("archive.heroTitleBefore")}
+            <span className="text-brand">{t("archive.heroTitleAccent")}</span>
           </h1>
           <p className="mx-auto mt-1.5 max-w-xl text-sm text-ink-muted">
-            L&apos;agente di organizzazione documentale classifica i file,
-            estrae i metadati e li collega alla macchina giusta, rendendo
-            l&apos;archivio interrogabile.
+            {t("archive.heroBody")}
           </p>
           <p className="mt-2 text-[11px] text-ink-faint">
-            In produzione l&apos;agente si collega a una cartella cloud reale
-            (Google Drive / SharePoint / Dropbox). Qui i file sono mock.
+            {t("archive.heroHint")}
           </p>
         </div>
         <div className="min-h-0 w-full max-w-2xl flex-1">
@@ -712,15 +715,15 @@ export function ArchiveWorkspace() {
       <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-y-auto">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm">
-          <Stat value={visibleFiles.length} label="file sorgente" />
+          <Stat value={visibleFiles.length} label={t("archive.filesSource")} />
           <Arrow />
-          <Stat value={archived.length} label="documenti collegati" accent />
-          <Stat value={machineCount} label="macchine" />
+          <Stat value={archived.length} label={t("archive.linkedDocs")} accent />
+          <Stat value={machineCount} label={t("archive.machines")} />
           {clienteCount > 0 && (
-            <Stat value={clienteCount} label="clienti" />
+            <Stat value={clienteCount} label={t("archive.customers")} />
           )}
           {reviewItems.length > 0 && (
-            <Stat value={reviewItems.length} label="da verificare" warn />
+            <Stat value={reviewItems.length} label={t("archive.toReview")} warn />
           )}
         </div>
         {visibleFiles.length > 0 && (
@@ -734,7 +737,7 @@ export function ArchiveWorkspace() {
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                 <path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
-              {extracting ? "Estrazione…" : "Estrai ricambi"}
+              {extracting ? t("archive.extracting") : t("archive.extractParts")}
             </button>
             <button
               type="button"
@@ -745,7 +748,7 @@ export function ArchiveWorkspace() {
                 <path d="M12 3v2m0 14v2m9-9h-2M5 12H3" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
                 <circle cx="12" cy="12" r="3.4" stroke="currentColor" strokeWidth="1.7" />
               </svg>
-              Organizza con aftercore
+              {t("archive.organize")}
             </button>
           </div>
         )}
@@ -756,25 +759,25 @@ export function ArchiveWorkspace() {
           <TabBtn
             active={archiveTab === "organizzato"}
             onClick={() => goToTab("organizzato")}
-            label="Archivio organizzato"
+            label={t("archive.tabOrganized")}
           />
           <TabBtn
             active={archiveTab === "sorgente"}
             onClick={() => goToTab("sorgente")}
-            label="Sorgente"
-            sub={`${visibleFiles.length} file`}
+            label={t("archive.tabSource")}
+            sub={t("archive.sourceFiles", { n: visibleFiles.length })}
           />
           <TabBtn
             active={archiveTab === "verificare"}
             onClick={() => goToTab("verificare")}
-            label="Da verificare"
+            label={t("archive.tabReview")}
             badge={reviewItems.length}
             warn
           />
           <TabBtn
             active={archiveTab === "ricambi"}
             onClick={() => goToTab("ricambi")}
-            label="Archivio ricambi"
+            label={t("archive.tabParts")}
             sub={`${spareParts.length}`}
           />
         </div>

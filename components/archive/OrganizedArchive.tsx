@@ -18,6 +18,7 @@ import {
   canPreviewArchiveFile,
 } from "./ArchiveFileViewer";
 import { ArchiveFileActions } from "./ArchiveFileActions";
+import { useI18n } from "@/lib/i18n";
 
 // VISTA ARCHIVIO ORGANIZZATO — raggruppamento configurabile:
 // per tipo macchina (default), tipo documento, tipo file o anno.
@@ -38,16 +39,8 @@ const TYPE_ORDER: DocType[] = [
   "foto",
 ];
 
-const VIEW_MODES: { id: ArchiveViewMode; label: string }[] = [
-  { id: "macchina", label: "Tipo macchina" },
-  { id: "cliente", label: "Cliente" },
-  { id: "documento", label: "Tipo documento" },
-  { id: "file", label: "Tipo file" },
-  { id: "anno", label: "Anno" },
-];
-
 const NO_MACHINE = "__nessuna_macchina__";
-const NO_CLIENTE = "Senza cliente";
+const NO_CLIENTE = "__no_customer__";
 
 interface Props {
   docs: ArchivedDoc[];
@@ -74,6 +67,14 @@ export function OrganizedArchive({
   spareCount = 0,
   onOpenSpareParts,
 }: Props) {
+  const { t } = useI18n();
+  const viewModes = [
+    { id: "macchina" as const, label: t("archive.viewMachine") },
+    { id: "cliente" as const, label: t("archive.viewCustomer") },
+    { id: "documento" as const, label: t("archive.viewDoc") },
+    { id: "file" as const, label: t("archive.viewFile") },
+    { id: "anno" as const, label: t("archive.viewYear") },
+  ];
   const [preview, setPreview] = useState<{
     name: string;
     url: string;
@@ -122,10 +123,10 @@ export function OrganizedArchive({
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true" className="text-brand">
               <path d="M3 7v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-7l-2-2H5a2 2 0 0 0-2 2Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
             </svg>
-            Archivio organizzato
+            {t("archive.tabOrganized")}
           </div>
           <span className="shrink-0 rounded-full border border-brand/40 bg-brand-soft px-2.5 py-1 text-[11px] font-medium text-brand">
-            {filtered.length} documenti
+            {t("archive.docsCount", { n: filtered.length })}
           </span>
         </div>
 
@@ -137,16 +138,16 @@ export function OrganizedArchive({
           <input
             value={query}
             onChange={(e) => onQueryChange(e.target.value)}
-            placeholder="Cerca un ricambio, una macchina, un cliente…"
+            placeholder={t("archive.organizedSearch")}
             className="w-full rounded-lg border border-border bg-base py-2 pl-9 pr-3 text-sm text-ink placeholder:text-ink-faint outline-none transition-colors focus:border-brand focus:ring-2 focus:ring-brand/20"
           />
         </div>
 
         <div className="flex flex-wrap gap-1.5">
           <span className="mr-1 self-center text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
-            Visualizza per
+            {t("archive.viewBy")}
           </span>
-          {VIEW_MODES.map((m) => (
+          {viewModes.map((m) => (
             <button
               key={m.id}
               onClick={() => onViewModeChange(m.id)}
@@ -168,8 +169,8 @@ export function OrganizedArchive({
           <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center">
             <p className="text-sm text-ink-faint">
               {docs.length === 0
-                ? "Nessun documento in Archivio organizzato (manuali, distinte, PDF)."
-                : "Nessun documento corrisponde alla ricerca."}
+                ? t("archive.organizedEmpty")
+                : t("archive.organizedNoMatch")}
             </p>
             {onOpenSpareParts ? (
               <button
@@ -178,14 +179,13 @@ export function OrganizedArchive({
                 className="rounded-lg bg-brand px-3 py-1.5 text-sm font-semibold text-white"
               >
                 {spareCount > 0
-                  ? `Apri Archivio ricambi (${spareCount})`
-                  : "Apri Archivio ricambi"}
+                  ? t("archive.openPartsN", { n: spareCount })
+                  : t("archive.openParts")}
               </button>
             ) : null}
             {docs.length === 0 ? (
               <p className="max-w-sm text-xs text-ink-faint">
-                I listini Excel importati da Analisi catalogo stanno nella tab{" "}
-                <strong>Archivio ricambi</strong>, non in questa vista documenti.
+                {t("archive.organizedHint")}
               </p>
             ) : null}
           </div>
@@ -293,6 +293,7 @@ function ByClienteView({
   docs: ArchivedDoc[];
   onOpenFile: (doc: ArchivedDoc) => void;
 } & FileActions) {
+  const { t } = useI18n();
   const byCliente = useMemo(() => {
     const map = new Map<string, ArchivedDoc[]>();
     for (const d of docs) {
@@ -319,9 +320,11 @@ function ByClienteView({
               </svg>
             </span>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-semibold text-ink">{cliente}</p>
+              <p className="truncate text-sm font-semibold text-ink">
+                {cliente === NO_CLIENTE ? t("archive.noCustomer") : cliente}
+              </p>
               <p className="text-[11px] text-ink-faint">
-                {clienteDocs.length} documenti
+                {t("archive.docsCount", { n: clienteDocs.length })}
               </p>
             </div>
           </div>
@@ -454,6 +457,7 @@ function ByYearView({
   docs: ArchivedDoc[];
   onOpenFile: (doc: ArchivedDoc) => void;
 } & FileActions) {
+  const { t } = useI18n();
   const byYear = useMemo(() => {
     const map = new Map<string, ArchivedDoc[]>();
     for (const d of docs) {
@@ -470,9 +474,13 @@ function ByYearView({
       {byYear.map(([year, yearDocs]) => (
         <div key={year} className="overflow-hidden rounded-xl border border-border bg-base/50">
           <div className="border-b border-border bg-surface-2/50 px-4 py-2.5">
-            <p className="text-xs font-semibold uppercase tracking-wider text-ink-faint">Anno</p>
+            <p className="text-xs font-semibold uppercase tracking-wider text-ink-faint">
+              {t("archive.viewYear")}
+            </p>
             <p className="text-lg font-bold tabular-nums text-ink">{year}</p>
-            <p className="text-[11px] text-ink-faint">{yearDocs.length} documenti</p>
+            <p className="text-[11px] text-ink-faint">
+              {t("archive.docsCount", { n: yearDocs.length })}
+            </p>
           </div>
           <div className="space-y-3 p-3">
             {groupByMachine(yearDocs).map(([serialKey, machineDocs]) => (
@@ -516,6 +524,7 @@ function MachineBlock({
   showTypeGroups?: boolean;
   onOpenFile: (doc: ArchivedDoc) => void;
 } & FileActions) {
+  const { t } = useI18n();
   const byType = TYPE_ORDER.map((tipo) => ({
     tipo,
     items: docs.filter((d) => d.tipo === tipo),
@@ -534,7 +543,9 @@ function MachineBlock({
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold text-ink">{machineLabel(serial)}</p>
           <p className="truncate text-[11px] text-ink-faint">
-            {[clienteHint, `${docs.length} documenti`].filter(Boolean).join(" · ")}
+            {[clienteHint, t("archive.docsCount", { n: docs.length })]
+              .filter(Boolean)
+              .join(" · ")}
           </p>
         </div>
       </div>

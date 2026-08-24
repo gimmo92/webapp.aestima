@@ -8,10 +8,10 @@ import type {
   SuccedaneoTipo,
 } from "@/lib/sparePartTypes";
 import {
-  SUCCEDANEO_TIPO_LABELS,
   computeSpareCompleteness,
   inverseSuccedaneoTipo,
 } from "@/lib/sparePartTypes";
+import { useI18n, type TranslateFn } from "@/lib/i18n";
 
 type FilterChip =
   | "tutti"
@@ -28,19 +28,32 @@ interface Props {
   onQueryChange?: (q: string) => void;
 }
 
-const COLS: { key: keyof SparePart | "docs" | "foto"; label: string; w?: string }[] = [
-  { key: "foto", label: "", w: "w-10" },
-  { key: "codice", label: "Codice", w: "w-28" },
-  { key: "descrizione", label: "Descrizione" },
-  { key: "categoria", label: "Cat.", w: "w-20" },
-  { key: "um", label: "UM", w: "w-12" },
-  { key: "prezzoListino", label: "Prezzo", w: "w-20" },
-  { key: "fornitore", label: "Fornitore", w: "w-28" },
-  { key: "macchinaCompatibile", label: "Macchina", w: "w-24" },
-  { key: "stato", label: "Stato", w: "w-20" },
-  { key: "completezza", label: "%", w: "w-12" },
-  { key: "docs", label: "Doc", w: "w-16" },
-];
+function partColumns(t: TranslateFn) {
+  return [
+    { key: "foto" as const, label: "", w: "w-10" },
+    { key: "codice" as const, label: t("archive.colCode"), w: "w-28" },
+    { key: "descrizione" as const, label: t("archive.colDescription") },
+    { key: "categoria" as const, label: t("archive.colCat"), w: "w-20" },
+    { key: "um" as const, label: t("archive.colUm"), w: "w-12" },
+    { key: "prezzoListino" as const, label: t("archive.colPrice"), w: "w-20" },
+    { key: "fornitore" as const, label: t("archive.colSupplier"), w: "w-28" },
+    {
+      key: "macchinaCompatibile" as const,
+      label: t("archive.colMachine"),
+      w: "w-24",
+    },
+    { key: "stato" as const, label: t("archive.colStatus"), w: "w-20" },
+    { key: "completezza" as const, label: t("archive.colPct"), w: "w-12" },
+    { key: "docs" as const, label: t("archive.colDoc"), w: "w-16" },
+  ];
+}
+
+function succedaneoLabel(tipo: SuccedaneoTipo, t: TranslateFn) {
+  if (tipo === "equivalente") return t("archive.succedaneoEq");
+  if (tipo === "sostituisce") return t("archive.succedaneoReplaces");
+  if (tipo === "sostituito_da") return t("archive.succedaneoReplacedBy");
+  return t("archive.succedaneoAltSupplier");
+}
 
 export function PartsArchive({
   parts,
@@ -50,6 +63,8 @@ export function PartsArchive({
   query: queryProp,
   onQueryChange,
 }: Props) {
+  const { t, dateLocale: loc } = useI18n();
+  const cols = partColumns(t);
   const [queryLocal, setQueryLocal] = useState("");
   const query = queryProp ?? queryLocal;
   const setQuery = onQueryChange ?? setQueryLocal;
@@ -63,8 +78,8 @@ export function PartsArchive({
     () =>
       Array.from(
         new Set(parts.map((p) => p.categoria).filter(Boolean) as string[])
-      ).sort((a, b) => a.localeCompare(b, "it")),
-    [parts]
+      ).sort((a, b) => a.localeCompare(b, loc)),
+    [parts, loc]
   );
   const machines = useMemo(
     () =>
@@ -72,15 +87,15 @@ export function PartsArchive({
         new Set(
           parts.map((p) => p.macchinaCompatibile).filter(Boolean) as string[]
         )
-      ).sort((a, b) => a.localeCompare(b, "it")),
-    [parts]
+      ).sort((a, b) => a.localeCompare(b, loc)),
+    [parts, loc]
   );
   const suppliers = useMemo(
     () =>
       Array.from(
         new Set(parts.map((p) => p.fornitore).filter(Boolean) as string[])
-      ).sort((a, b) => a.localeCompare(b, "it")),
-    [parts]
+      ).sort((a, b) => a.localeCompare(b, loc)),
+    [parts, loc]
   );
 
   const filtered = useMemo(() => {
@@ -212,17 +227,17 @@ export function PartsArchive({
     <div className="flex h-full min-h-0 flex-col">
       <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
         <span className="font-semibold tabular-nums text-ink">{stats.n}</span>
-        <span className="text-xs text-ink-faint">ricambi</span>
+        <span className="text-xs text-ink-faint">{t("archive.partsCount")}</span>
         <span className="text-ink-faint">·</span>
         <span className="font-semibold tabular-nums text-warn">
           {stats.senzaPrezzo}
         </span>
-        <span className="text-xs text-ink-faint">senza prezzo</span>
+        <span className="text-xs text-ink-faint">{t("archive.withoutPrice")}</span>
         <span className="text-ink-faint">·</span>
         <span className="font-semibold tabular-nums text-brand">
           {stats.daVerificare}
         </span>
-        <span className="text-xs text-ink-faint">da verificare</span>
+        <span className="text-xs text-ink-faint">{t("archive.toReview")}</span>
         {extractProgress && (
           <span className="ml-auto text-[11px] text-ink-muted">
             {extractProgress.label} · {extractProgress.pct}%
@@ -250,7 +265,7 @@ export function PartsArchive({
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Cerca codice o descrizione…"
+          placeholder={t("archive.searchPlaceholder")}
           className="w-full rounded-lg border border-border bg-base py-2 pl-9 pr-3 text-sm text-ink placeholder:text-ink-faint outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
         />
       </div>
@@ -258,10 +273,10 @@ export function PartsArchive({
       <div className="mb-2 flex flex-wrap gap-1.5">
         {(
           [
-            ["tutti", "Tutti"],
-            ["senza_prezzo", "Senza prezzo"],
-            ["senza_succedanei", "Senza succedanei"],
-            ["da_verificare", "Da verificare"],
+            ["tutti", t("archive.filterAll")],
+            ["senza_prezzo", t("archive.filterNoPrice")],
+            ["senza_succedanei", t("archive.filterNoAlts")],
+            ["da_verificare", t("archive.filterReview")],
           ] as const
         ).map(([id, label]) => (
           <button
@@ -283,7 +298,7 @@ export function PartsArchive({
           onChange={(e) => setCategoria(e.target.value)}
           className="rounded-full border border-border bg-base px-2 py-1 text-[11px] text-ink-muted"
         >
-          <option value="">Categoria</option>
+          <option value="">{t("archive.category")}</option>
           {categories.map((c) => (
             <option key={c} value={c}>
               {c}
@@ -295,7 +310,7 @@ export function PartsArchive({
           onChange={(e) => setMacchina(e.target.value)}
           className="rounded-full border border-border bg-base px-2 py-1 text-[11px] text-ink-muted"
         >
-          <option value="">Macchina</option>
+          <option value="">{t("archive.machine")}</option>
           {machines.map((c) => (
             <option key={c} value={c}>
               {c}
@@ -307,7 +322,7 @@ export function PartsArchive({
           onChange={(e) => setFornitore(e.target.value)}
           className="rounded-full border border-border bg-base px-2 py-1 text-[11px] text-ink-muted"
         >
-          <option value="">Fornitore</option>
+          <option value="">{t("archive.supplier")}</option>
           {suppliers.map((c) => (
             <option key={c} value={c}>
               {c}
@@ -320,14 +335,14 @@ export function PartsArchive({
         {filtered.length === 0 ? (
           <div className="flex h-40 items-center justify-center p-6 text-center text-sm text-ink-faint">
             {parts.length === 0
-              ? "Nessun ricambio in anagrafica. Importa un listino da Analisi catalogo, oppure usa «Estrai ricambi» su un Excel in Sorgente."
-              : "Nessun ricambio corrisponde ai filtri o alla ricerca."}
+              ? t("archive.emptyNone")
+              : t("archive.emptyFilter")}
           </div>
         ) : (
           <table className="w-full min-w-[900px] border-collapse text-left text-xs">
             <thead className="sticky top-0 z-10 bg-surface-2/95 backdrop-blur">
               <tr className="border-b border-border">
-                {COLS.map((c) => (
+                {cols.map((c) => (
                   <th
                     key={c.key}
                     className={[
@@ -420,9 +435,9 @@ export function PartsArchive({
                       }
                       className="w-full rounded border border-transparent bg-transparent text-xs text-ink hover:border-border"
                     >
-                      <option value="attivo">Attivo</option>
-                      <option value="obsoleto">Obsoleto</option>
-                      <option value="sostituito">Sostituito</option>
+                      <option value="attivo">{t("archive.statusActive")}</option>
+                      <option value="obsoleto">{t("archive.statusObsolete")}</option>
+                      <option value="sostituito">{t("archive.statusReplaced")}</option>
                     </select>
                   </td>
                   <td className="px-2 py-1 tabular-nums text-ink-muted">
@@ -465,6 +480,7 @@ function InlineCell({
   onCommit: (v: string) => void;
   mono?: boolean;
 }) {
+  const { t } = useI18n();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
   useEffect(() => {
@@ -482,7 +498,7 @@ function InlineCell({
           e.stopPropagation();
           setEditing(true);
         }}
-        title="Doppio click per modificare"
+        title={t("archive.doubleClickEdit")}
       >
         {value || (
           <span className="text-ink-faint">—</span>
@@ -522,14 +538,15 @@ function DocBadge({
 }: {
   sources: SparePart["sorgenti"];
 }) {
+  const { t } = useI18n();
   if (sources.length === 0) {
     return <span className="text-[10px] text-ink-faint">—</span>;
   }
   const tip = sources
     .map((s) => {
       const bits = [s.fileName];
-      if (s.sheet) bits.push(`foglio ${s.sheet}`);
-      if (s.row) bits.push(`riga ${s.row}`);
+      if (s.sheet) bits.push(t("archive.sheetName", { name: s.sheet }));
+      if (s.row) bits.push(t("archive.rowNum", { n: s.row }));
       return bits.join(" · ");
     })
     .join("\n");
@@ -562,6 +579,7 @@ function PartDrawer({
   ) => void;
   onRemoveSuccedaneo: (code: string, tipo: SuccedaneoTipo) => void;
 }) {
+  const { t } = useI18n();
   const titleId = useId();
   const [tab, setTab] = useState<
     "anagrafica" | "fornitore" | "succedanei" | "documenti"
@@ -611,17 +629,17 @@ function PartDrawer({
             onClick={onClose}
             className="rounded-lg px-2 py-1 text-xs text-ink-faint hover:text-ink"
           >
-            Chiudi
+            {t("common.close")}
           </button>
         </div>
 
         <div className="flex gap-1 border-b border-border px-2 pt-2">
           {(
             [
-              ["anagrafica", "Anagrafica"],
-              ["fornitore", "Fornitore"],
-              ["succedanei", "Succedanei"],
-              ["documenti", "Documenti"],
+              ["anagrafica", t("archive.drawerMaster")],
+              ["fornitore", t("archive.drawerSupplier")],
+              ["succedanei", t("archive.drawerAlts")],
+              ["documenti", t("archive.drawerDocs")],
             ] as const
           ).map(([id, label]) => (
             <button
@@ -652,32 +670,32 @@ function PartDrawer({
                 />
               )}
               <Field
-                label="Nome prodotto"
+                label={t("archive.productName")}
                 value={part.nome ?? ""}
                 onChange={(v) => onPatch({ nome: v || undefined })}
               />
               <Field
-                label="Codice OEM"
+                label={t("archive.oem")}
                 value={part.codiceOEM ?? ""}
                 onChange={(v) => onPatch({ codiceOEM: v || undefined })}
               />
               <Field
-                label="Descrizione"
+                label={t("archive.colDescription")}
                 value={part.descrizione}
                 onChange={(v) => onPatch({ descrizione: v })}
               />
               <Field
-                label="Categoria"
+                label={t("archive.category")}
                 value={part.categoria ?? ""}
                 onChange={(v) => onPatch({ categoria: v || undefined })}
               />
               <Field
-                label="UM"
+                label={t("archive.colUm")}
                 value={part.um ?? ""}
                 onChange={(v) => onPatch({ um: v || undefined })}
               />
               <Field
-                label="Prezzo listino"
+                label={t("archive.listPrice")}
                 value={
                   part.prezzoListino != null
                     ? String(part.prezzoListino).replace(".", ",")
@@ -691,24 +709,24 @@ function PartDrawer({
                 }}
               />
               <Field
-                label="Brand"
+                label={t("archive.brand")}
                 value={part.brand ?? ""}
                 onChange={(v) => onPatch({ brand: v || undefined })}
               />
               <Field
-                label="Produttore"
+                label={t("archive.manufacturer")}
                 value={part.produttore ?? ""}
                 onChange={(v) => onPatch({ produttore: v || undefined })}
               />
               <Field
-                label="Macchina compatibile"
+                label={t("archive.compatibleMachine")}
                 value={part.macchinaCompatibile ?? ""}
                 onChange={(v) =>
                   onPatch({ macchinaCompatibile: v || undefined })
                 }
               />
               <label className="block text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
-                Stato
+                {t("archive.colStatus")}
                 <select
                   value={part.stato}
                   onChange={(e) =>
@@ -716,14 +734,14 @@ function PartDrawer({
                   }
                   className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink"
                 >
-                  <option value="attivo">Attivo</option>
-                  <option value="obsoleto">Obsoleto</option>
-                  <option value="sostituito">Sostituito</option>
+                  <option value="attivo">{t("archive.statusActive")}</option>
+                  <option value="obsoleto">{t("archive.statusObsolete")}</option>
+                  <option value="sostituito">{t("archive.statusReplaced")}</option>
                 </select>
               </label>
               <p className="text-[11px] text-ink-faint">
-                Completezza {part.completezza}%
-                {part.daVerificare ? " · da verificare" : ""}
+                {t("archive.completeness", { n: part.completezza })}
+                {part.daVerificare ? t("archive.completenessReview") : ""}
               </p>
             </>
           )}
@@ -731,17 +749,17 @@ function PartDrawer({
           {tab === "fornitore" && (
             <>
               <Field
-                label="Fornitore"
+                label={t("archive.supplier")}
                 value={part.fornitore ?? ""}
                 onChange={(v) => onPatch({ fornitore: v || undefined })}
               />
               <Field
-                label="Codice fornitore"
+                label={t("archive.supplierCode")}
                 value={part.codiceFornitore ?? ""}
                 onChange={(v) => onPatch({ codiceFornitore: v || undefined })}
               />
               <Field
-                label="Lead time (giorni)"
+                label={t("archive.leadTimeDays")}
                 value={
                   part.leadTimeGiorni != null ? String(part.leadTimeGiorni) : ""
                 }
@@ -759,7 +777,7 @@ function PartDrawer({
             <>
               <ul className="space-y-2">
                 {part.succedanei.length === 0 && (
-                  <li className="text-xs text-ink-faint">Nessun succedaneo.</li>
+                  <li className="text-xs text-ink-faint">{t("archive.noAlts")}</li>
                 )}
                 {part.succedanei.map((s) => (
                   <li
@@ -771,7 +789,7 @@ function PartDrawer({
                         {s.code}
                       </p>
                       <p className="text-[11px] text-ink-muted">
-                        {SUCCEDANEO_TIPO_LABELS[s.tipo]}
+                        {succedaneoLabel(s.tipo, t)}
                         {s.note ? ` · ${s.note}` : ""}
                       </p>
                     </div>
@@ -780,19 +798,19 @@ function PartDrawer({
                       onClick={() => onRemoveSuccedaneo(s.code, s.tipo)}
                       className="text-[11px] text-ink-faint hover:text-warn"
                     >
-                      Rimuovi
+                      {t("archive.remove")}
                     </button>
                   </li>
                 ))}
               </ul>
               <div className="space-y-2 rounded-xl border border-border bg-surface/40 p-3">
                 <p className="text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
-                  Aggiungi
+                  {t("archive.add")}
                 </p>
                 <input
                   value={succCode}
                   onChange={(e) => setSuccCode(e.target.value)}
-                  placeholder="Codice ricambio…"
+                  placeholder={t("archive.codePlaceholder")}
                   className="w-full rounded-lg border border-border bg-base px-3 py-2 text-sm text-ink outline-none focus:border-brand"
                 />
                 {suggestions.length > 0 && (
@@ -820,18 +838,23 @@ function PartDrawer({
                   }
                   className="w-full rounded-lg border border-border bg-base px-3 py-2 text-sm text-ink"
                 >
-                  {(Object.keys(SUCCEDANEO_TIPO_LABELS) as SuccedaneoTipo[]).map(
-                    (t) => (
-                      <option key={t} value={t}>
-                        {SUCCEDANEO_TIPO_LABELS[t]}
-                      </option>
-                    )
-                  )}
+                  {(
+                    [
+                      "equivalente",
+                      "sostituisce",
+                      "sostituito_da",
+                      "alternativa_fornitore",
+                    ] as SuccedaneoTipo[]
+                  ).map((tipo) => (
+                    <option key={tipo} value={tipo}>
+                      {succedaneoLabel(tipo, t)}
+                    </option>
+                  ))}
                 </select>
                 <input
                   value={succNote}
                   onChange={(e) => setSuccNote(e.target.value)}
-                  placeholder="Note (opzionale)"
+                  placeholder={t("archive.notePlaceholder")}
                   className="w-full rounded-lg border border-border bg-base px-3 py-2 text-sm text-ink outline-none focus:border-brand"
                 />
                 <button
@@ -844,7 +867,7 @@ function PartDrawer({
                   disabled={!succCode.trim()}
                   className="rounded-lg bg-brand px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-40"
                 >
-                  Aggiungi succedaneo
+                  {t("archive.addAlt")}
                 </button>
               </div>
             </>
@@ -853,7 +876,7 @@ function PartDrawer({
           {tab === "documenti" && (
             <ul className="space-y-2">
               {part.sorgenti.length === 0 && (
-                <li className="text-xs text-ink-faint">Nessuna sorgente.</li>
+                <li className="text-xs text-ink-faint">{t("archive.noSources")}</li>
               )}
               {part.sorgenti.map((s, i) => (
                 <li
@@ -863,11 +886,11 @@ function PartDrawer({
                   <p className="font-medium">{s.fileName}</p>
                   <p className="text-[11px] text-ink-faint">
                     {[
-                      s.sheet ? `foglio ${s.sheet}` : null,
-                      s.row ? `riga ${s.row}` : null,
+                      s.sheet ? t("archive.sheetName", { name: s.sheet }) : null,
+                      s.row ? t("archive.rowNum", { n: s.row }) : null,
                     ]
                       .filter(Boolean)
-                      .join(" · ") || "Metadati sorgente"}
+                      .join(" · ") || t("archive.sourceMeta")}
                   </p>
                 </li>
               ))}

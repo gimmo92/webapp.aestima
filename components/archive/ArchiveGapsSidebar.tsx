@@ -3,6 +3,7 @@
 import { useEffect, useId, useState } from "react";
 import type { ArchiveGap, ArchiveGapReport, GapAction } from "@/lib/archiveGaps";
 import { machineLabel } from "@/lib/archiveData";
+import { useI18n } from "@/lib/i18n";
 
 export type GapUpdatePayload =
   | {
@@ -24,6 +25,7 @@ interface Props {
 }
 
 export function ArchiveGapsSidebar({ report, onSearch, onUpdateGap }: Props) {
+  const { t } = useI18n();
   const { priceGaps, dataGaps, total, machinesWithIssues } = report;
   const ok = total === 0;
   const [editing, setEditing] = useState<ArchiveGap | null>(null);
@@ -33,9 +35,9 @@ export function ArchiveGapsSidebar({ report, onSearch, onUpdateGap }: Props) {
       <div className="border-b border-border px-4 py-3">
         <div className="flex items-start justify-between gap-2">
           <div>
-            <p className="text-sm font-semibold text-ink">Completezza ricambi</p>
+            <p className="text-sm font-semibold text-ink">{t("archive.gapsTitle")}</p>
             <p className="mt-0.5 text-[11px] text-ink-faint">
-              Lacune su dati e prezzi in anagrafica
+              {t("archive.gapsSubtitle")}
             </p>
           </div>
           <span
@@ -49,8 +51,12 @@ export function ArchiveGapsSidebar({ report, onSearch, onUpdateGap }: Props) {
         </div>
         {!ok && (
           <p className="mt-2 text-[11px] text-ink-muted">
-            {machinesWithIssues} macchin{machinesWithIssues === 1 ? "a" : "e"} con
-            segnalazioni
+            {t(
+              machinesWithIssues === 1
+                ? "archive.gapsMachinesOne"
+                : "archive.gapsMachinesMany",
+              { n: machinesWithIssues }
+            )}
           </p>
         )}
       </div>
@@ -69,15 +75,15 @@ export function ArchiveGapsSidebar({ report, onSearch, onUpdateGap }: Props) {
                 />
               </svg>
             </span>
-            <p className="text-sm font-medium text-ink">Anagrafica completa</p>
+            <p className="text-sm font-medium text-ink">{t("archive.gapsComplete")}</p>
             <p className="mt-1 text-[11px] text-ink-faint">
-              Nessuna lacuna su prezzi o dati ricambi rilevata.
+              {t("archive.gapsCompleteHint")}
             </p>
           </div>
         ) : (
           <>
             <GapSection
-              title="Prezzi mancanti"
+              title={t("archive.gapsMissingPrices")}
               count={priceGaps.length}
               tone="price"
               gaps={priceGaps}
@@ -85,7 +91,7 @@ export function ArchiveGapsSidebar({ report, onSearch, onUpdateGap }: Props) {
               onUpdate={(gap) => setEditing(gap)}
             />
             <GapSection
-              title="Dati ricambio mancanti"
+              title={t("archive.gapsMissingData")}
               count={dataGaps.length}
               tone="data"
               gaps={dataGaps}
@@ -126,11 +132,12 @@ function GapSection({
   onSearch?: (query: string) => void;
   onUpdate: (gap: ArchiveGap) => void;
 }) {
+  const { t } = useI18n();
   if (count === 0) {
     return (
       <section>
         <SectionHeader title={title} count={0} tone={tone} />
-        <p className="px-1 text-[11px] text-ink-faint">Nessuna segnalazione.</p>
+        <p className="px-1 text-[11px] text-ink-faint">{t("archive.gapsNone")}</p>
       </section>
     );
   }
@@ -190,7 +197,7 @@ function GapSection({
                           strokeLinejoin="round"
                         />
                       </svg>
-                      Aggiorna
+                      {t("archive.gapsUpdate")}
                     </button>
                   </div>
                 </div>
@@ -214,6 +221,7 @@ function GapUpdateModal({
   onSearch?: (query: string) => void;
   onSubmit: (payload: GapUpdatePayload) => void;
 }) {
+  const { t } = useI18n();
   const titleId = useId();
   const action: GapAction = gap.action ?? "search";
   const [code, setCode] = useState(gap.partCode ?? "");
@@ -233,11 +241,11 @@ function GapUpdateModal({
   const submitCodice = (all: boolean) => {
     const trimmed = code.trim();
     if (!trimmed) {
-      setError("Inserisci un codice ricambio.");
+      setError(t("archive.gapEnterCode"));
       return;
     }
     if (!gap.fileId) {
-      setError("Documento non trovato.");
+      setError(t("archive.gapDocNotFound"));
       return;
     }
     onSubmit({
@@ -251,7 +259,7 @@ function GapUpdateModal({
   const submitPrice = () => {
     const value = Number(price.replace(",", "."));
     if (!gap.partCode || !Number.isFinite(value) || value <= 0) {
-      setError("Inserisci un prezzo valido (> 0).");
+      setError(t("archive.gapInvalidPrice"));
       return;
     }
     onSubmit({ kind: "set_price", partCode: gap.partCode, price: value });
@@ -272,7 +280,7 @@ function GapUpdateModal({
         <div className="mb-3 flex items-start justify-between gap-3">
           <div>
             <p id={titleId} className="text-sm font-semibold text-ink">
-              Aggiorna — {gap.title}
+              {t("archive.gapUpdateTitle", { title: gap.title })}
             </p>
             <p className="mt-0.5 text-[11px] text-ink-muted">{gap.detail}</p>
           </div>
@@ -281,14 +289,14 @@ function GapUpdateModal({
             onClick={onClose}
             className="rounded-lg px-2 py-1 text-xs text-ink-faint hover:text-ink"
           >
-            Chiudi
+            {t("common.close")}
           </button>
         </div>
 
         {action === "set_codice" && !askAll && (
           <div className="space-y-3">
             <label className="block text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
-              Codice ricambio
+              {t("archive.gapPartCode")}
             </label>
             <input
               autoFocus
@@ -307,13 +315,13 @@ function GapUpdateModal({
                 onClick={onClose}
                 className="rounded-lg px-3 py-1.5 text-sm text-ink-faint hover:text-ink"
               >
-                Annulla
+                {t("common.cancel")}
               </button>
               <button
                 type="button"
                 onClick={() => {
                   if (!code.trim()) {
-                    setError("Inserisci un codice ricambio.");
+                    setError(t("archive.gapEnterCode"));
                     return;
                   }
                   setAskAll(true);
@@ -321,7 +329,7 @@ function GapUpdateModal({
                 }}
                 className="rounded-lg bg-brand px-3 py-1.5 text-sm font-semibold text-white hover:bg-brand-strong"
               >
-                Continua
+                {t("archive.gapContinue")}
               </button>
             </div>
           </div>
@@ -330,13 +338,11 @@ function GapUpdateModal({
         {action === "set_codice" && askAll && (
           <div className="space-y-3">
             <p className="text-sm text-ink">
-              Codice inserito:{" "}
+              {t("archive.gapCodeEntered")}{" "}
               <span className="font-semibold text-brand">{code.trim()}</span>
             </p>
             <p className="text-sm text-ink-muted">
-              Vuoi aggiornare il codice su{" "}
-              <span className="font-medium text-ink">tutti i documenti</span>{" "}
-              senza codice, oppure solo su questo file?
+              {t("archive.gapUpdateAllQ")}
             </p>
             {error && <p className="text-[11px] text-warn">{error}</p>}
             <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-border bg-surface/50 px-3 py-2 text-sm text-ink">
@@ -347,9 +353,9 @@ function GapUpdateModal({
                 className="mt-1"
               />
               <span>
-                Aggiorna su tutti i documenti senza codice
+                {t("archive.gapUpdateAllDocs")}
                 <span className="mt-0.5 block text-[11px] text-ink-faint">
-                  Se deselezionato, aggiorna solo il documento di questa segnalazione.
+                  {t("archive.gapUpdateAllHint")}
                 </span>
               </span>
             </label>
@@ -359,14 +365,14 @@ function GapUpdateModal({
                 onClick={() => setAskAll(false)}
                 className="rounded-lg px-3 py-1.5 text-sm text-ink-faint hover:text-ink"
               >
-                Indietro
+                {t("common.back")}
               </button>
               <button
                 type="button"
                 onClick={() => submitCodice(applyToAll)}
                 className="rounded-lg bg-brand px-3 py-1.5 text-sm font-semibold text-white hover:bg-brand-strong"
               >
-                Conferma aggiornamento
+                {t("archive.gapConfirmUpdate")}
               </button>
             </div>
           </div>
@@ -375,7 +381,7 @@ function GapUpdateModal({
         {action === "set_price" && (
           <div className="space-y-3">
             <label className="block text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
-              Prezzo unitario (€) — {gap.partCode}
+              {t("archive.gapUnitPrice", { code: gap.partCode ?? "" })}
             </label>
             <input
               autoFocus
@@ -396,14 +402,14 @@ function GapUpdateModal({
                 onClick={onClose}
                 className="rounded-lg px-3 py-1.5 text-sm text-ink-faint hover:text-ink"
               >
-                Annulla
+                {t("common.cancel")}
               </button>
               <button
                 type="button"
                 onClick={submitPrice}
                 className="rounded-lg bg-brand px-3 py-1.5 text-sm font-semibold text-white hover:bg-brand-strong"
               >
-                Salva prezzo
+                {t("archive.gapSavePrice")}
               </button>
             </div>
           </div>
@@ -412,8 +418,7 @@ function GapUpdateModal({
         {action === "search" && (
           <div className="space-y-3">
             <p className="text-sm text-ink-muted">
-              Apri l&apos;archivio sulla voce correlata per verificare o caricare i
-              documenti mancanti.
+              {t("archive.gapSearchHint")}
             </p>
             <div className="flex flex-wrap justify-end gap-2">
               <button
@@ -421,7 +426,7 @@ function GapUpdateModal({
                 onClick={onClose}
                 className="rounded-lg px-3 py-1.5 text-sm text-ink-faint hover:text-ink"
               >
-                Chiudi
+                {t("common.close")}
               </button>
               {gap.searchQuery && onSearch && (
                 <button
@@ -432,7 +437,7 @@ function GapUpdateModal({
                   }}
                   className="rounded-lg bg-brand px-3 py-1.5 text-sm font-semibold text-white hover:bg-brand-strong"
                 >
-                  Vai al documento
+                  {t("archive.gapGoToDoc")}
                 </button>
               )}
             </div>
