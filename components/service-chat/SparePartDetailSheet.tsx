@@ -17,6 +17,7 @@ import {
   type SubstituteReason,
 } from "@/lib/sparePartSubstitutes";
 import { sparePartSheetPath } from "@/lib/sparePartSheet";
+import { exampleLeadTimeDays } from "@/lib/exampleLeadTime";
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object"
@@ -192,8 +193,6 @@ export function SparePartDetailSheet({
     pickString(catalog, "macchinaCompatibile", "compatibleMachine") ??
     part.compatibleMachine;
   const price = pickNumber(catalog, "prezzoListino", "price") ?? part.price;
-  const lead =
-    pickNumber(catalog, "leadTimeGiorni", "leadTimeDays") ?? part.leadTimeDays;
   const availableRaw = catalog
     ? catalog.disponibile ?? catalog.available
     : part.availability === "disponibile";
@@ -204,6 +203,17 @@ export function SparePartDetailSheet({
   const statusRaw = pickString(catalog, "stato", "status");
   const statusKey = (statusRaw ?? "").toLowerCase();
   const isObsolete = statusKey === "obsoleto";
+  const lead =
+    pickNumber(catalog, "leadTimeGiorni", "leadTimeDays") ??
+    part.leadTimeDays ??
+    exampleLeadTimeDays({
+      codice: part.code,
+      categoria: category,
+      descrizione: description,
+      nome: name,
+      disponibile: available,
+      stato: statusRaw,
+    });
   const statusLabel =
     statusKey === "obsoleto"
       ? t("spare.statusObsolete")

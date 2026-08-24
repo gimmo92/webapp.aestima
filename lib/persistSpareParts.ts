@@ -3,6 +3,8 @@ import type { Prisma } from "@/lib/generated/prisma/client";
 import type { SparePart } from "@/lib/sparePartTypes";
 import { mapSparePart } from "@/lib/workspace/mappers";
 import { applyDiscontinuedToSparePart, cleanupDiscontinuedSpareParts } from "@/lib/discontinuedSparePart";
+import { exampleLeadTimeDays } from "@/lib/exampleLeadTime";
+import { fillMissingLeadTimes } from "@/lib/fillMissingLeadTimes";
 
 const UPSERT_CHUNK = 25;
 
@@ -28,7 +30,6 @@ function sparePartWriteData(p: SparePart) {
     codiceFornitore: part.codiceFornitore?.trim() || null,
     brand: part.brand?.trim() || null,
     produttore: part.produttore?.trim() || null,
-    leadTimeGiorni: intOrNull(part.leadTimeGiorni),
     macchinaCompatibile: part.macchinaCompatibile?.trim() || null,
     disponibile: part.disponibile ?? null,
     stato: part.stato || "attivo",
@@ -52,6 +53,7 @@ export async function persistSparePartsForCompany(
     for (const p of chunk) {
       if (!p.codice?.trim()) continue;
       const data = sparePartWriteData(p);
+      const leadTimeGiorni = intOrNull(p.leadTimeGiorni);
       try {
         await prisma.sparePart.upsert({
           where: {
@@ -61,8 +63,12 @@ export async function persistSparePartsForCompany(
             companyId,
             codice: p.codice,
             ...data,
+            leadTimeGiorni: leadTimeGiorni ?? exampleLeadTimeDays(p),
           },
-          update: data,
+          update: {
+            ...data,
+            ...(leadTimeGiorni != null ? { leadTimeGiorni } : {}),
+          },
         });
       } catch (err) {
         console.error("spare upsert fail", p.codice, err);
@@ -71,6 +77,7 @@ export async function persistSparePartsForCompany(
     }
   }
   await cleanupDiscontinuedSpareParts(companyId);
+  await fillMissingLeadTimes(companyId);
   const saved = await prisma.sparePart.findMany({
     where: { companyId },
     orderBy: { codice: "asc" },

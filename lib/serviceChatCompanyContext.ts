@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { DEMO_COMPANY_SLUG } from "@/lib/workspace/seed";
+import { exampleLeadTimeDays } from "./exampleLeadTime";
 import { SERVICE_MACHINES, type ChatMachine } from "./serviceChatData";
 import type { SparePartProposal } from "./serviceChatTypes";
 
@@ -27,6 +28,7 @@ type SpareRow = {
   macchinaCompatibile: string | null;
   disponibile: boolean | null;
   fornitore: string | null;
+  leadTimeGiorni: number | null;
 };
 
 export function machinesFromCompatibleLabels(
@@ -288,6 +290,10 @@ function hitsToProposals(
     description: (r.descrizione || r.nome || r.codice).slice(0, 180),
     price: r.prezzoListino ?? 0,
     availability: r.disponibile === false ? "da_ordinare" : "disponibile",
+    leadTimeDays:
+      r.leadTimeGiorni && r.leadTimeGiorni > 0
+        ? r.leadTimeGiorni
+        : exampleLeadTimeDays(r),
     confidence: rowHasExactCode(r, query)
       ? 100
       : scoreToConfidence(s, i, topScore),
@@ -339,7 +345,10 @@ function mergePartFields(
     category: overlay.category || catalog.category,
     unit: overlay.unit || catalog.unit,
     compatibleMachine: overlay.compatibleMachine || catalog.compatibleMachine,
-    leadTimeDays: overlay.leadTimeDays ?? catalog.leadTimeDays,
+    leadTimeDays:
+      overlay.leadTimeDays && overlay.leadTimeDays > 0
+        ? overlay.leadTimeDays
+        : catalog.leadTimeDays,
     description:
       overlay.description?.trim() || catalog.description,
   };
@@ -452,6 +461,7 @@ const CATALOG_SELECT = {
   macchinaCompatibile: true,
   disponibile: true,
   fornitore: true,
+  leadTimeGiorni: true,
 } as const;
 
 function mergeRows(base: SpareRow[], extra: SpareRow[]): SpareRow[] {
@@ -559,7 +569,7 @@ ${
       ? `Voci più pertinenti alla richiesta (ranking testuale, da verificare sulla foto):\n${catalogHits
           .map(
             (h) =>
-              `- ${h.code}: ${h.description}${h.confidence != null ? ` | confidenza ${h.confidence}%` : ""}`
+              `- ${h.code}: ${h.description}${h.leadTimeDays ? ` | LT ${h.leadTimeDays} gg` : ""}${h.confidence != null ? ` | confidenza ${h.confidence}%` : ""}`
           )
           .join("\n")}`
       : "(Nessun match testuale forte. Identifica il tipo di pezzo dalla foto e proponi SOLO voci dello stesso tipo. Se non ci sono, spareParts=null.)"

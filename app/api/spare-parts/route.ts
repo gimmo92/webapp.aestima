@@ -3,6 +3,7 @@ import { getCurrentUser } from "@/lib/auth/user";
 import { prisma } from "@/lib/prisma";
 import { mapSparePart } from "@/lib/workspace/mappers";
 import { cleanupDiscontinuedSpareParts } from "@/lib/discontinuedSparePart";
+import { fillMissingLeadTimes } from "@/lib/fillMissingLeadTimes";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -15,6 +16,7 @@ export async function GET() {
 
   try {
     await cleanupDiscontinuedSpareParts(me.companyId);
+    await fillMissingLeadTimes(me.companyId);
     const rows = await prisma.sparePart.findMany({
       where: { companyId: me.companyId },
       orderBy: { codice: "asc" },

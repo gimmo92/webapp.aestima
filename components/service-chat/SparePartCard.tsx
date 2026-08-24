@@ -182,6 +182,16 @@ export function SparePartCard({
               {euro(part.price)}
             </span>
           </div>
+          {part.leadTimeDays != null && part.leadTimeDays > 0 && (
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
+                {t("spare.leadTime")}
+              </span>
+              <span className="text-sm font-semibold text-ink">
+                {t("spare.leadTimeDays", { n: part.leadTimeDays })}
+              </span>
+            </div>
+          )}
         </div>
       </div>
     </div>
