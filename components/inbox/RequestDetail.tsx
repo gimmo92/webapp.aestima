@@ -18,6 +18,12 @@ import { useInbox } from "./InboxProvider";
 import { TechnicianPickerModal } from "@/components/technicians/TechnicianPickerModal";
 import { TechnicianAssignmentStatusPill } from "@/components/technicians/TechnicianBadges";
 import { TechnicianContactButtons } from "@/components/technicians/TechnicianContactButtons";
+import { addToQuoteDraft } from "@/lib/quoteDraft";
+import {
+  extractRequestedQty,
+  findCatalogPartInText,
+  isSparePartOfferable,
+} from "@/lib/inboxCatalogMatch";
 
 // COLONNA DESTRA — dettaglio richiesta + pannello agente aftercore.
 
@@ -40,6 +46,7 @@ export function RequestDetail({
 }: Props) {
   const router = useRouter();
   const {
+    spareParts,
     technicians,
     createTechnicianAssignment,
     getTechnicianAssignmentForRequest,
@@ -60,6 +67,20 @@ export function RequestDetail({
   const assignedTech = useMemo(
     () => technicians.find((t) => t.id === assignment?.technicianId),
     [technicians, assignment?.technicianId]
+  );
+
+  const catalogPart = useMemo(
+    () =>
+      request
+        ? findCatalogPartInText(
+            `${request.subject}\n${request.body}`,
+            spareParts
+          )
+        : null,
+    [request, spareParts]
+  );
+  const canCreateOffer = Boolean(
+    catalogPart && isSparePartOfferable(catalogPart)
   );
 
   const technicianSubject = request
@@ -127,6 +148,17 @@ export function RequestDetail({
       ],
     });
     router.push(`/ticket/lista?id=${encodeURIComponent(ticketId)}`);
+  };
+
+  const handleCreateOffer = () => {
+    if (!request || !catalogPart || !canCreateOffer) return;
+    addToQuoteDraft({
+      code: catalogPart.codice,
+      description: catalogPart.nome || catalogPart.descrizione,
+      unitPrice: catalogPart.prezzoListino ?? 0,
+      qty: extractRequestedQty(`${request.subject}\n${request.body}`),
+    });
+    router.push("/crea?draft=1");
   };
 
   if (!request) {
@@ -374,10 +406,40 @@ export function RequestDetail({
             </div>
           )}
 
+          {canCreateOffer && (
+            <button
+              type="button"
+              onClick={handleCreateOffer}
+              className="ml-auto inline-flex items-center gap-2 rounded-xl bg-brand px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-brand/20 transition-all hover:bg-brand-strong"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path
+                  d="M7 3h8l4 4v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="M14 3v5h5M8 13h8M8 17h5"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              Crea offerta
+            </button>
+          )}
+
           <button
             type="button"
             onClick={handleCreateTicket}
-            className="ml-auto inline-flex items-center gap-2 rounded-xl bg-brand px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-brand/20 transition-all hover:bg-brand-strong"
+            className={[
+              "inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all",
+              canCreateOffer
+                ? "border border-border bg-base text-ink hover:border-border-strong"
+                : "ml-auto bg-brand text-white shadow-lg shadow-brand/20 hover:bg-brand-strong",
+            ].join(" ")}
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path

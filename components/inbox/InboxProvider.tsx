@@ -70,6 +70,7 @@ import {
   normalizeTicketForm,
   type TicketFormConfig,
 } from "@/lib/ticketForm";
+import type { SparePart } from "@/lib/sparePartTypes";
 
 const TICKET_STAGES_STORAGE_KEY = "aftercore:ticket-stages:v1";
 
@@ -116,6 +117,7 @@ export interface CreateTechnicianAssignmentInput {
 
 interface InboxContextValue {
   requests: PartRequest[];
+  spareParts: SparePart[];
   labels: Label[];
   selectedId: string | null;
   setSelectedId: (id: string | null) => void;
@@ -252,6 +254,7 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
     null
   );
   const [knowledgeBase, setKnowledgeBase] = useState<KnowledgeEntry[]>([]);
+  const [spareParts, setSpareParts] = useState<SparePart[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -311,6 +314,7 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
         setTechnicians(data.technicians ?? []);
         setTechnicianAssignments(data.technicianAssignments ?? []);
         setInterventionReports(data.interventionReports ?? []);
+        setSpareParts(data.spareParts ?? []);
         setSelectedId(data.requests?.[0]?.id ?? null);
         finish(true);
       } catch {
@@ -937,6 +941,7 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
     <InboxContext.Provider
       value={{
         requests,
+        spareParts,
         labels,
         selectedId,
         setSelectedId,

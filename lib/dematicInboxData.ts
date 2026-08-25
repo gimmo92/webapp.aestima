@@ -3,6 +3,20 @@ import type { PartRequest } from "./inboxTypes";
 /** Email demo inbox ticketing Dematic — ricambi catalogo Radwell. */
 export const DEMATIC_INBOX_EMAILS: PartRequest[] = [
   {
+    id: "dematic-req-003",
+    from: "Andrea Moretti",
+    fromEmail: "a.moretti@packlogistic.it",
+    company: "Pack Logistic Emilia S.r.l.",
+    subject: "Offerta pignone 04811-51528 — conveyor DC Parma",
+    body:
+      "Buongiorno,\n\nci servono 4 pz del pignone Siemens 04811-51528 (Sprocket, steel, 15 teeth, 1-7/16 inch bore) per il conveyor del DC Parma.\n\nIl codice è a catalogo Radwell Dematic e risulta disponibile. Potete prepararci un'offerta con prezzo e lead time?\n\nGrazie,\nAndrea Moretti — Manutenzione",
+    receivedLabel: "10:41",
+    receivedFull: "Oggi, 10:41",
+    status: "nuova",
+    labelIds: [],
+    primary: true,
+  },
+  {
     id: "dematic-req-001",
     from: "Marco Benedetti",
     fromEmail: "m.benedetti@interportoverona.it",

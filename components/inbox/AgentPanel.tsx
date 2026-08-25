@@ -1,10 +1,17 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { matchAnalysisToData } from "@/lib/match";
 import { mockAnalyze } from "@/lib/mockAnalyze";
 import { buildQuote, euro } from "@/lib/quote";
+import { addToQuoteDraft } from "@/lib/quoteDraft";
+import {
+  extractRequestedQty,
+  findCatalogPartInText,
+  isSparePartOfferable,
+} from "@/lib/inboxCatalogMatch";
 import {
   buildCustomerReply,
   buildInfoRequestReply,
@@ -35,7 +42,9 @@ interface Props {
 }
 
 export function AgentPanel({ request, onApproveSend }: Props) {
+  const router = useRouter();
   const {
+    spareParts,
     createSupplierRequests,
     createTechnicianAssignment,
     getTechnicianAssignmentForRequest,
@@ -168,16 +177,44 @@ export function AgentPanel({ request, onApproveSend }: Props) {
     }
   };
 
+  const catalogPart = useMemo(
+    () =>
+      findCatalogPartInText(
+        `${request.subject}\n${request.body}`,
+        spareParts
+      ),
+    [request.subject, request.body, spareParts]
+  );
+  const catalogQty = useMemo(
+    () => extractRequestedQty(`${request.subject}\n${request.body}`),
+    [request.subject, request.body]
+  );
+  const canCreateOffer = Boolean(
+    catalogPart && isSparePartOfferable(catalogPart)
+  );
+
   const missingPart = match?.availability === "da_ordinare";
-  const identified = Boolean(match?.machine && match?.component && quote);
+  const identifiedBom = Boolean(match?.machine && match?.component && quote);
+  const identified = identifiedBom || Boolean(catalogPart);
   const needsMoreInfo = Boolean(analysis && !identified);
   const suggestedCapabilities = match?.machine
     ? capabilitiesForMachineCategory(match.machine.category)
     : [];
   const technicianSubject = buildTechnicianSubject(
     request,
-    match?.component?.code
+    catalogPart?.codice ?? match?.component?.code
   );
+
+  const handleCreateOffer = () => {
+    if (!catalogPart || !canCreateOffer) return;
+    addToQuoteDraft({
+      code: catalogPart.codice,
+      description: catalogPart.nome || catalogPart.descrizione,
+      unitPrice: catalogPart.prezzoListino ?? 0,
+      qty: catalogQty,
+    });
+    router.push("/crea?draft=1");
+  };
 
   return (
     <div className="mt-5">
@@ -199,7 +236,44 @@ export function AgentPanel({ request, onApproveSend }: Props) {
         <div className="space-y-4">
           {/* Card ricambio identificato */}
           <div className="rounded-xl border border-border bg-base/60 p-4">
-            {identified && match?.machine && match?.component && quote ? (
+            {catalogPart ? (
+              <>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Field label="Componente">
+                    <p className="font-medium text-ink">
+                      {catalogPart.nome || catalogPart.descrizione}
+                    </p>
+                    <p className="font-mono text-xs text-brand">
+                      {catalogPart.codice}
+                    </p>
+                  </Field>
+                  <Field label="Prezzo di listino">
+                    <p className="font-medium text-ink">
+                      {catalogPart.prezzoListino != null
+                        ? euro(catalogPart.prezzoListino)
+                        : "—"}
+                    </p>
+                    <p className="text-xs text-ink-faint">
+                      {catalogQty} pz
+                      {catalogPart.disponibile === false
+                        ? " · da ordinare"
+                        : " · disponibile"}
+                    </p>
+                  </Field>
+                </div>
+                {canCreateOffer && (
+                  <div className="mt-3 border-t border-border pt-3">
+                    <button
+                      type="button"
+                      onClick={handleCreateOffer}
+                      className="inline-flex items-center justify-center gap-2 rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-brand/20 transition-colors hover:bg-brand-strong"
+                    >
+                      Crea offerta
+                    </button>
+                  </div>
+                )}
+              </>
+            ) : identifiedBom && match?.machine && match?.component && quote ? (
               <>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <Field label="Macchina">
@@ -380,7 +454,7 @@ export function AgentPanel({ request, onApproveSend }: Props) {
           )}
 
           {/* Bozza risposta cliente — modificabile */}
-          {identified && (
+          {identifiedBom && (
             <DraftBox
               tone="brand"
               icon="reply"
