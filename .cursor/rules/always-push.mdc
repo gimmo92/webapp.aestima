@@ -1,8 +1,10 @@
 ---
-description: Dopo ogni commit, pushare sempre su origin
+description: Dopo ogni modifica, commit e push su origin senza aspettare
 alwaysApply: true
 ---
 
-# Push automatico
+# Commit e push automatici
 
-Quando crei un commit in questo repo, fai subito `git push` su `origin` (branch corrente, no force su main/master). Non aspettare che l'utente lo chieda di nuovo. Vale per ogni commit, anche se l'utente non ha detto "push".
+Dopo ogni modifica in questo repo, fai subito commit e `git push` su `origin` (branch corrente, no force su main/master). Non aspettare che l'utente lo chieda di nuovo.
+
+Vale per ogni intervento, anche se l'utente non ha detto "commit" o "push".

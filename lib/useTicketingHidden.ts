@@ -8,7 +8,7 @@ import {
   type CompanyNavRef,
 } from "@/lib/companyFeatures";
 
-/** True finché non sappiamo la company, poi segue Dematic / altre. */
+/** True solo se la company è in lista nascosta; false finché non è nota. */
 export function useTicketingHidden(fallbackName?: string): boolean {
   const [company, setCompany] = useState<CompanyNavRef | null>(null);
   const [known, setKnown] = useState(false);
@@ -41,7 +41,7 @@ export function useTicketingHidden(fallbackName?: string): boolean {
     };
   }, []);
 
-  if (!known) return true;
+  if (!known) return false;
   return isTicketingHiddenForCompany({
     slug: company?.slug,
     name: company?.name || fallbackName,

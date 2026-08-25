@@ -1,5 +1,5 @@
-/** Company per cui il ticketing è nascosto in UI (temporaneo). */
-const TICKETING_HIDDEN_SLUGS = new Set(["dematic"]);
+/** Company per cui il ticketing è nascosto in UI. */
+const TICKETING_HIDDEN_SLUGS = new Set<string>([]);
 
 export type CompanyNavRef = {
   slug?: string | null;
@@ -12,9 +12,7 @@ export function isTicketingHiddenForCompany(
   company?: CompanyNavRef | null
 ): boolean {
   const slug = (company?.slug ?? "").trim().toLowerCase();
-  if (slug && TICKETING_HIDDEN_SLUGS.has(slug)) return true;
-  const name = (company?.name ?? "").trim().toLowerCase();
-  return name.includes("dematic");
+  return Boolean(slug) && TICKETING_HIDDEN_SLUGS.has(slug);
 }
 
 export function readCachedCompany(): CompanyNavRef | null {
