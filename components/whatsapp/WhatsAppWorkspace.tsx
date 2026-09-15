@@ -36,10 +36,17 @@ import {
   IconVideo,
 } from "./WaIcons";
 
-// Sfondo della conversazione: pattern discreto in stile "doodle" WhatsApp.
-const WALLPAPER_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="240" height="240" viewBox="0 0 240 240"><g fill="none" stroke="#d3cbbd" stroke-width="2" stroke-linecap="round" opacity="0.55"><circle cx="34" cy="30" r="9"/><path d="M28 30h12M34 24v12"/><path d="M92 22c6-6 16-6 22 0"/><rect x="150" y="18" width="20" height="14" rx="3"/><path d="M196 36c0-8 6-14 14-14"/><circle cx="60" cy="86" r="7"/><path d="M110 78h22M121 72v14"/><path d="M168 82c6 4 6 12 0 16"/><rect x="20" y="140" width="18" height="18" rx="4"/><path d="M76 146c8 0 14 6 14 14"/><circle cx="134" cy="150" r="10"/><path d="M186 142v18M178 152h16"/><path d="M40 200c8-8 20-8 28 0"/><rect x="104" y="196" width="22" height="12" rx="6"/><circle cx="176" cy="204" r="8"/><path d="M212 194v16"/></g></svg>`;
-
-const WALLPAPER = `url("data:image/svg+xml,${encodeURIComponent(WALLPAPER_SVG)}")`;
+// Sfondo della conversazione: mask ufficiale WhatsApp (doodle) colorata via CSS.
+const WALLPAPER_MASK: React.CSSProperties = {
+  maskImage: "url(/whatsapp/chat-bg.svg)",
+  WebkitMaskImage: "url(/whatsapp/chat-bg.svg)",
+  maskRepeat: "repeat",
+  WebkitMaskRepeat: "repeat",
+  maskSize: "374px 666px",
+  WebkitMaskSize: "374px 666px",
+  backgroundColor: "#0b141a",
+  opacity: 0.06,
+};
 
 type ListFilter = "all" | "unread" | "favorites";
 
@@ -350,32 +357,37 @@ export function WhatsAppWorkspace() {
           </div>
         </header>
 
-        <div
-          className="min-h-0 flex-1 overflow-y-auto bg-[#efeae2] px-[5%] py-5"
-          style={{ backgroundImage: WALLPAPER }}
-        >
-          <div className="mx-auto flex max-w-[60rem] flex-col gap-2">
-            <p className="mx-auto mb-2 max-w-[34rem] rounded-lg bg-[#ffeecd] px-3 py-2 text-center text-[12.5px] text-[#54656f] shadow-sm">
-              Richieste di assistenza macchinari ricevute su WhatsApp Business.
-              Dati dimostrativi.
-            </p>
-            {activeChat.messages.map((message) => (
-              <div key={message.id}>
-                {message.dayLabel ? (
-                  <div className="my-3 flex justify-center">
-                    <span className="rounded-lg bg-white px-3 py-1 text-[12px] font-medium uppercase tracking-wide text-[#54656f] shadow-sm">
-                      {message.dayLabel}
-                    </span>
-                  </div>
-                ) : null}
-                <MessageRow
-                  message={message}
-                  chat={activeChat}
-                  showAuthor={Boolean(activeChat.isGroup)}
-                />
-              </div>
-            ))}
-            <div ref={bottomRef} />
+        <div className="relative min-h-0 flex-1 bg-[#efeae2]">
+          {/* Livello doodle: resta fisso mentre i messaggi scorrono. */}
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-0"
+            style={WALLPAPER_MASK}
+          />
+          <div className="relative h-full overflow-y-auto px-[5%] py-5">
+            <div className="mx-auto flex max-w-[60rem] flex-col gap-2">
+              <p className="mx-auto mb-2 max-w-[34rem] rounded-lg bg-[#ffeecd] px-3 py-2 text-center text-[12.5px] text-[#54656f] shadow-sm">
+                Richieste di assistenza macchinari ricevute su WhatsApp
+                Business. Dati dimostrativi.
+              </p>
+              {activeChat.messages.map((message) => (
+                <div key={message.id}>
+                  {message.dayLabel ? (
+                    <div className="my-3 flex justify-center">
+                      <span className="rounded-lg bg-white px-3 py-1 text-[12px] font-medium uppercase tracking-wide text-[#54656f] shadow-sm">
+                        {message.dayLabel}
+                      </span>
+                    </div>
+                  ) : null}
+                  <MessageRow
+                    message={message}
+                    chat={activeChat}
+                    showAuthor={Boolean(activeChat.isGroup)}
+                  />
+                </div>
+              ))}
+              <div ref={bottomRef} />
+            </div>
           </div>
         </div>
 
