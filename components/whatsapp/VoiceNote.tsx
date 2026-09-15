@@ -82,7 +82,7 @@ export function VoiceNote({
         type="button"
         onClick={toggle}
         aria-label={playing ? "Metti in pausa" : "Riproduci messaggio vocale"}
-        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[#54656f] transition hover:bg-black/5"
+        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[#5e5b58] transition hover:bg-black/5"
       >
         {playing ? <IconPause size={22} /> : <IconPlay size={22} />}
       </button>
@@ -97,17 +97,17 @@ export function VoiceNote({
                 height: `${Math.round(height * 26)}px`,
                 backgroundColor:
                   index < playedBars
-                    ? "#00a884"
+                    ? "#1dab61"
                     : outgoing
-                      ? "#9fc7a4"
-                      : "#c7d0d4",
+                      ? "#a4cfa8"
+                      : "#cfcac4",
               }}
             />
           ))}
         </div>
-        <div className="mt-0.5 flex items-center gap-2 text-[11px] text-[#667781]">
+        <div className="mt-0.5 flex items-center gap-2 text-[11px] text-[#7b7673]">
           <span>{formatAudioDuration(playing || elapsed > 0 ? elapsed : duration)}</span>
-          <IconMic size={14} className={playing ? "text-[#00a884]" : "text-[#8696a0]"} />
+          <IconMic size={14} className={playing ? "text-[#1dab61]" : "text-[#8e8b89]"} />
         </div>
       </div>
 

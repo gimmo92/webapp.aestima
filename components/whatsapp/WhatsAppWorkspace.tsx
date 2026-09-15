@@ -45,7 +45,8 @@ const WALLPAPER_MASK: React.CSSProperties = {
   maskSize: "374px 666px",
   WebkitMaskSize: "374px 666px",
   backgroundColor: "#0b141a",
-  opacity: 0.06,
+  // 0.095 su #f5f2eb dà lo stesso grigio dei doodle di WhatsApp Web (~#dedbd4).
+  opacity: 0.095,
 };
 
 type ListFilter = "all" | "unread" | "favorites";
@@ -250,20 +251,20 @@ export function WhatsAppWorkspace() {
   }
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-[#f0f2f5] text-[#111b21]">
+    <div className="flex h-screen w-full overflow-hidden bg-[#f6f5f3] text-[#111b21]">
       <RailSidebar unreadTotal={unreadTotal} />
 
-      <section className="flex w-[30rem] min-w-[22rem] shrink-0 flex-col border-r border-[#e9edef] bg-white">
+      <section className="flex w-[30rem] min-w-[22rem] shrink-0 flex-col border-r border-[#f0ece9] bg-white">
         <header className="flex items-center justify-between px-5 pt-5 pb-1.5">
           <h1 className="text-[1.6rem] font-bold tracking-tight">Chat</h1>
-          <div className="flex items-center gap-1 text-[#54656f]">
+          <div className="flex items-center gap-1 text-[#5e5b58]">
             <InertButton label="Menu">
               <IconMenu size={20} />
             </InertButton>
             <button
               type="button"
               aria-label="Nuova chat"
-              className="ml-1 flex h-9 w-9 items-center justify-center rounded-xl bg-[#00a884] text-white shadow-sm transition hover:bg-[#02916f]"
+              className="ml-1 flex h-9 w-9 items-center justify-center rounded-xl bg-[#1dab61] text-white shadow-sm transition hover:bg-[#199a57]"
             >
               <IconNewChat size={20} />
             </button>
@@ -271,13 +272,13 @@ export function WhatsAppWorkspace() {
         </header>
 
         <div className="px-3 py-2">
-          <div className="flex items-center gap-3 rounded-full bg-[#f0f2f5] px-4 py-2">
-            <IconSearch size={18} className="text-[#54656f]" />
+          <div className="flex items-center gap-3 rounded-full bg-[#f6f5f3] px-4 py-2">
+            <IconSearch size={18} className="text-[#5e5b58]" />
             <input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Cerca o avvia una nuova chat"
-              className="min-w-0 flex-1 bg-transparent text-[14px] outline-none placeholder:text-[#8696a0]"
+              className="min-w-0 flex-1 bg-transparent text-[14px] outline-none placeholder:text-[#8e8b89]"
             />
           </div>
         </div>
@@ -294,8 +295,8 @@ export function WhatsAppWorkspace() {
                 onClick={() => setFilter(item.id)}
                 className={`rounded-full px-3 py-1 text-[13px] font-medium transition ${
                   active
-                    ? "bg-[#d9fdd3] text-[#046a4f]"
-                    : "bg-[#f0f2f5] text-[#54656f] hover:bg-[#e9edef]"
+                    ? "bg-[#d9fdd3] text-[#3d7454]"
+                    : "bg-[#f6f5f3] text-[#5e5b58] hover:bg-[#f0ece9]"
                 }`}
               >
                 {item.label}
@@ -310,7 +311,7 @@ export function WhatsAppWorkspace() {
 
         <div className="min-h-0 flex-1 overflow-y-auto">
           {visibleChats.length === 0 ? (
-            <p className="px-6 py-10 text-center text-[13px] text-[#8696a0]">
+            <p className="px-6 py-10 text-center text-[13px] text-[#8e8b89]">
               Nessuna chat trovata.
             </p>
           ) : (
@@ -327,7 +328,7 @@ export function WhatsAppWorkspace() {
       </section>
 
       <section className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-center gap-3 border-b border-[#e9edef] bg-[#f0f2f5] px-4 py-2.5">
+        <header className="flex items-center gap-3 border-b border-[#f0ece9] bg-white px-4 py-2.5">
           <Avatar
             initials={activeChat.initials}
             color={activeChat.avatarColor}
@@ -337,11 +338,11 @@ export function WhatsAppWorkspace() {
             <p className="truncate text-[16px] font-medium leading-tight">
               {activeChat.name}
             </p>
-            <p className="truncate text-[12.5px] text-[#667781]">
+            <p className="truncate text-[12.5px] text-[#7b7673]">
               {activeChat.presence}
             </p>
           </div>
-          <div className="flex items-center gap-1 text-[#54656f]">
+          <div className="flex items-center gap-1 text-[#5e5b58]">
             <InertButton label="Videochiamata">
               <IconVideo size={21} />
             </InertButton>
@@ -357,7 +358,7 @@ export function WhatsAppWorkspace() {
           </div>
         </header>
 
-        <div className="relative min-h-0 flex-1 bg-[#efeae2]">
+        <div className="relative min-h-0 flex-1 bg-[#f5f2eb]">
           {/* Livello doodle: resta fisso mentre i messaggi scorrono. */}
           <div
             aria-hidden
@@ -366,7 +367,7 @@ export function WhatsAppWorkspace() {
           />
           <div className="relative h-full overflow-y-auto px-[5%] py-5">
             <div className="mx-auto flex max-w-[60rem] flex-col gap-2">
-              <p className="mx-auto mb-2 max-w-[34rem] rounded-lg bg-[#ffeecd] px-3 py-2 text-center text-[12.5px] text-[#54656f] shadow-sm">
+              <p className="mx-auto mb-2 max-w-[34rem] rounded-lg bg-[#ffeecd] px-3 py-2 text-center text-[12.5px] text-[#5e5b58] shadow-sm">
                 Richieste di assistenza macchinari ricevute su WhatsApp
                 Business. Dati dimostrativi.
               </p>
@@ -374,7 +375,7 @@ export function WhatsAppWorkspace() {
                 <div key={message.id}>
                   {message.dayLabel ? (
                     <div className="my-3 flex justify-center">
-                      <span className="rounded-lg bg-white px-3 py-1 text-[12px] font-medium uppercase tracking-wide text-[#54656f] shadow-sm">
+                      <span className="rounded-lg bg-white px-3 py-1 text-[12px] font-medium uppercase tracking-wide text-[#5e5b58] shadow-sm">
                         {message.dayLabel}
                       </span>
                     </div>
@@ -391,7 +392,7 @@ export function WhatsAppWorkspace() {
           </div>
         </div>
 
-        <footer className="relative border-t border-[#e9edef] bg-[#f0f2f5] px-4 py-2.5">
+        <footer className="relative border-t border-[#f0ece9] bg-white px-4 py-2.5">
           {micError ? (
             <p className="mb-2 rounded-md bg-[#fdecea] px-3 py-1.5 text-[12.5px] text-[#b3261e]">
               {micError}
@@ -429,7 +430,7 @@ export function WhatsAppWorkspace() {
                 type="button"
                 onClick={() => stopRecording(true)}
                 aria-label="Annulla registrazione"
-                className="flex h-10 w-10 items-center justify-center rounded-full text-[#54656f] transition hover:bg-black/5"
+                className="flex h-10 w-10 items-center justify-center rounded-full text-[#5e5b58] transition hover:bg-black/5"
               >
                 <IconTrash size={21} />
               </button>
@@ -438,7 +439,7 @@ export function WhatsAppWorkspace() {
                 <span className="font-mono text-[14px] text-[#111b21]">
                   {formatAudioDuration(recordSeconds)}
                 </span>
-                <span className="text-[13px] text-[#8696a0]">
+                <span className="text-[13px] text-[#8e8b89]">
                   Registrazione in corso…
                 </span>
               </div>
@@ -446,7 +447,7 @@ export function WhatsAppWorkspace() {
                 type="button"
                 onClick={() => stopRecording(false)}
                 aria-label="Invia messaggio vocale"
-                className="flex h-11 w-11 items-center justify-center rounded-full bg-[#00a884] text-white transition hover:bg-[#02916f]"
+                className="flex h-11 w-11 items-center justify-center rounded-full bg-[#1dab61] text-white transition hover:bg-[#199a57]"
               >
                 <IconSend size={21} />
               </button>
@@ -457,7 +458,7 @@ export function WhatsAppWorkspace() {
                 type="button"
                 onClick={() => setAttachOpen((prev) => !prev)}
                 aria-label="Allega"
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[#54656f] transition hover:bg-black/5"
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[#5e5b58] transition hover:bg-black/5"
               >
                 <IconPaperclip size={22} />
               </button>
@@ -481,14 +482,14 @@ export function WhatsAppWorkspace() {
                   }
                 }}
                 placeholder="Scrivi un messaggio"
-                className="max-h-36 min-h-[2.75rem] flex-1 resize-none rounded-lg bg-white px-4 py-3 text-[15px] leading-5 outline-none placeholder:text-[#8696a0]"
+                className="max-h-36 min-h-[2.75rem] flex-1 resize-none rounded-lg bg-white px-4 py-3 text-[15px] leading-5 outline-none placeholder:text-[#8e8b89]"
               />
               {draft.trim() ? (
                 <button
                   type="button"
                   onClick={sendText}
                   aria-label="Invia messaggio"
-                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#00a884] text-white transition hover:bg-[#02916f]"
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#1dab61] text-white transition hover:bg-[#199a57]"
                 >
                   <IconSend size={21} />
                 </button>
@@ -497,7 +498,7 @@ export function WhatsAppWorkspace() {
                   type="button"
                   onClick={startRecording}
                   aria-label="Registra messaggio vocale"
-                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#00a884] text-white transition hover:bg-[#02916f]"
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#1dab61] text-white transition hover:bg-[#199a57]"
                 >
                   <IconMic size={21} />
                 </button>
@@ -520,7 +521,7 @@ export function WhatsAppWorkspace() {
 
 function RailSidebar({ unreadTotal }: { unreadTotal: number }) {
   return (
-    <nav className="flex w-16 shrink-0 flex-col items-center justify-between border-r border-[#e9edef] bg-[#f7f5f3] py-3">
+    <nav className="flex w-16 shrink-0 flex-col items-center justify-between border-r border-[#f0ece9] bg-[#f6f5f3] py-3">
       <div className="flex flex-col items-center gap-1.5">
         <RailButton label="Chat" active badge={unreadTotal}>
           <IconChats size={24} />
@@ -571,12 +572,12 @@ function RailButton({
       title={label}
       aria-label={label}
       className={`relative flex h-11 w-11 cursor-default items-center justify-center rounded-full ${
-        active ? "bg-[#e7e0da] text-[#111b21]" : "text-[#54656f]"
+        active ? "bg-[#f0ece9] text-[#111b21]" : "text-[#5e5b58]"
       }`}
     >
       {children}
       {badge > 0 ? (
-        <span className="absolute -right-0.5 top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#25d366] px-1 text-[10.5px] font-semibold text-white">
+        <span className="absolute -right-0.5 top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#1dab61] px-1 text-[10.5px] font-semibold text-white">
           {badge}
         </span>
       ) : null}
@@ -598,7 +599,7 @@ function InertButton({
     <span
       title={label}
       aria-label={label}
-      className={`flex h-9 w-9 cursor-default items-center justify-center rounded-full text-[#54656f] ${className}`}
+      className={`flex h-9 w-9 cursor-default items-center justify-center rounded-full text-[#5e5b58] ${className}`}
     >
       {children}
     </span>
@@ -644,18 +645,18 @@ function ChatListItem({
       type="button"
       onClick={onSelect}
       className={`flex w-full items-center gap-3 px-3 py-2.5 text-left transition ${
-        active ? "bg-[#f0f2f5]" : "hover:bg-[#f5f6f6]"
+        active ? "bg-[#f6f5f3]" : "hover:bg-[#faf9f8]"
       }`}
     >
       <Avatar initials={chat.initials} color={chat.avatarColor} size={49} />
-      <span className="min-w-0 flex-1 border-b border-[#f0f2f5] pb-2.5">
+      <span className="min-w-0 flex-1 border-b border-[#f6f5f3] pb-2.5">
         <span className="flex items-baseline gap-2">
           <span className="min-w-0 flex-1 truncate text-[16px] leading-tight">
             {chat.name}
           </span>
           <span
             className={`shrink-0 text-[12px] ${
-              chat.unread > 0 ? "font-medium text-[#00a884]" : "text-[#667781]"
+              chat.unread > 0 ? "font-medium text-[#1dab61]" : "text-[#7b7673]"
             }`}
           >
             {chat.lastLabel}
@@ -666,18 +667,18 @@ function ChatListItem({
             <IconChecks
               double={last.status !== "sent"}
               className={
-                last.status === "read" ? "text-[#53bdeb]" : "text-[#8696a0]"
+                last.status === "read" ? "text-[#53bdeb]" : "text-[#8e8b89]"
               }
             />
           ) : null}
-          <span className="min-w-0 flex-1 truncate text-[13.5px] text-[#667781]">
+          <span className="min-w-0 flex-1 truncate text-[13.5px] text-[#7b7673]">
             {last ? previewOfMessage(last) : "Nessun messaggio"}
           </span>
           {chat.muted ? (
-            <IconMuted size={16} className="shrink-0 text-[#8696a0]" />
+            <IconMuted size={16} className="shrink-0 text-[#8e8b89]" />
           ) : null}
           {chat.unread > 0 ? (
-            <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-[#25d366] px-1.5 text-[11.5px] font-semibold text-white">
+            <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-[#1dab61] px-1.5 text-[11.5px] font-semibold text-white">
               {chat.unread}
             </span>
           ) : null}
@@ -703,13 +704,13 @@ function MessageRow({
   const inlineMeta = message.kind === "text";
 
   const meta = (
-    <span className="flex items-center gap-1 text-[11px] text-[#667781]">
+    <span className="flex items-center gap-1 text-[11px] text-[#7b7673]">
       {message.timeLabel}
       {outgoing ? (
         <IconChecks
           double={message.status !== "sent"}
           className={
-            message.status === "read" ? "text-[#53bdeb]" : "text-[#8696a0]"
+            message.status === "read" ? "text-[#53bdeb]" : "text-[#8e8b89]"
           }
         />
       ) : null}
@@ -738,7 +739,7 @@ function MessageRow({
             <p className="text-[12.5px] font-semibold text-[#06cf9c]">
               {message.quoted.author}
             </p>
-            <p className="line-clamp-2 text-[13px] text-[#667781]">
+            <p className="line-clamp-2 text-[13px] text-[#7b7673]">
               {message.quoted.text}
             </p>
           </div>
@@ -762,7 +763,7 @@ function MessageRow({
               <span className="block truncate text-[13.5px] font-medium">
                 {message.fileName}
               </span>
-              <span className="block truncate text-[12px] text-[#667781]">
+              <span className="block truncate text-[12px] text-[#7b7673]">
                 {message.fileInfo}
               </span>
             </span>
@@ -771,12 +772,12 @@ function MessageRow({
                 href={message.fileUrl}
                 download={message.fileName}
                 aria-label="Scarica allegato"
-                className="text-[#54656f] transition hover:text-[#111b21]"
+                className="text-[#5e5b58] transition hover:text-[#111b21]"
               >
                 <IconDownload size={20} />
               </a>
             ) : (
-              <span className="text-[#8696a0]">
+              <span className="text-[#8e8b89]">
                 <IconDownload size={20} />
               </span>
             )}
@@ -854,7 +855,7 @@ function AttachMenuItem({
     <button
       type="button"
       onClick={onClick}
-      className="flex w-full items-center gap-4 px-4 py-2.5 text-left text-[14.5px] transition hover:bg-[#f5f6f6]"
+      className="flex w-full items-center gap-4 px-4 py-2.5 text-left text-[14.5px] transition hover:bg-[#faf9f8]"
     >
       <span style={{ color }}>{icon}</span>
       {label}
