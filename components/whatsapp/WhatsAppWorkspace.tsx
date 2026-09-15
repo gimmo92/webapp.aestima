@@ -42,8 +42,9 @@ const WALLPAPER_MASK: React.CSSProperties = {
   WebkitMaskImage: "url(/whatsapp/chat-bg.svg)",
   maskRepeat: "repeat",
   WebkitMaskRepeat: "repeat",
-  maskSize: "374px 666px",
-  WebkitMaskSize: "374px 666px",
+  maskMode: "alpha",
+  maskSize: "540px 960px",
+  WebkitMaskSize: "540px 960px",
   backgroundColor: "#0b141a",
   // 0.095 su #f5f2eb dà lo stesso grigio dei doodle di WhatsApp Web (~#dedbd4).
   opacity: 0.095,
