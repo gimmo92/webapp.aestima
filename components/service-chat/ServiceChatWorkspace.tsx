@@ -39,6 +39,7 @@ import {
   isHumanEscalationIntent,
   withHumanEscalationBubble,
 } from "@/lib/ticketEscalate";
+import { extractKnowledgeFromChat } from "@/lib/learnFromChat";
 
 // =============================================================
 // Chat assistenza service — UI principale
@@ -118,7 +119,9 @@ export function ServiceChatWorkspace({
     conversationsReady,
     knowledgeBase,
     incrementKnowledgeFrequency,
+    addKnowledgeEntry,
     createTicket,
+    resolveConversation,
   } = useInbox();
   const { t, locale, dateLocale } = useI18n();
   const welcome = useMemo(() => buildWelcome(t), [t]);
@@ -142,6 +145,8 @@ export function ServiceChatWorkspace({
   const [loading, setLoading] = useState(false);
   const [kbSearching, setKbSearching] = useState(false);
   const [overlayResultsOpen, setOverlayResultsOpen] = useState(false);
+  const [markingSolution, setMarkingSolution] = useState(false);
+  const [markSolutionMsg, setMarkSolutionMsg] = useState<string | null>(null);
   const hadResultsRef = useRef(false);
   const CHAT_TAB_ID = "chat";
   const [openParts, setOpenParts] = useState<SparePartProposal[]>([]);
@@ -292,6 +297,70 @@ export function ServiceChatWorkspace({
     conversationResolved,
     escalateToTicket,
     messages,
+  ]);
+
+  const existingKnowledgeId = storedConversation?.knowledgeEntryId ?? null;
+
+  const handleMarkSolution = useCallback(async () => {
+    if (!hasActiveConversation || markingSolution || existingKnowledgeId) {
+      return;
+    }
+    const convId = ensureConversation();
+    const machine =
+      extractMachineFromMessages(messages) ?? {};
+    setMarkingSolution(true);
+    setMarkSolutionMsg(null);
+    try {
+      const { entry } = await extractKnowledgeFromChat({
+        conversationId: convId,
+        messages,
+        machineModel: storedConversation?.machineModel ?? machine.machineModel,
+        machineSerial:
+          storedConversation?.machineSerial ?? machine.machineSerial,
+      });
+      const kbId = addKnowledgeEntry({
+        machineModel: entry.machineModel,
+        machineSerial: entry.machineSerial,
+        problemCategory: entry.problemCategory,
+        symptom: entry.symptom,
+        probableCause: entry.probableCause,
+        solution: entry.solution,
+        spareParts: entry.spareParts,
+        tags: entry.tags,
+      });
+      updateConversation(convId, {
+        knowledgeEntryId: kbId,
+        machineModel: entry.machineModel,
+        machineSerial: entry.machineSerial,
+      });
+      resolveConversation(convId);
+      const notice = t("chat.markedSolution", { id: kbId });
+      appendConversationMessage(convId, {
+        role: "assistant",
+        content: notice,
+      });
+      setMessages((prev) => [
+        ...prev,
+        { id: nextId(), role: "assistant", content: notice },
+      ]);
+      setMarkSolutionMsg(kbId);
+    } catch {
+      setMarkSolutionMsg("error");
+    } finally {
+      setMarkingSolution(false);
+    }
+  }, [
+    hasActiveConversation,
+    markingSolution,
+    existingKnowledgeId,
+    ensureConversation,
+    messages,
+    storedConversation,
+    addKnowledgeEntry,
+    updateConversation,
+    resolveConversation,
+    appendConversationMessage,
+    t,
   ]);
 
   const handleKbFeedback = useCallback(
@@ -666,6 +735,8 @@ export function ServiceChatWorkspace({
     setOverlayResultsOpen(false);
     setLoading(false);
     setKbSearching(false);
+    setMarkingSolution(false);
+    setMarkSolutionMsg(null);
     hadResultsRef.current = false;
     syncedAgentCountRef.current = 0;
     inputRef.current?.focus();
@@ -924,6 +995,56 @@ export function ServiceChatWorkspace({
           {!hideReset && (
             <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
               {!embed && <EmbedCodeButtons />}
+              {!embed &&
+                ((existingKnowledgeId ||
+                  (markSolutionMsg && markSolutionMsg !== "error")) ? (
+                  <Link
+                    href={`/manuale?entry=${encodeURIComponent(existingKnowledgeId || markSolutionMsg || "")}`}
+                    className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-ok/40 bg-ok/10 px-3 py-2 text-xs font-semibold text-ok transition-colors hover:bg-ok/20"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <path
+                        d="M20 6 9 17l-5-5"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                    {t("chat.alreadyInManual")}
+                  </Link>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => void handleMarkSolution()}
+                    disabled={
+                      !hasActiveConversation || loading || markingSolution
+                    }
+                    title={
+                      hasActiveConversation
+                        ? t("chat.markSolutionHint")
+                        : t("chat.markSolutionWait")
+                    }
+                    className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-ok/40 bg-ok/10 px-3 py-2 text-xs font-semibold text-ok transition-colors hover:bg-ok/20 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-ok/10"
+                  >
+                    {markingSolution ? (
+                      <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-ok/30 border-t-ok" />
+                    ) : (
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <path
+                          d="M20 6 9 17l-5-5"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    )}
+                    {markingSolution
+                      ? t("chat.markingSolution")
+                      : t("chat.markSolution")}
+                  </button>
+                ))}
               {existingTicketId ? (
                 <Link
                   href={`/ticket/lista?id=${encodeURIComponent(existingTicketId)}`}
@@ -1003,6 +1124,9 @@ export function ServiceChatWorkspace({
             </div>
           )}
         </div>
+        {markSolutionMsg === "error" && (
+          <p className="mt-2 text-xs text-danger">{t("chat.markSolutionError")}</p>
+        )}
       </div>
       )}
 

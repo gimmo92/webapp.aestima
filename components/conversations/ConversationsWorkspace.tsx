@@ -18,6 +18,8 @@ import type {
 import { sortConversations } from "@/lib/conversationStorage";
 import type { ServiceTicketRecord } from "@/lib/ticketTypes";
 import { useI18n } from "@/lib/i18n";
+import { extractKnowledgeFromChat } from "@/lib/learnFromChat";
+import { extractMachineFromMessages } from "@/lib/ticketEscalate";
 
 export function ConversationsWorkspace() {
   const {
@@ -29,6 +31,7 @@ export function ConversationsWorkspace() {
     updateConversation,
     updateTicket,
     getTicketById,
+    addKnowledgeEntry,
   } = useInbox();
   const { t } = useI18n();
   const searchParams = useSearchParams();
@@ -313,11 +316,52 @@ export function ConversationsWorkspace() {
             onResolve={() => {
               resolveConversation(selected.id);
               if (selected.ticketId) {
-                const t = getTicketById(selected.ticketId);
-                if (t && !["risolto", "chiuso"].includes(t.status)) {
+                const tkt = getTicketById(selected.ticketId);
+                if (tkt && !["risolto", "chiuso"].includes(tkt.status)) {
                   updateTicket(selected.ticketId, { status: "risolto" });
                 }
               }
+            }}
+            onMarkSolution={async () => {
+              if (selected.knowledgeEntryId) return selected.knowledgeEntryId;
+              const machine = extractMachineFromMessages(selected.messages);
+              const { entry } = await extractKnowledgeFromChat({
+                conversationId: selected.id,
+                messages: selected.messages,
+                machineModel: selected.machineModel ?? machine.machineModel,
+                machineSerial: selected.machineSerial ?? machine.machineSerial,
+              });
+              const kbId = addKnowledgeEntry({
+                machineModel: entry.machineModel,
+                machineSerial: entry.machineSerial,
+                problemCategory: entry.problemCategory,
+                symptom: entry.symptom,
+                probableCause: entry.probableCause,
+                solution: entry.solution,
+                spareParts: entry.spareParts,
+                tags: entry.tags,
+              });
+              updateConversation(selected.id, {
+                knowledgeEntryId: kbId,
+                machineModel: entry.machineModel,
+                machineSerial: entry.machineSerial,
+              });
+              resolveConversation(selected.id);
+              if (selected.ticketId) {
+                const tkt = getTicketById(selected.ticketId);
+                if (tkt && !["risolto", "chiuso"].includes(tkt.status)) {
+                  updateTicket(selected.ticketId, {
+                    status: "risolto",
+                    knowledgeEntryId: kbId,
+                    solution: entry.solution,
+                  });
+                }
+              }
+              appendConversationMessage(selected.id, {
+                role: "assistant",
+                content: t("chat.markedSolution", { id: kbId }),
+              });
+              return kbId;
             }}
             onOpenTicket={() => {
               if (selected.ticketId) return;
@@ -453,6 +497,7 @@ function ConversationPanel({
   linkedTicket,
   onTakeOver,
   onResolve,
+  onMarkSolution,
   onReply,
   onOpenTicket,
 }: {
@@ -460,15 +505,28 @@ function ConversationPanel({
   linkedTicket?: Pick<ServiceTicketRecord, "id" | "status" | "summary">;
   onTakeOver: () => void;
   onResolve: () => void;
+  onMarkSolution: () => Promise<string | undefined>;
   onReply: (text: string) => void;
   onOpenTicket: () => void;
 }) {
   const [input, setInput] = useState("");
+  const [marking, setMarking] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const { t } = useI18n();
   const isOperator = conversation.assignee === "operatore";
   const isResolved = conversation.status === "risolto";
   const canReply = isOperator && !isResolved;
+  const kbId = conversation.knowledgeEntryId;
+
+  const handleMarkSolution = async () => {
+    if (marking || kbId) return;
+    setMarking(true);
+    try {
+      await onMarkSolution();
+    } finally {
+      setMarking(false);
+    }
+  };
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -561,21 +619,45 @@ function ConversationPanel({
             </button>
           )}
 
+          {kbId ? (
+            <Link
+              href={`/manuale?entry=${encodeURIComponent(kbId)}`}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-ok/40 bg-ok/10 px-3 py-1.5 text-xs font-semibold text-ok hover:bg-ok/20"
+            >
+              {t("conversations.alreadyInManual")}
+            </Link>
+          ) : (
+            <button
+              type="button"
+              onClick={() => void handleMarkSolution()}
+              disabled={marking}
+              title={t("conversations.markSolutionHint")}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-ok/40 bg-ok/10 px-3 py-1.5 text-xs font-semibold text-ok transition-colors hover:bg-ok/20 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {marking ? (
+                <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-ok/30 border-t-ok" />
+              ) : (
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                  <path
+                    d="M20 6 9 17l-5-5"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              )}
+              {marking
+                ? t("conversations.markingSolution")
+                : t("conversations.markSolution")}
+            </button>
+          )}
           {!isResolved && (
             <button
               onClick={onResolve}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-ok/40 bg-ok/10 px-3 py-1.5 text-xs font-semibold text-ok transition-colors hover:bg-ok/20"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-semibold text-ink-muted transition-colors hover:border-ok/40 hover:text-ok"
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                <path
-                  d="M20 6 9 17l-5-5"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-              Risolvi
+              {t("conversations.resolve")}
             </button>
           )}
         </div>

@@ -132,6 +132,16 @@ export const it = {
     attachFail: "Impossibile allegare il file.",
     deleteConfirm: "Eliminare questa conversazione? L'azione non si può annullare.",
     tab: "Chat",
+    markSolution: "Segna come soluzione",
+    markSolutionHint:
+      "Chiude la chat e salva la soluzione nel Manuale, così l'assistente la riusa su casi simili",
+    markSolutionWait:
+      "Disponibile dopo il primo scambio della conversazione",
+    markingSolution: "Salvo la soluzione nel Manuale…",
+    markedSolution: "Soluzione salvata nel Manuale ({id}). La chat la userà per casi simili.",
+    markedSolutionLink: "Apri scheda nel Manuale",
+    alreadyInManual: "Già in Manuale",
+    markSolutionError: "Non sono riuscito a salvare la soluzione. Riprova.",
   },
   history: {
     title: "Conversazioni",
@@ -309,6 +319,11 @@ export const it = {
     offline: "Offline",
     takeOver: "Subentra",
     resolve: "Risolvi",
+    markSolution: "Segna come soluzione",
+    markSolutionHint:
+      "Chiude la chat e aggiunge la soluzione al Manuale",
+    markingSolution: "Salvo nel Manuale…",
+    alreadyInManual: "In Manuale",
     openTicket: "Apri ticket",
     visitorOffline:
       "Il visitatore è offline: riceverà una notifica email per i messaggi non letti.",

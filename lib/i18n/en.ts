@@ -129,6 +129,16 @@ export const en: Messages = {
     attachFail: "Could not attach the file.",
     deleteConfirm: "Delete this conversation? This cannot be undone.",
     tab: "Chat",
+    markSolution: "Mark as solution",
+    markSolutionHint:
+      "Close the chat and save the solution to the knowledge base so the assistant can reuse it",
+    markSolutionWait: "Available after the first exchange in the conversation",
+    markingSolution: "Saving the solution to the knowledge base…",
+    markedSolution:
+      "Solution saved to the knowledge base ({id}). The chat will reuse it on similar cases.",
+    markedSolutionLink: "Open card in the knowledge base",
+    alreadyInManual: "Already in the knowledge base",
+    markSolutionError: "Could not save the solution. Please try again.",
   },
   history: {
     title: "Conversations",
@@ -305,6 +315,10 @@ export const en: Messages = {
     offline: "Offline",
     takeOver: "Take over",
     resolve: "Resolve",
+    markSolution: "Mark as solution",
+    markSolutionHint: "Close the chat and add the solution to the knowledge base",
+    markingSolution: "Saving to the knowledge base…",
+    alreadyInManual: "In knowledge base",
     openTicket: "Open ticket",
     visitorOffline:
       "The visitor is offline: they will get an email notification for unread messages.",

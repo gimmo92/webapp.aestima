@@ -3,6 +3,7 @@ import { prisma } from "../lib/prisma";
 import type { Prisma } from "../lib/generated/prisma/client";
 import { DEFAULT_LABELS } from "../lib/inboxData";
 import { DEMATIC_INBOX_EMAILS } from "../lib/dematicInboxData";
+import { DEMATIC_KNOWLEDGE_ENTRIES } from "../lib/dematicKnowledgeData";
 
 function asJson(value: unknown): Prisma.InputJsonValue | undefined {
   if (value === undefined || value === null) return undefined;
@@ -49,6 +50,36 @@ async function ensureLabels(companyId: string) {
   return labelMap;
 }
 
+async function seedDematicKnowledge(companyId: string) {
+  const ids = DEMATIC_KNOWLEDGE_ENTRIES.map((k) => nid(companyId, "kb", k.id));
+  await prisma.knowledgeEntry.deleteMany({
+    where: { companyId, id: { in: ids } },
+  });
+
+  for (const k of DEMATIC_KNOWLEDGE_ENTRIES) {
+    await prisma.knowledgeEntry.create({
+      data: {
+        id: nid(companyId, "kb", k.id),
+        companyId,
+        machineModel: k.machineModel,
+        machineSerial: k.machineSerial,
+        problemCategory: k.problemCategory,
+        symptom: k.symptom,
+        probableCause: k.probableCause,
+        solution: k.solution,
+        sparePartsJson: asJson(k.spareParts) ?? [],
+        frequency: k.frequency,
+        consolidated: k.consolidated,
+        mergedFromIds: k.mergedFromIds ?? [],
+        tags: k.tags,
+        createdLabel: k.createdLabel,
+        createdFull: k.createdFull,
+        updatedFull: k.updatedFull,
+      },
+    });
+  }
+}
+
 async function seedDematicEmails(companyId: string) {
   const labelMap = await ensureLabels(companyId);
   const ids = DEMATIC_INBOX_EMAILS.map((r) => nid(companyId, "req", r.id));
@@ -92,6 +123,7 @@ async function seedDematicEmails(companyId: string) {
 async function main() {
   const company = await findDematicCompany();
   await seedDematicEmails(company.id);
+  await seedDematicKnowledge(company.id);
 
   const created = await prisma.partRequest.findMany({
     where: {
@@ -101,6 +133,11 @@ async function main() {
     select: { id: true, subject: true, fromEmail: true, receivedLabel: true },
     orderBy: { receivedAt: "desc" },
   });
+  const knowledge = await prisma.knowledgeEntry.findMany({
+    where: { companyId: company.id, id: { contains: "KB-D" } },
+    select: { id: true, machineModel: true, symptom: true },
+    orderBy: { id: "asc" },
+  });
 
   console.log(
     JSON.stringify(
@@ -108,6 +145,7 @@ async function main() {
         ok: true,
         company: { id: company.id, name: company.name, slug: company.slug },
         emails: created,
+        knowledge,
       },
       null,
       2

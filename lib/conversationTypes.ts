@@ -41,6 +41,8 @@ export interface ConversationRecord {
   machineModel?: string;
   machineSerial?: string;
   ticketId?: string;
+  /** Scheda Manuale creata da «Segna come soluzione». */
+  knowledgeEntryId?: string;
   visitorOnline?: boolean;
 }
 
@@ -66,6 +68,7 @@ export interface UpdateConversationInput {
   machineModel?: string;
   machineSerial?: string;
   ticketId?: string;
+  knowledgeEntryId?: string;
   visitorOnline?: boolean;
 }
 

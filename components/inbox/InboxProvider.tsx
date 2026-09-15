@@ -697,6 +697,8 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
           if (input.machineSerial !== undefined)
             next.machineSerial = input.machineSerial;
           if (input.ticketId !== undefined) next.ticketId = input.ticketId;
+          if (input.knowledgeEntryId !== undefined)
+            next.knowledgeEntryId = input.knowledgeEntryId;
           if (input.visitorOnline !== undefined)
             next.visitorOnline = input.visitorOnline;
           return next;

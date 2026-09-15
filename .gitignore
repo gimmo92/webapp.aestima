@@ -30,6 +30,9 @@ next-env.d.ts
 # vercel
 .vercel
 
+# lock temporanei di LibreOffice sui file in "esempi archivio"
+.~lock.*#
+
 /lib/generated/prisma
 
 .env*
