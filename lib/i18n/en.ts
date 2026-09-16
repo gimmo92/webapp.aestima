@@ -253,6 +253,7 @@ export const en: Messages = {
     queue: "Ticket queue",
     inbox: "Inbox",
     liveChat: "Live chat",
+    whatsapp: "WhatsApp",
     dashboardHint: "Overview of tickets and what needs attention.",
     queueShort: "Queue",
     newTicket: "New ticket",

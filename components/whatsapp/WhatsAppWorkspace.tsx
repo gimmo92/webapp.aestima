@@ -73,7 +73,12 @@ function isImageFile(file: File): boolean {
   return file.type.startsWith("image/");
 }
 
-export function WhatsAppWorkspace() {
+export function WhatsAppWorkspace({
+  embedded = false,
+}: {
+  /** Dentro il ticketing: niente rail laterale e altezza del contenitore. */
+  embedded?: boolean;
+} = {}) {
   const [chats, setChats] = useState<WaChat[]>(WA_CHATS);
   const [activeId, setActiveId] = useState(WA_CHATS[0].id);
   const [search, setSearch] = useState("");
@@ -290,10 +295,18 @@ export function WhatsAppWorkspace() {
   }
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-[#f6f5f3] text-[#111b21]">
-      <RailSidebar unreadTotal={unreadTotal} />
+    <div
+      className={`flex w-full min-h-0 overflow-hidden bg-[#f6f5f3] text-[#111b21] ${
+        embedded ? "h-full" : "h-screen"
+      }`}
+    >
+      {embedded ? null : <RailSidebar unreadTotal={unreadTotal} />}
 
-      <section className="flex w-[30rem] min-w-[22rem] shrink-0 flex-col border-r border-[#f0ece9] bg-white">
+      <section
+        className={`flex shrink-0 flex-col border-r border-[#f0ece9] bg-white ${
+          embedded ? "w-[24rem] min-w-[20rem]" : "w-[30rem] min-w-[22rem]"
+        }`}
+      >
         <header className="flex items-center justify-between px-5 pt-5 pb-1.5">
           <h1 className="text-[1.6rem] font-bold tracking-tight">Chat</h1>
           <div className="flex items-center gap-1 text-[#5e5b58]">

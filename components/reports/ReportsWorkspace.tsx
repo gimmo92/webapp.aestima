@@ -203,7 +203,7 @@ export function ReportsWorkspace() {
               Qui arrivano i rapporti salvati dalle chat WhatsApp.
             </p>
             <Link
-              href="/whatsapp"
+              href="/ticket/whatsapp"
               className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-strong"
             >
               Vai alle chat WhatsApp
@@ -237,7 +237,7 @@ export function ReportsWorkspace() {
                   {pdfBusy ? "Preparo il PDF…" : "Esporta PDF"}
                 </button>
                 <Link
-                  href="/whatsapp"
+                  href="/ticket/whatsapp"
                   className="rounded-lg bg-brand px-3.5 py-2 text-sm font-semibold text-white hover:bg-brand-strong"
                 >
                   Apri la chat

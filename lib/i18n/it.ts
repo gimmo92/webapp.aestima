@@ -257,6 +257,7 @@ export const it = {
     queue: "Coda ticket",
     inbox: "Inbox",
     liveChat: "Chat live",
+    whatsapp: "WhatsApp",
     dashboardHint: "Panoramica dei ticket e di quello che richiede attenzione.",
     queueShort: "Coda",
     newTicket: "Nuovo ticket",

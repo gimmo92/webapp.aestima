@@ -92,6 +92,31 @@ const ITEMS = [
       </svg>
     ),
   },
+  {
+    href: "/ticket/whatsapp",
+    key: "tickets.whatsapp",
+    match: (path: string) =>
+      path === "/ticket/whatsapp" ||
+      path.startsWith("/ticket/whatsapp/") ||
+      path === "/whatsapp" ||
+      path.startsWith("/whatsapp/"),
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path
+          d="M12 3a9 9 0 0 0-7.7 13.6L3 21l4.5-1.3A9 9 0 1 0 12 3Z"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M9.2 8.2c.4-.1.7 0 .9.4l.6 1.2c.1.3.1.5-.1.8l-.4.4c-.2.2-.2.4-.1.6.4.8 1.1 1.5 1.9 1.9.2.1.4.1.6-.1l.4-.4c.3-.2.5-.2.8-.1l1.2.6c.4.2.5.5.4.9-.2.9-1 1.4-1.9 1.3-2.6-.4-4.6-2.4-5-5-.1-.9.4-1.7 1.3-1.9Z"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinejoin="round"
+        />
+      </svg>
+    ),
+  },
 ] as const;
 
 export function TicketingSidebar() {

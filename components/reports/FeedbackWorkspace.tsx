@@ -76,7 +76,7 @@ export function FeedbackWorkspace() {
               WhatsApp e riporta cosa ha detto il cliente.
             </p>
             <Link
-              href="/whatsapp"
+              href="/ticket/whatsapp"
               className="mt-4 inline-block rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-strong"
             >
               Vai alle chat WhatsApp
