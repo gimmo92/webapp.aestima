@@ -865,6 +865,7 @@ function MessageRow({
               outgoing={outgoing}
               initials={outgoing ? WA_PROFILE.initials : chat.initials}
               avatarColor={outgoing ? WA_PROFILE.avatarColor : chat.avatarColor}
+              bubbleColor={bubbleColor}
             />
             {message.transcript ? (
               <Transcript text={message.transcript} />
@@ -924,7 +925,7 @@ function Transcript({ text }: { text: string }) {
       >
         <IconChevronDown
           size={14}
-          className={open ? "" : "-rotate-90 transition-transform"}
+          className={`transition-transform ${open ? "" : "-rotate-90"}`}
         />
         Trascrizione
       </button>
