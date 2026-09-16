@@ -5,6 +5,7 @@ export const en: Messages = {
     assistenza: "AI Support",
     ticketing: "Ticketing",
     archivio: "Archive",
+    rapporti: "Service reports",
     manuale: "Knowledge base",
     catalogAnalysis: "Catalog analysis",
     createOffer: "Create quote",

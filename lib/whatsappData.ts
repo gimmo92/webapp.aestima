@@ -37,6 +37,10 @@ export interface WaMessage {
   audioSeconds?: number;
   /** Presente solo per i vocali registrati nella sessione. */
   audioUrl?: string;
+  /** Trascrizione del vocale, usata come fonte per il rapporto. */
+  transcript?: string;
+  /** Rapporto d'intervento salvato da questa chat. */
+  reportRef?: { id: string; reportNumber: string };
 }
 
 export interface WaChat {
@@ -49,6 +53,10 @@ export interface WaChat {
   avatarColor: string;
   /** "online" oppure "ultimo accesso ..." */
   presence: string;
+  /** Azienda del contatto, riportata sul rapporto d'intervento. */
+  company?: string;
+  /** Macchina di riferimento nota dalla scheda contatto. */
+  machine?: string;
   lastLabel: string;
   unread: number;
   favorite?: boolean;
@@ -72,6 +80,8 @@ export const WA_CHATS: WaChat[] = [
     initials: "MB",
     avatarColor: "#6b7ff0",
     presence: "online",
+    company: "Interporto Verona Logistica S.p.A.",
+    machine: "Sorter Multishuttle — baia 12",
     lastLabel: "10:14",
     unread: 2,
     favorite: true,
@@ -132,6 +142,8 @@ export const WA_CHATS: WaChat[] = [
         direction: "in",
         kind: "audio",
         audioSeconds: 14,
+        transcript:
+          "Ho smontato il pignone e il tenditore, la cinghia dentata ha gioco di circa tre millimetri. Ho rimesso tutto in sicurezza ma la linea gira al settanta per cento.",
         timeLabel: "10:12",
       },
       {
@@ -151,6 +163,8 @@ export const WA_CHATS: WaChat[] = [
     initials: "LR",
     avatarColor: "#f0a23b",
     presence: "ultimo accesso oggi alle 09:48",
+    company: "LogNord Distribution S.r.l. — DC Novara",
+    machine: "AGV 04 — corsia 7",
     lastLabel: "09:47",
     unread: 1,
     messages: [
@@ -195,6 +209,8 @@ export const WA_CHATS: WaChat[] = [
     initials: "SC",
     avatarColor: "#3cb371",
     presence: "ultimo accesso oggi alle 08:55",
+    company: "Pack Logistic Emilia S.r.l.",
+    machine: "Conveyor DC Parma",
     lastLabel: "08:52",
     unread: 0,
     favorite: true,
@@ -240,6 +256,8 @@ export const WA_CHATS: WaChat[] = [
     initials: "DF",
     avatarColor: "#8b5cf6",
     presence: "ultimo accesso ieri alle 18:20",
+    company: "Stabilimento Brescia — Linea 3",
+    machine: "Quadro bordo macchina Linea 3",
     lastLabel: "ieri",
     unread: 0,
     messages: [
@@ -264,6 +282,8 @@ export const WA_CHATS: WaChat[] = [
         direction: "in",
         kind: "audio",
         audioSeconds: 32,
+        transcript:
+          "Allora: all'avvio in carico l'inverter va in OC2 dopo circa due secondi. Ho misurato gli assorbimenti sulle tre fasi, sono squilibrati. Ho stretto i morsetti sul motore e ho provato a ridurre la rampa di accelerazione a cinque secondi, così parte ma resta borderline. Secondo me va controllato il cavo motore.",
         timeLabel: "18:14",
       },
     ],
@@ -276,6 +296,8 @@ export const WA_CHATS: WaChat[] = [
     initials: "ER",
     avatarColor: "#ef6461",
     presence: "ultimo accesso ieri alle 16:05",
+    company: "LogNord Distribution S.r.l.",
+    machine: "Magazzino automatico Novara — linea conveyor",
     lastLabel: "ieri",
     unread: 0,
     messages: [
@@ -320,6 +342,8 @@ export const WA_CHATS: WaChat[] = [
     initials: "SN",
     avatarColor: "#54656f",
     presence: "Andrea, Matteo, Giorgio, Luca, Sara",
+    company: "Service Nord",
+    machine: "Navetta 2 e trasloelevatore T2",
     lastLabel: "ieri",
     unread: 3,
     isGroup: true,
@@ -350,6 +374,8 @@ export const WA_CHATS: WaChat[] = [
         author: "Giorgio Salvi",
         authorColor: "#7a45c9",
         audioSeconds: 21,
+        transcript:
+          "Ragazzi, sul trasloelevatore ho rifatto la taratura della corsia 4 e ho lasciato il ponteggio montato per il turno del mattino.",
         timeLabel: "01:12",
       },
     ],
@@ -362,6 +388,8 @@ export const WA_CHATS: WaChat[] = [
     initials: "MG",
     avatarColor: "#0ea5a5",
     presence: "ultimo accesso lunedì alle 11:40",
+    company: "CEDI Bologna",
+    machine: "Trasloelevatore T2 — corsia 4",
     lastLabel: "lunedì",
     unread: 0,
     messages: [
@@ -398,6 +426,8 @@ export const WA_CHATS: WaChat[] = [
     initials: "GS",
     avatarColor: "#b07d4e",
     presence: "ultimo accesso 09/09/2026",
+    company: "Salvi Impianti",
+    machine: "Pressa PR-12",
     lastLabel: "09/09/2026",
     unread: 0,
     muted: true,

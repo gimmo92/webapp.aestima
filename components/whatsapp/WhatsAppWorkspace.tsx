@@ -10,13 +10,17 @@ import {
   type WaChat,
   type WaMessage,
 } from "@/lib/whatsappData";
+import { useSpeechDictation } from "@/lib/useSpeechDictation";
+import type { InterventionReportRecord } from "@/lib/reportsStore";
 import { VoiceNote } from "./VoiceNote";
+import { ReportComposer, type PanelAudio } from "./ReportComposer";
 import {
   IconArchive,
   IconChannels,
   IconChats,
   IconChecks,
   IconChevronDown,
+  IconClipboard,
   IconCommunities,
   IconDocument,
   IconDownload,
@@ -79,6 +83,7 @@ export function WhatsAppWorkspace() {
   const [recording, setRecording] = useState(false);
   const [recordSeconds, setRecordSeconds] = useState(0);
   const [micError, setMicError] = useState<string | null>(null);
+  const [reportOpen, setReportOpen] = useState(false);
 
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -87,6 +92,15 @@ export function WhatsAppWorkspace() {
   const chunksRef = useRef<Blob[]>([]);
   const startedAtRef = useRef(0);
   const cancelledRef = useRef(false);
+  const transcriptRef = useRef("");
+
+  // I vocali inviati in chat vengono trascritti al volo: la trascrizione
+  // diventa una fonte per il rapporto d'intervento.
+  const dictation = useSpeechDictation({
+    onTranscript: (text) => {
+      transcriptRef.current = text;
+    },
+  });
 
   const activeChat = chats.find((chat) => chat.id === activeId) ?? chats[0];
 
@@ -219,6 +233,8 @@ export function WhatsAppWorkspace() {
       recorder.onstop = () => {
         stream.getTracks().forEach((track) => track.stop());
         const elapsed = (Date.now() - startedAtRef.current) / 1000;
+        const transcript = transcriptRef.current.trim();
+        dictation.stop();
         setRecording(false);
         setRecordSeconds(0);
         if (cancelledRef.current) return;
@@ -230,12 +246,15 @@ export function WhatsAppWorkspace() {
           kind: "audio",
           audioUrl: URL.createObjectURL(blob),
           audioSeconds: Math.max(1, Math.round(elapsed)),
+          transcript: transcript || undefined,
         });
       };
 
       recorder.start();
       recorderRef.current = recorder;
       startedAtRef.current = Date.now();
+      transcriptRef.current = "";
+      dictation.start("");
       setRecordSeconds(0);
       setRecording(true);
     } catch {
@@ -247,8 +266,27 @@ export function WhatsAppWorkspace() {
 
   function stopRecording(cancel: boolean) {
     cancelledRef.current = cancel;
+    if (cancel) dictation.stop();
     recorderRef.current?.stop();
     recorderRef.current = null;
+  }
+
+  /** Vocale dettato nel pannello rapporto: finisce anche in chat. */
+  function handlePanelAudio(audio: PanelAudio) {
+    sendOutgoing({
+      kind: "audio",
+      audioUrl: audio.url,
+      audioSeconds: audio.seconds,
+      transcript: audio.transcript,
+    });
+  }
+
+  function handleReportSaved(record: InterventionReportRecord) {
+    sendOutgoing({
+      kind: "text",
+      text: `Rapporto ${record.reportNumber} compilato e salvato: ${record.summary}`,
+      reportRef: { id: record.id, reportNumber: record.reportNumber },
+    });
   }
 
   return (
@@ -328,6 +366,7 @@ export function WhatsAppWorkspace() {
         </div>
       </section>
 
+      <div className="flex min-w-0 flex-1">
       <section className="flex min-w-0 flex-1 flex-col">
         <header className="flex items-center gap-3 border-b border-[#f0ece9] bg-white px-4 py-2.5">
           <Avatar
@@ -344,6 +383,18 @@ export function WhatsAppWorkspace() {
             </p>
           </div>
           <div className="flex items-center gap-1 text-[#5e5b58]">
+            <button
+              type="button"
+              onClick={() => setReportOpen(true)}
+              className={`mr-1 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[13px] font-semibold transition ${
+                reportOpen
+                  ? "bg-[#1dab61] text-white"
+                  : "bg-[#d9fdd3] text-[#3d7454] hover:bg-[#c8f5c0]"
+              }`}
+            >
+              <IconClipboard size={17} />
+              Crea rapporto
+            </button>
             <InertButton label="Videochiamata">
               <IconVideo size={21} />
             </InertButton>
@@ -420,6 +471,15 @@ export function WhatsAppWorkspace() {
                   label="Foto e video"
                   color="#007bfc"
                   onClick={() => openFilePicker("image/*,video/*")}
+                />
+                <AttachMenuItem
+                  icon={<IconClipboard size={20} />}
+                  label="Rapporto d'intervento"
+                  color="#1dab61"
+                  onClick={() => {
+                    setAttachOpen(false);
+                    setReportOpen(true);
+                  }}
                 />
               </div>
             </>
@@ -516,6 +576,17 @@ export function WhatsAppWorkspace() {
           />
         </footer>
       </section>
+
+        {reportOpen ? (
+          <ReportComposer
+            key={activeChat.id}
+            chat={activeChat}
+            onClose={() => setReportOpen(false)}
+            onSaved={handleReportSaved}
+            onPanelAudio={handlePanelAudio}
+          />
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -786,14 +857,38 @@ function MessageRow({
         ) : null}
 
         {message.kind === "audio" ? (
-          <VoiceNote
-            messageId={message.id}
-            seconds={message.audioSeconds ?? 0}
-            audioUrl={message.audioUrl}
-            outgoing={outgoing}
-            initials={outgoing ? WA_PROFILE.initials : chat.initials}
-            avatarColor={outgoing ? WA_PROFILE.avatarColor : chat.avatarColor}
-          />
+          <>
+            <VoiceNote
+              messageId={message.id}
+              seconds={message.audioSeconds ?? 0}
+              audioUrl={message.audioUrl}
+              outgoing={outgoing}
+              initials={outgoing ? WA_PROFILE.initials : chat.initials}
+              avatarColor={outgoing ? WA_PROFILE.avatarColor : chat.avatarColor}
+            />
+            {message.transcript ? (
+              <Transcript text={message.transcript} />
+            ) : null}
+          </>
+        ) : null}
+
+        {message.reportRef ? (
+          <a
+            href="/rapporti"
+            className="mb-1 flex items-center gap-2.5 rounded-md bg-black/5 px-3 py-2 transition hover:bg-black/10"
+          >
+            <span className="flex h-8 w-8 items-center justify-center rounded-md bg-white text-[#1dab61]">
+              <IconClipboard size={18} />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-[13.5px] font-semibold">
+                Rapporto {message.reportRef.reportNumber}
+              </span>
+              <span className="block text-[12px] text-[#7b7673]">
+                Apri nella sezione Rapporti
+              </span>
+            </span>
+          </a>
         ) : null}
 
         {message.text && message.kind !== "audio" ? (
@@ -813,6 +908,31 @@ function MessageRow({
           <span className="flex justify-end px-1 pb-0.5">{meta}</span>
         )}
       </div>
+    </div>
+  );
+}
+
+/** Trascrizione del vocale, richiudibile come su WhatsApp. */
+function Transcript({ text }: { text: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="mb-1 border-t border-black/10 pt-1">
+      <button
+        type="button"
+        onClick={() => setOpen((prev) => !prev)}
+        className="flex w-full items-center gap-1.5 px-1 py-0.5 text-[12px] font-medium text-[#5e5b58]"
+      >
+        <IconChevronDown
+          size={14}
+          className={open ? "" : "-rotate-90 transition-transform"}
+        />
+        Trascrizione
+      </button>
+      {open ? (
+        <p className="px-1 pb-1 text-[13px] leading-[18px] text-[#5e5b58]">
+          {text}
+        </p>
+      ) : null}
     </div>
   );
 }

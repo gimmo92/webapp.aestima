@@ -66,6 +66,35 @@ const NAV = [
     ),
   },
   {
+    href: "/rapporti",
+    key: "nav.rapporti",
+    icon: (
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path
+          d="M9 4.5H7.5A1.5 1.5 0 0 0 6 6v13a1.5 1.5 0 0 0 1.5 1.5h9A1.5 1.5 0 0 0 18 19V6a1.5 1.5 0 0 0-1.5-1.5H15"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinejoin="round"
+        />
+        <rect
+          x="9"
+          y="3"
+          width="6"
+          height="3.2"
+          rx="1.1"
+          stroke="currentColor"
+          strokeWidth="1.8"
+        />
+        <path
+          d="M9.2 11h5.6M9.2 14.5h5.6M9.2 18h3.2"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+        />
+      </svg>
+    ),
+  },
+  {
     href: "/manuale",
     key: "nav.manuale",
     icon: (

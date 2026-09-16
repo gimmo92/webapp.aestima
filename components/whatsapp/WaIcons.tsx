@@ -235,6 +235,41 @@ export function IconMuted(props: IconProps) {
   );
 }
 
+export function IconClose(props: IconProps) {
+  return (
+    <svg {...svgProps(props)}>
+      <path d="M6 6l12 12M18 6L6 18" />
+    </svg>
+  );
+}
+
+export function IconClipboard(props: IconProps) {
+  return (
+    <svg {...svgProps(props)}>
+      <path d="M9 4.5H7.5A1.5 1.5 0 0 0 6 6v13a1.5 1.5 0 0 0 1.5 1.5h9A1.5 1.5 0 0 0 18 19V6a1.5 1.5 0 0 0-1.5-1.5H15" />
+      <rect x="9" y="3" width="6" height="3.2" rx="1.1" />
+      <path d="M9.2 11h5.6M9.2 14.5h5.6M9.2 18h3.2" />
+    </svg>
+  );
+}
+
+export function IconSparkle(props: IconProps) {
+  return (
+    <svg {...svgProps(props)}>
+      <path d="M12 3.5l1.7 4.4 4.4 1.7-4.4 1.7L12 15.7l-1.7-4.4L5.9 9.6l4.4-1.7z" />
+      <path d="M18.5 15.5l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z" />
+    </svg>
+  );
+}
+
+export function IconChevronRight(props: IconProps) {
+  return (
+    <svg {...svgProps(props)}>
+      <path d="M9.5 6l6 6-6 6" />
+    </svg>
+  );
+}
+
 /** Spunte di consegna: una per "inviato", doppia per consegnato/letto. */
 export function IconChecks({
   double = true,

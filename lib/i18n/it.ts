@@ -3,6 +3,7 @@ export const it = {
     assistenza: "Assistenza AI",
     ticketing: "Ticketing",
     archivio: "Archivio",
+    rapporti: "Rapporti",
     manuale: "Manuale",
     catalogAnalysis: "Analisi catalogo",
     createOffer: "Crea offerta",
