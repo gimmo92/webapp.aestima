@@ -47,6 +47,10 @@ const DEMO_REPORTS: InterventionReportRecord[] = [
     workPerformed:
       "Smontata la valvola proporzionale in blocco sul gruppo idraulico, montato il ricambio nuovo e rifatto lo spurgo del circuito. Eseguito ciclo di prova a vuoto e in carico: pressioni nei limiti, nessuna perdita. Pulito il filtro in aspirazione.",
     partsUsed: ["VLV-PROP-4WRE"],
+    customerFeedback:
+      "Il cliente è soddisfatto della rapidità, ma segnala che la pressa resta ferma troppo a lungo in attesa dei ricambi e chiede di tenerne uno in conto deposito.",
+    customerSentiment: "positivo",
+    customerRequests: ["Valvola proporzionale in conto deposito presso il sito"],
     sources: [
       {
         kind: "audio",
@@ -83,6 +87,10 @@ const DEMO_REPORTS: InterventionReportRecord[] = [
     partsUsed: [],
     followUp:
       "Se l'allarme di posizionamento si ripresenta, sostituire la fotocellula: ricambio da ordinare.",
+    customerFeedback:
+      "Il capoturno si lamenta dei fermi ripetuti sulla corsia 4 e dice che il pulpito di comando è scomodo da raggiungere durante i reset. Vorrebbe valutare un kit di comando remoto.",
+    customerSentiment: "critico",
+    customerRequests: ["Preventivo per kit di comando remoto sulla corsia 4"],
     sources: [
       {
         kind: "chat",
@@ -96,6 +104,10 @@ const DEMO_REPORTS: InterventionReportRecord[] = [
     chatName: "Matteo Greco",
   },
 ];
+
+// Copia in memoria: se il browser blocca la memoria locale (navigazione
+// privata, quota piena) la scheda corrente resta comunque coerente.
+let cache: InterventionReportRecord[] | null = null;
 
 function canUseStorage(): boolean {
   return typeof window !== "undefined" && Boolean(window.localStorage);
@@ -113,27 +125,39 @@ function readStored(): InterventionReportRecord[] | null {
   }
 }
 
-function write(records: InterventionReportRecord[]): void {
-  if (!canUseStorage()) return;
-  try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
-  } catch {
-    /* quota piena: la sessione corrente resta comunque coerente */
+/** Restituisce false se la persistenza non è andata a buon fine. */
+function write(records: InterventionReportRecord[]): boolean {
+  cache = records;
+  let persisted = false;
+  if (canUseStorage()) {
+    try {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+      persisted = true;
+    } catch {
+      persisted = false;
+    }
   }
-  window.dispatchEvent(new CustomEvent(CHANGE_EVENT));
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent(CHANGE_EVENT));
+  }
+  return persisted;
 }
 
 /** Rapporti dal più recente al più vecchio. Al primo accesso semina i demo. */
 export function listReports(): InterventionReportRecord[] {
   const stored = readStored();
-  if (stored) return stored;
+  if (stored) {
+    cache = stored;
+    return stored;
+  }
+  if (cache) return cache;
   write(DEMO_REPORTS);
   return DEMO_REPORTS;
 }
 
-export function saveReport(record: InterventionReportRecord): void {
+export function saveReport(record: InterventionReportRecord): boolean {
   const current = listReports();
-  write([record, ...current.filter((item) => item.id !== record.id)]);
+  return write([record, ...current.filter((item) => item.id !== record.id)]);
 }
 
 /** Prossimo numero progressivo nel formato RAP-<anno>-<0000>. */
@@ -180,9 +204,18 @@ export function toInterventionReport(
     outcome: record.outcome,
     hours: record.hours,
     summary: record.summary,
-    workPerformed: record.followUp
-      ? `${record.workPerformed}\n\nFollow-up: ${record.followUp}`
-      : record.workPerformed,
+    workPerformed: [
+      record.workPerformed,
+      record.customerFeedback
+        ? `Feedback del cliente: ${record.customerFeedback}`
+        : "",
+      record.customerRequests?.length
+        ? `Richieste del cliente: ${record.customerRequests.join("; ")}`
+        : "",
+      record.followUp ? `Follow-up: ${record.followUp}` : "",
+    ]
+      .filter(Boolean)
+      .join("\n\n"),
     partsUsed: record.partsUsed,
     customerCompany: record.customerCompany,
   };

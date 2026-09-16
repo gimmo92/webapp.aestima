@@ -6,6 +6,7 @@ import {
   INTERVENTION_REPORT_TYPES,
 } from "@/lib/technicianData";
 import {
+  CUSTOMER_SENTIMENTS,
   todayDateLabel,
   type ReportDraft,
   type ReportSourceInput,
@@ -32,6 +33,8 @@ import {
 } from "./WaIcons";
 
 type Phase = "sources" | "draft" | "saved";
+
+type DictationTarget = "notes" | "feedback";
 
 interface ChatSource extends ReportSourceInput {
   id: string;
@@ -107,6 +110,7 @@ export function ReportComposer({
     () => new Set(chatSourcesOf(chat).map((source) => source.id))
   );
   const [notes, setNotes] = useState("");
+  const [feedback, setFeedback] = useState("");
   const [docs, setDocs] = useState<ReportSourceInput[]>([]);
   const [phase, setPhase] = useState<Phase>("sources");
   const [loading, setLoading] = useState(false);
@@ -115,18 +119,21 @@ export function ReportComposer({
   const [warning, setWarning] = useState<string | null>(null);
   const [saved, setSaved] = useState<InterventionReportRecord | null>(null);
   const [recordSeconds, setRecordSeconds] = useState(0);
-  const [recording, setRecording] = useState(false);
+  const [recording, setRecording] = useState<DictationTarget | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const fileRef = useRef<HTMLInputElement | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const startedAtRef = useRef(0);
   const transcriptRef = useRef("");
+  const targetRef = useRef<DictationTarget>("notes");
 
   const dictation = useSpeechDictation({
     onTranscript: (text) => {
       transcriptRef.current = text;
-      setNotes(text);
+      if (targetRef.current === "feedback") setFeedback(text);
+      else setNotes(text);
     },
   });
 
@@ -147,10 +154,12 @@ export function ReportComposer({
     });
   }
 
-  async function startDictation() {
+  async function startDictation(target: DictationTarget) {
     setWarning(null);
-    transcriptRef.current = notes;
-    dictation.start(notes);
+    const base = target === "feedback" ? feedback : notes;
+    targetRef.current = target;
+    transcriptRef.current = base;
+    dictation.start(base);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const recorder = new MediaRecorder(stream);
@@ -183,14 +192,14 @@ export function ReportComposer({
     }
     startedAtRef.current = Date.now();
     setRecordSeconds(0);
-    setRecording(true);
+    setRecording(target);
   }
 
   function stopDictation() {
     dictation.stop();
     recorderRef.current?.stop();
     recorderRef.current = null;
-    setRecording(false);
+    setRecording(null);
     setRecordSeconds(0);
   }
 
@@ -218,24 +227,30 @@ export function ReportComposer({
     return [...fromChat, ...docs];
   }
 
-  /** Fonti salvate sul rapporto: includono anche le note dell'operatore. */
+  /** Fonti salvate sul rapporto: includono note e voce del cliente. */
   function recordSources(): ReportSourceInput[] {
-    const dictated: ReportSourceInput[] = notes.trim()
-      ? [
-          {
-            kind: "testo",
-            label: "Note dell'operatore (dettate o scritte)",
-            excerpt: notes.trim(),
-          },
-        ]
-      : [];
+    const dictated: ReportSourceInput[] = [];
+    if (notes.trim()) {
+      dictated.push({
+        kind: "testo",
+        label: "Note dell'operatore (dettate o scritte)",
+        excerpt: notes.trim(),
+      });
+    }
+    if (feedback.trim()) {
+      dictated.push({
+        kind: "testo",
+        label: "Riscontro del cliente riferito dal tecnico",
+        excerpt: feedback.trim(),
+      });
+    }
     return [...dictated, ...attachedSources()];
   }
 
   async function generate() {
     if (recording) stopDictation();
     const sources = attachedSources();
-    if (sources.length === 0 && !notes.trim()) {
+    if (sources.length === 0 && !notes.trim() && !feedback.trim()) {
       setWarning("Seleziona almeno una fonte oppure scrivi due righe di note.");
       return;
     }
@@ -246,6 +261,7 @@ export function ReportComposer({
       customerCompany: chat.company,
       machineHint: chat.machine,
       notes: notes.trim() || undefined,
+      feedbackNotes: feedback.trim() || undefined,
       sources,
     });
     setDraft(result.draft);
@@ -271,7 +287,12 @@ export function ReportComposer({
       chatId: chat.id,
       chatName: chat.name,
     };
-    saveReport(record);
+    const persisted = saveReport(record);
+    setSaveError(
+      persisted
+        ? null
+        : "Il browser non ha potuto salvare il rapporto (memoria locale bloccata): resta valido solo in questa scheda."
+    );
     setSaved(record);
     setPhase("saved");
     onSaved(record);
@@ -321,25 +342,13 @@ export function ReportComposer({
                 className="mt-2 w-full resize-none rounded-lg border border-[#f0ece9] bg-[#f6f5f3] px-3 py-2.5 text-[14px] outline-none focus:border-[#1dab61]"
               />
               <div className="mt-2 flex items-center gap-2">
-                {recording ? (
-                  <button
-                    type="button"
-                    onClick={stopDictation}
-                    className="inline-flex items-center gap-2 rounded-full bg-[#ea4335] px-3.5 py-2 text-[13px] font-semibold text-white"
-                  >
-                    <span className="h-2 w-2 animate-pulse rounded-full bg-white" />
-                    Stop · {formatAudioDuration(recordSeconds)}
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={startDictation}
-                    className="inline-flex items-center gap-2 rounded-full bg-[#1dab61] px-3.5 py-2 text-[13px] font-semibold text-white transition hover:bg-[#199a57]"
-                  >
-                    <IconMic size={17} />
-                    Registra e trascrivi
-                  </button>
-                )}
+                <MicButton
+                  recording={recording === "notes"}
+                  seconds={recordSeconds}
+                  onStart={() => startDictation("notes")}
+                  onStop={stopDictation}
+                  label="Registra e trascrivi"
+                />
                 <button
                   type="button"
                   onClick={() => fileRef.current?.click()}
@@ -401,9 +410,46 @@ export function ReportComposer({
               />
             </section>
 
+            <section className="rounded-xl border border-[#d9fdd3] bg-[#f4fbf3] p-3">
+              <p className="text-[12px] font-semibold uppercase tracking-wide text-[#3d7454]">
+                2 · Feedback del cliente
+              </p>
+              <p className="mt-0.5 text-[12px] text-[#5e5b58]">
+                Cosa ha detto il cliente sull&apos;intervento e sulla macchina:
+                commenti, lamentele, richieste. Finisce in un campo dedicato del
+                rapporto.
+              </p>
+              <textarea
+                value={feedback}
+                onChange={(event) => setFeedback(event.target.value)}
+                rows={4}
+                placeholder="Es. «Il cliente dice che le manopole sono scomode e vorrebbe un modello più economico»"
+                className="mt-2 w-full resize-none rounded-lg border border-[#d9fdd3] bg-white px-3 py-2.5 text-[14px] outline-none focus:border-[#1dab61]"
+              />
+              <div className="mt-2 flex items-center gap-2">
+                <MicButton
+                  recording={recording === "feedback"}
+                  seconds={recordSeconds}
+                  onStart={() => startDictation("feedback")}
+                  onStop={stopDictation}
+                  label="Detta il feedback"
+                />
+                {feedback.trim() ? (
+                  <button
+                    type="button"
+                    onClick={() => setFeedback("")}
+                    aria-label="Svuota il feedback"
+                    className="ml-auto flex h-8 w-8 items-center justify-center rounded-full text-[#8e8b89] transition hover:bg-black/5"
+                  >
+                    <IconTrash size={17} />
+                  </button>
+                ) : null}
+              </div>
+            </section>
+
             <section>
               <p className="text-[12px] font-semibold uppercase tracking-wide text-[#7b7673]">
-                2 · Fonti dalla chat
+                3 · Fonti dalla chat
               </p>
               <ul className="mt-2 space-y-1.5">
                 {chatSources.length === 0 ? (
@@ -563,6 +609,61 @@ export function ReportComposer({
               />
             </Field>
 
+            <div className="rounded-xl border border-[#d9fdd3] bg-[#f4fbf3] p-3">
+              <Field label="Feedback del cliente">
+                <textarea
+                  value={draft.customerFeedback ?? ""}
+                  onChange={(event) =>
+                    updateDraft({
+                      customerFeedback: event.target.value || undefined,
+                    })
+                  }
+                  rows={4}
+                  placeholder="Nessun riscontro raccolto dal cliente."
+                  className={`${inputClass} resize-none border-[#d9fdd3] bg-white`}
+                />
+              </Field>
+              <div className="mt-3">
+                <Field label="Come ha reagito il cliente">
+                  <select
+                    value={draft.customerSentiment ?? ""}
+                    onChange={(event) =>
+                      updateDraft({
+                        customerSentiment:
+                          (event.target
+                            .value as ReportDraft["customerSentiment"]) ||
+                          undefined,
+                      })
+                    }
+                    className={`${inputClass} border-[#d9fdd3] bg-white`}
+                  >
+                    <option value="">Non rilevato</option>
+                    {CUSTOMER_SENTIMENTS.map((sentiment) => (
+                      <option key={sentiment.id} value={sentiment.id}>
+                        {sentiment.label}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+              </div>
+              <div className="mt-3">
+                <Field label="Richieste da girare alle vendite (separate da virgola)">
+                  <input
+                    value={(draft.customerRequests ?? []).join(", ")}
+                    onChange={(event) =>
+                      updateDraft({
+                        customerRequests: event.target.value
+                          .split(",")
+                          .map((request) => request.trim())
+                          .filter(Boolean),
+                      })
+                    }
+                    className={`${inputClass} border-[#d9fdd3] bg-white`}
+                  />
+                </Field>
+              </div>
+            </div>
+
             <Field label="Ricambi utilizzati (separati da virgola)">
               <input
                 value={draft.partsUsed.join(", ")}
@@ -601,9 +702,15 @@ export function ReportComposer({
                 Rapporto {saved.reportNumber} salvato
               </p>
               <p className="mt-1 text-[13px] text-[#7b7673]">
-                Lo trovi nella sezione Rapporti, con le fonti usate per scriverlo.
+                Lo trovi nella sezione Rapporti, con il feedback del cliente e le
+                fonti usate per scriverlo.
               </p>
             </div>
+            {saveError ? (
+              <p className="rounded-lg bg-[#fdecea] px-3 py-2 text-left text-[12.5px] text-[#b3261e]">
+                {saveError}
+              </p>
+            ) : null}
             <a
               href="/rapporti"
               className="inline-flex items-center gap-2 rounded-full bg-[#1dab61] px-4 py-2.5 text-[14px] font-semibold text-white transition hover:bg-[#199a57]"
@@ -665,6 +772,44 @@ export function ReportComposer({
 
 const inputClass =
   "w-full rounded-lg border border-[#f0ece9] bg-[#f6f5f3] px-3 py-2 text-[13.5px] outline-none focus:border-[#1dab61]";
+
+function MicButton({
+  recording,
+  seconds,
+  onStart,
+  onStop,
+  label,
+}: {
+  recording: boolean;
+  seconds: number;
+  onStart: () => void;
+  onStop: () => void;
+  label: string;
+}) {
+  if (recording) {
+    return (
+      <button
+        type="button"
+        onClick={onStop}
+        className="inline-flex items-center gap-2 rounded-full bg-[#ea4335] px-3.5 py-2 text-[13px] font-semibold text-white"
+      >
+        <span className="h-2 w-2 animate-pulse rounded-full bg-white" />
+        Stop · {formatAudioDuration(seconds)}
+      </button>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={onStart}
+      className="inline-flex items-center gap-2 rounded-full bg-[#1dab61] px-3.5 py-2 text-[13px] font-semibold text-white transition hover:bg-[#199a57]"
+    >
+      <IconMic size={17} />
+      {label}
+    </button>
+  );
+}
 
 function Field({
   label,

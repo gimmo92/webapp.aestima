@@ -17,7 +17,11 @@ import {
   toInterventionReport,
   type InterventionReportRecord,
 } from "@/lib/reportsStore";
-import type { ReportSourceKind } from "@/lib/interventionReportDraft";
+import {
+  CUSTOMER_SENTIMENTS,
+  type CustomerSentiment,
+  type ReportSourceKind,
+} from "@/lib/interventionReportDraft";
 
 const SOURCE_LABELS: Record<ReportSourceKind, string> = {
   audio: "Vocale trascritto",
@@ -25,6 +29,43 @@ const SOURCE_LABELS: Record<ReportSourceKind, string> = {
   documento: "Documento",
   chat: "Messaggio chat",
 };
+
+const SENTIMENT_BY_ID = Object.fromEntries(
+  CUSTOMER_SENTIMENTS.map((sentiment) => [sentiment.id, sentiment])
+) as Record<CustomerSentiment, (typeof CUSTOMER_SENTIMENTS)[number]>;
+
+type ReportFilter = "all" | "feedback" | "critical";
+
+const FILTERS: { id: ReportFilter; label: string }[] = [
+  { id: "all", label: "Tutti" },
+  { id: "feedback", label: "Con feedback" },
+  { id: "critical", label: "Clienti critici" },
+];
+
+function SentimentPill({
+  sentiment,
+  compact,
+}: {
+  sentiment: CustomerSentiment;
+  compact?: boolean;
+}) {
+  const config = SENTIMENT_BY_ID[sentiment];
+  return (
+    <span
+      className={[
+        "inline-flex items-center gap-1 rounded-full font-semibold",
+        compact ? "px-1.5 py-0.5 text-[10px]" : "px-2.5 py-1 text-xs",
+      ].join(" ")}
+      style={{ backgroundColor: `${config.color}1f`, color: config.color }}
+    >
+      <span
+        className="h-1.5 w-1.5 rounded-full"
+        style={{ backgroundColor: config.color }}
+      />
+      {config.label}
+    </span>
+  );
+}
 
 function formatCreatedAt(iso: string): string {
   const date = new Date(iso);
@@ -42,6 +83,7 @@ export function ReportsWorkspace() {
   const [reports, setReports] = useState<InterventionReportRecord[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState<ReportFilter>("all");
   const [pdfBusy, setPdfBusy] = useState(false);
 
   // localStorage è disponibile solo dopo il mount: evita mismatch di hydration.
@@ -53,21 +95,27 @@ export function ReportsWorkspace() {
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return reports;
-    return reports.filter((report) =>
-      [
+    return reports.filter((report) => {
+      if (filter === "feedback" && !report.customerFeedback?.trim()) return false;
+      if (filter === "critical" && report.customerSentiment !== "critico") {
+        return false;
+      }
+      if (!q) return true;
+      return [
         report.reportNumber,
         report.summary,
         report.technicianName,
         report.machineModel,
         report.customerCompany ?? "",
+        report.customerFeedback ?? "",
+        (report.customerRequests ?? []).join(" "),
         report.partsUsed.join(" "),
       ]
         .join(" ")
         .toLowerCase()
-        .includes(q)
-    );
-  }, [query, reports]);
+        .includes(q);
+    });
+  }, [filter, query, reports]);
 
   const active =
     visible.find((report) => report.id === activeId) ?? visible[0] ?? null;
@@ -99,9 +147,26 @@ export function ReportsWorkspace() {
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Cerca per numero, macchina, tecnico, ricambio…"
+            placeholder="Cerca per numero, macchina, tecnico, feedback…"
             className="mt-3 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink outline-none placeholder:text-ink-faint focus:border-brand/50"
           />
+          <div className="mt-2 flex items-center gap-1.5">
+            {FILTERS.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => setFilter(item.id)}
+                className={[
+                  "rounded-full px-2.5 py-1 text-xs font-semibold transition-colors",
+                  filter === item.id
+                    ? "bg-brand-soft text-ink"
+                    : "bg-surface text-ink-muted hover:text-ink",
+                ].join(" ")}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto">
@@ -138,12 +203,18 @@ export function ReportsWorkspace() {
                   <p className="mt-1 truncate text-xs text-ink-muted">
                     {report.technicianName} · {report.machineModel}
                   </p>
-                  <div className="mt-2 flex items-center gap-1.5">
+                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
                     <InterventionReportTypePill type={report.type} compact />
                     <InterventionReportOutcomePill
                       outcome={report.outcome}
                       compact
                     />
+                    {report.customerSentiment ? (
+                      <SentimentPill
+                        sentiment={report.customerSentiment}
+                        compact
+                      />
+                    ) : null}
                   </div>
                 </button>
               );
@@ -201,10 +272,43 @@ export function ReportsWorkspace() {
               </div>
             </header>
 
-            <div className="mt-5 flex items-center gap-2">
+            <div className="mt-5 flex flex-wrap items-center gap-2">
               <InterventionReportTypePill type={active.type} />
               <InterventionReportOutcomePill outcome={active.outcome} />
+              {active.customerSentiment ? (
+                <SentimentPill sentiment={active.customerSentiment} />
+              ) : null}
             </div>
+
+            {active.customerFeedback || active.customerRequests?.length ? (
+              <section className="mt-5 rounded-xl border border-brand/30 bg-brand-soft/40 px-4 py-4">
+                <h3 className="text-sm font-semibold text-ink">
+                  Feedback del cliente
+                </h3>
+                {active.customerFeedback ? (
+                  <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-ink">
+                    {active.customerFeedback}
+                  </p>
+                ) : null}
+                {active.customerRequests?.length ? (
+                  <div className="mt-3">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-ink-faint">
+                      Richieste da girare alle vendite
+                    </p>
+                    <ul className="mt-1.5 space-y-1">
+                      {active.customerRequests.map((request, index) => (
+                        <li
+                          key={`${request}-${index}`}
+                          className="text-sm leading-6 text-ink-muted"
+                        >
+                          · {request}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+              </section>
+            ) : null}
 
             <dl className="mt-5 grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-3">
               <DetailField label="Tecnico" value={active.technicianName} />

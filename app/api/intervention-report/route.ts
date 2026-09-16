@@ -3,6 +3,7 @@ import { callAnthropicMessages, getAnthropicKey } from "@/lib/anthropicKey";
 import {
   buildReportDraftFallback,
   todayDateLabel,
+  type CustomerSentiment,
   type ReportDraft,
   type ReportDraftInput,
 } from "@/lib/interventionReportDraft";
@@ -36,6 +37,8 @@ const OUTCOMES: InterventionReportOutcome[] = [
   "followup",
 ];
 
+const SENTIMENTS: CustomerSentiment[] = ["positivo", "neutro", "critico"];
+
 interface DraftPayload {
   machineModel?: string;
   machineSerial?: string | null;
@@ -46,6 +49,9 @@ interface DraftPayload {
   workPerformed?: string;
   partsUsed?: unknown;
   followUp?: string | null;
+  customerFeedback?: string | null;
+  customerSentiment?: string;
+  customerRequests?: unknown;
 }
 
 function parseJson(text: string): DraftPayload | null {
@@ -73,6 +79,15 @@ function coerceOutcome(raw: string | undefined): InterventionReportOutcome {
   return OUTCOMES.includes(value) ? value : "completato";
 }
 
+function coerceSentiment(
+  raw: string | undefined,
+  feedback: string | undefined
+): CustomerSentiment | undefined {
+  const value = (raw ?? "").toLowerCase() as CustomerSentiment;
+  if (SENTIMENTS.includes(value)) return value;
+  return feedback?.trim() ? "neutro" : undefined;
+}
+
 function coerceHours(raw: number | string | undefined): number {
   const value =
     typeof raw === "number" ? raw : Number(String(raw ?? "").replace(",", "."));
@@ -96,8 +111,16 @@ function buildPrompt(input: ReportDraftInput): string {
     `Data odierna: ${todayDateLabel()}`,
     "",
     input.notes?.trim() ? `Note dell'operatore:\n${input.notes.trim()}` : "",
+    input.feedbackNotes?.trim()
+      ? `Riscontro del cliente riferito dal tecnico:\n${input.feedbackNotes.trim()}`
+      : "",
     "",
     sources ? `Fonti:\n${sources}` : "Nessuna fonte allegata.",
+    "",
+    "Il riscontro del cliente è la parte più importante del rapporto: riporta",
+    "commenti, lamentele, richieste e grado di soddisfazione anche quando non",
+    "riguardano il guasto (ergonomia, costi, modelli alternativi, tempi).",
+    "Non scartare mai queste informazioni e non spostarle nei lavori eseguiti.",
     "",
     "Rispondi SOLO con JSON valido (senza markdown):",
     `{
@@ -109,7 +132,10 @@ function buildPrompt(input: ReportDraftInput): string {
   "summary": "una riga che sintetizza l'intervento, max 120 caratteri",
   "workPerformed": "lavori eseguiti in prosa tecnica, 3-6 frasi, senza elenco puntato",
   "partsUsed": ["CODICE-RICAMBIO"],
-  "followUp": "cosa resta da fare, oppure null"
+  "followUp": "cosa resta da fare, oppure null",
+  "customerFeedback": "cosa ha detto il cliente sull'intervento e sulla macchina, nelle sue parole, oppure null",
+  "customerSentiment": "positivo" | "neutro" | "critico",
+  "customerRequests": ["richieste commerciali da girare alle vendite"]
 }`,
   ]
     .filter((line) => line !== "")
@@ -141,6 +167,7 @@ export async function POST(req: Request) {
 
   const hasContent =
     Boolean(input.notes?.trim()) ||
+    Boolean(input.feedbackNotes?.trim()) ||
     input.sources.some((source) => source.excerpt?.trim() || source.label?.trim());
 
   if (!hasContent) {
@@ -163,7 +190,7 @@ export async function POST(req: Request) {
   try {
     const llm = await callAnthropicMessages({
       system:
-        "Sei un tecnico service senior che redige rapporti d'intervento su macchinari industriali. Usi solo le informazioni presenti nelle fonti, non inventi ricambi, misure o esiti. Scrivi in italiano tecnico, asciutto e professionale. Se un dato manca, lo ometti invece di inventarlo.",
+        "Sei un tecnico service senior che redige rapporti d'intervento su macchinari industriali. Usi solo le informazioni presenti nelle fonti, non inventi ricambi, misure o esiti. Scrivi in italiano tecnico, asciutto e professionale. Se un dato manca, lo ometti invece di inventarlo. Riporti sempre il riscontro del cliente, anche quando è un commento commerciale o di ergonomia estraneo al guasto.",
       user: buildPrompt(input),
       maxTokens: 1024,
     });
@@ -197,6 +224,16 @@ export async function POST(req: Request) {
           .slice(0, 12)
       : [];
 
+    const customerRequests = Array.isArray(parsed.customerRequests)
+      ? parsed.customerRequests
+          .map((request) => String(request).trim())
+          .filter(Boolean)
+          .slice(0, 6)
+      : fallback.customerRequests ?? [];
+
+    const customerFeedback =
+      parsed.customerFeedback?.trim() || fallback.customerFeedback;
+
     const draft: ReportDraft = {
       machineModel:
         parsed.machineModel?.trim() || fallback.machineModel,
@@ -210,6 +247,12 @@ export async function POST(req: Request) {
       workPerformed: parsed.workPerformed.trim(),
       partsUsed,
       followUp: parsed.followUp?.trim() || undefined,
+      customerFeedback,
+      customerSentiment: coerceSentiment(
+        parsed.customerSentiment,
+        customerFeedback
+      ),
+      customerRequests,
     };
 
     return NextResponse.json({ draft, source: "anthropic" as const });
