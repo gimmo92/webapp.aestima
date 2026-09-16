@@ -1,14 +1,16 @@
 "use client";
 
-import { InboxTopBar } from "@/components/inbox/InboxTopBar";
+import { Suspense } from "react";
+import { ReportsShell } from "@/components/reports/ReportsShell";
 import { ReportsWorkspace } from "@/components/reports/ReportsWorkspace";
 
 // Tab "Rapporti" — rapporti d'intervento generati dalle chat con i tecnici.
 export default function RapportiPage() {
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-base">
-      <InboxTopBar />
-      <ReportsWorkspace />
-    </div>
+    <ReportsShell>
+      <Suspense fallback={<div className="min-h-0 flex-1" />}>
+        <ReportsWorkspace />
+      </Suspense>
+    </ReportsShell>
   );
 }

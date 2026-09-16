@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import {
   InterventionReportOutcomePill,
   InterventionReportTypePill,
@@ -17,11 +18,8 @@ import {
   toInterventionReport,
   type InterventionReportRecord,
 } from "@/lib/reportsStore";
-import {
-  CUSTOMER_SENTIMENTS,
-  type CustomerSentiment,
-  type ReportSourceKind,
-} from "@/lib/interventionReportDraft";
+import type { ReportSourceKind } from "@/lib/interventionReportDraft";
+import { SentimentPill } from "./SentimentPill";
 
 const SOURCE_LABELS: Record<ReportSourceKind, string> = {
   audio: "Vocale trascritto",
@@ -30,10 +28,6 @@ const SOURCE_LABELS: Record<ReportSourceKind, string> = {
   chat: "Messaggio chat",
 };
 
-const SENTIMENT_BY_ID = Object.fromEntries(
-  CUSTOMER_SENTIMENTS.map((sentiment) => [sentiment.id, sentiment])
-) as Record<CustomerSentiment, (typeof CUSTOMER_SENTIMENTS)[number]>;
-
 type ReportFilter = "all" | "feedback" | "critical";
 
 const FILTERS: { id: ReportFilter; label: string }[] = [
@@ -41,31 +35,6 @@ const FILTERS: { id: ReportFilter; label: string }[] = [
   { id: "feedback", label: "Con feedback" },
   { id: "critical", label: "Clienti critici" },
 ];
-
-function SentimentPill({
-  sentiment,
-  compact,
-}: {
-  sentiment: CustomerSentiment;
-  compact?: boolean;
-}) {
-  const config = SENTIMENT_BY_ID[sentiment];
-  return (
-    <span
-      className={[
-        "inline-flex items-center gap-1 rounded-full font-semibold",
-        compact ? "px-1.5 py-0.5 text-[10px]" : "px-2.5 py-1 text-xs",
-      ].join(" ")}
-      style={{ backgroundColor: `${config.color}1f`, color: config.color }}
-    >
-      <span
-        className="h-1.5 w-1.5 rounded-full"
-        style={{ backgroundColor: config.color }}
-      />
-      {config.label}
-    </span>
-  );
-}
 
 function formatCreatedAt(iso: string): string {
   const date = new Date(iso);
@@ -80,8 +49,12 @@ function formatCreatedAt(iso: string): string {
 }
 
 export function ReportsWorkspace() {
+  const searchParams = useSearchParams();
   const [reports, setReports] = useState<InterventionReportRecord[]>([]);
-  const [activeId, setActiveId] = useState<string | null>(null);
+  // Arrivando da "Feedback" si apre direttamente il rapporto citato.
+  const [activeId, setActiveId] = useState<string | null>(
+    searchParams.get("id")
+  );
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<ReportFilter>("all");
   const [pdfBusy, setPdfBusy] = useState(false);

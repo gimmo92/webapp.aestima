@@ -239,6 +239,12 @@ export const en: Messages = {
     sla: "Average response time: within 4 business hours ·",
     view: "View ticket →",
   },
+  reports: {
+    section: "Service reports",
+    navAria: "Report sections",
+    list: "Reports",
+    feedback: "Feedback",
+  },
   tickets: {
     section: "Ticketing",
     navAria: "Ticketing sections",

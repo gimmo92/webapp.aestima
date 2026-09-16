@@ -249,6 +249,13 @@ function splitCustomerVoice(text: string): { feedback: string; rest: string } {
   return { feedback: feedback.join(" "), rest: rest.join(" ") };
 }
 
+/** Sentiment del riscontro cliente: usato anche in fase di analisi. */
+export function analyzeSentiment(
+  feedback: string
+): CustomerSentiment | undefined {
+  return detectSentiment(feedback);
+}
+
 function detectSentiment(feedback: string): CustomerSentiment | undefined {
   if (!feedback.trim()) return undefined;
   const lower = feedback.toLowerCase();

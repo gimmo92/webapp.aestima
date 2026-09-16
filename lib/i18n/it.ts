@@ -243,6 +243,12 @@ export const it = {
     sla: "Tempo medio di risposta: entro 4 ore lavorative ·",
     view: "Vedi ticket →",
   },
+  reports: {
+    section: "Rapporti",
+    navAria: "Sezioni rapporti",
+    list: "Rapporti",
+    feedback: "Feedback",
+  },
   tickets: {
     section: "Ticketing",
     navAria: "Sezioni ticketing",
