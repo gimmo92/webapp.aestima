@@ -80,6 +80,10 @@ export function WhatsAppWorkspace({
   embedded?: boolean;
 } = {}) {
   const [chats, setChats] = useState<WaChat[]>(WA_CHATS);
+
+  useEffect(() => {
+    document.title = "Whatsapp";
+  }, []);
   const [activeId, setActiveId] = useState(WA_CHATS[0].id);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<ListFilter>("all");
@@ -308,7 +312,7 @@ export function WhatsAppWorkspace({
         }`}
       >
         <header className="flex items-center justify-between px-5 pt-5 pb-1.5">
-          <h1 className="text-[1.6rem] font-bold tracking-tight">Chat</h1>
+          <h1 className="text-[1.6rem] font-bold tracking-tight">Whatsapp</h1>
           <div className="flex items-center gap-1 text-[#5e5b58]">
             <InertButton label="Menu">
               <IconMenu size={20} />
@@ -457,7 +461,7 @@ export function WhatsAppWorkspace({
           </div>
         </div>
 
-        <footer className="relative border-t border-[#f0ece9] bg-white px-4 py-2.5">
+        <footer className="relative z-20 shrink-0 overflow-visible border-t border-[#f0ece9] bg-white py-2.5 pl-6 pr-4">
           {micError ? (
             <p className="mb-2 rounded-md bg-[#fdecea] px-3 py-1.5 text-[12.5px] text-[#b3261e]">
               {micError}
@@ -527,12 +531,12 @@ export function WhatsAppWorkspace({
               </button>
             </div>
           ) : (
-            <div className="flex items-end gap-2">
+            <div className="flex w-full min-w-0 items-end gap-2 overflow-visible">
               <button
                 type="button"
                 onClick={() => setAttachOpen((prev) => !prev)}
                 aria-label="Allega"
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[#5e5b58] transition hover:bg-black/5"
+                className="relative z-10 flex h-10 w-10 shrink-0 items-center justify-center overflow-visible rounded-full text-[#5e5b58] transition hover:bg-black/5"
               >
                 <IconPaperclip size={22} />
               </button>
@@ -556,14 +560,14 @@ export function WhatsAppWorkspace({
                   }
                 }}
                 placeholder="Scrivi un messaggio"
-                className="max-h-36 min-h-[2.75rem] flex-1 resize-none rounded-lg bg-white px-4 py-3 text-[15px] leading-5 outline-none placeholder:text-[#8e8b89]"
+                className="max-h-36 min-h-[2.75rem] min-w-0 flex-1 resize-none rounded-lg bg-white px-4 py-3 text-[15px] leading-5 outline-none placeholder:text-[#8e8b89]"
               />
               {draft.trim() ? (
                 <button
                   type="button"
                   onClick={sendText}
                   aria-label="Invia messaggio"
-                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#1dab61] text-white transition hover:bg-[#199a57]"
+                  className="relative z-10 flex h-11 w-11 shrink-0 items-center justify-center overflow-visible rounded-full bg-[#1dab61] text-white transition hover:bg-[#199a57]"
                 >
                   <IconSend size={21} />
                 </button>
@@ -608,7 +612,7 @@ function RailSidebar({ unreadTotal }: { unreadTotal: number }) {
   return (
     <nav className="flex w-16 shrink-0 flex-col items-center justify-between border-r border-[#f0ece9] bg-[#f6f5f3] py-3">
       <div className="flex flex-col items-center gap-1.5">
-        <RailButton label="Chat" active badge={unreadTotal}>
+        <RailButton label="Whatsapp" active badge={unreadTotal}>
           <IconChats size={24} />
         </RailButton>
         <RailButton label="Chiamate">

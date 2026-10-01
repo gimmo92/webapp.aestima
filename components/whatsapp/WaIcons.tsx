@@ -133,8 +133,8 @@ export function IconVideo(props: IconProps) {
 
 export function IconPaperclip(props: IconProps) {
   return (
-    <svg {...svgProps(props)}>
-      <path d="M17.5 8.3l-7.8 7.8a2.2 2.2 0 0 0 3.1 3.1l7.5-7.5a4.4 4.4 0 0 0-6.2-6.2l-7.6 7.6a6.6 6.6 0 0 0 9.3 9.3" />
+    <svg {...svgProps(props)} overflow="visible">
+      <path d="M16.2 7.6 9.4 14.4a1.8 1.8 0 0 0 2.5 2.5l6.2-6.2a3.4 3.4 0 0 0-4.8-4.8L6.6 12.6a5 5 0 0 0 7.1 7.1" />
     </svg>
   );
 }
