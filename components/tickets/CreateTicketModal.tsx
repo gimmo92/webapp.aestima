@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useInbox } from "@/components/inbox/InboxProvider";
+import { DEFAULT_TICKET_FIELD_LABELS } from "@/lib/ticketFieldLabels";
 import type {
   CreateTicketInput,
   TicketCategory,
@@ -13,6 +15,7 @@ interface Props {
 }
 
 export function CreateTicketModal({ onClose, onCreate }: Props) {
+  const { ticketFieldLabels } = useInbox();
   const [summary, setSummary] = useState("");
   const [description, setDescription] = useState("");
   const [machineModel, setMachineModel] = useState("");
@@ -82,7 +85,14 @@ export function CreateTicketModal({ onClose, onCreate }: Props) {
             />
           </Field>
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Modello macchina">
+            <Field
+              label={
+                ticketFieldLabels.machineModel ===
+                DEFAULT_TICKET_FIELD_LABELS.machineModel
+                  ? "Modello macchina"
+                  : ticketFieldLabels.machineModel
+              }
+            >
               <input
                 value={machineModel}
                 onChange={(e) => setMachineModel(e.target.value)}
@@ -90,7 +100,7 @@ export function CreateTicketModal({ onClose, onCreate }: Props) {
                 placeholder="Es. Rettificatrice RX-400"
               />
             </Field>
-            <Field label="Matricola">
+            <Field label={ticketFieldLabels.machineSerial}>
               <input
                 value={machineSerial}
                 onChange={(e) => setMachineSerial(e.target.value)}

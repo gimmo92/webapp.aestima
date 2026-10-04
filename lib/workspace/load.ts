@@ -21,12 +21,14 @@ import type { KnowledgeEntry } from "@/lib/knowledgeTypes";
 import type { ServiceTicketRecord, TicketStage } from "@/lib/ticketTypes";
 import type { PhoneCallRecord } from "@/lib/telephony/types";
 import { normalizeTicketStages } from "@/lib/ticketData";
-import { isTelephonyEnabled } from "@/lib/telephony/settings";
+import { ticketFieldLabelsFromSettings } from "@/lib/ticketFieldLabels";
+import type { TicketFieldLabels } from "@/lib/ticketFieldLabels";
 import {
   confidenceThreshold,
   routingFromSettings,
 } from "@/lib/telephony/classify";
 import type { DepartmentId, TelephonyCategory } from "@/lib/telephony/classify";
+import { isTelephonyEnabled } from "@/lib/telephony/settings";
 import {
   normalizeTicketForm,
   type TicketFormConfig,
@@ -61,6 +63,7 @@ export type WorkspaceSnapshot = {
   telephonyEnabled: boolean;
   telephonyRouting: Record<TelephonyCategory, DepartmentId | null>;
   telephonyConfidence: number;
+  ticketFieldLabels: TicketFieldLabels;
   customers: Customer[];
   companyUsers: CompanyUserOption[];
 };
@@ -224,6 +227,7 @@ export async function loadCompanyWorkspace(
     telephonyEnabled: isTelephonyEnabled(company.settingsJson),
     telephonyRouting: routingFromSettings(company.settingsJson),
     telephonyConfidence: confidenceThreshold(company.settingsJson),
+    ticketFieldLabels: ticketFieldLabelsFromSettings(company.settingsJson),
     customers: customers.map(mapCustomer),
     companyUsers,
   };

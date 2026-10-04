@@ -21,6 +21,7 @@ export function TicketQueueBoard() {
     companyUsers,
     updateTicket,
     telephonyEnabled,
+    ticketFieldLabels,
   } = useInbox();
   const router = useRouter();
   const columns = useMemo(() => boardStages(ticketStages), [ticketStages]);
@@ -167,7 +168,9 @@ export function TicketQueueBoard() {
                           #{t.id}
                         </p>
                         <p className="mt-1 truncate text-xs text-ink-muted">
-                          {t.machineSerial ?? t.machineModel ?? "Macchina n/d"}
+                          {t.machineSerial ??
+                            t.machineModel ??
+                            `${ticketFieldLabels.machineModel} n/d`}
                         </p>
                         <p className="mt-2 text-[11px] text-ink-faint">
                           {telephonyEnabled &&

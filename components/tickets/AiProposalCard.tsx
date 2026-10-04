@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useInbox } from "@/components/inbox/InboxProvider";
 import {
   DEPARTMENT_LABELS,
   DEPARTMENTS,
@@ -29,6 +30,7 @@ export function AiProposalCard({
   threshold: number;
   onConfirm: (choice: Choice) => void;
 }) {
+  const { ticketFieldLabels } = useInbox();
   const [editing, setEditing] = useState(false);
   const [choice, setChoice] = useState<Choice>(initial);
 
@@ -92,12 +94,12 @@ export function AiProposalCard({
             ]}
           />
           <Field
-            label="Prodotto"
+            label={ticketFieldLabels.machineModel}
             value={choice.product ?? ""}
             onChange={(product) => setChoice((prev) => ({ ...prev, product: product || null }))}
           />
           <Field
-            label="Commessa / ordine"
+            label={ticketFieldLabels.machineSerial}
             value={choice.orderNumber ?? ""}
             onChange={(orderNumber) =>
               setChoice((prev) => ({ ...prev, orderNumber: orderNumber || null }))
@@ -141,8 +143,8 @@ export function AiProposalCard({
             value={shown.department ? DEPARTMENT_LABELS[shown.department] : "Nessuno"}
           />
           <Item label="Urgenza" value={shown.urgency === "alta" ? "Alta" : "Normale"} />
-          <Item label="Prodotto" value={shown.product ?? "—"} />
-          <Item label="Commessa / ordine" value={shown.orderNumber ?? "—"} />
+          <Item label={ticketFieldLabels.machineModel} value={shown.product ?? "—"} />
+          <Item label={ticketFieldLabels.machineSerial} value={shown.orderNumber ?? "—"} />
           <Item
             label="Codici pezzo"
             value={shown.partCodes.length ? shown.partCodes.join(", ") : "—"}

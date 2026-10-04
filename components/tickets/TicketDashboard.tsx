@@ -4,16 +4,44 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useInbox } from "@/components/inbox/InboxProvider";
-import { openStageIds, terminalStageIds } from "@/lib/ticketData";
+import {
+  TICKET_CATEGORY_LABELS,
+  TICKET_SOURCE_LABELS,
+  openStageIds,
+  terminalStageIds,
+} from "@/lib/ticketData";
+import { DEPARTMENT_LABELS, isDepartmentId } from "@/lib/telephony/classify";
+import {
+  averageResolutionHours,
+  countGroups,
+  formatResolutionHours,
+  isOnOrAfter,
+  periodStart,
+} from "@/lib/ticketStats";
+import type { StatsPeriod } from "@/lib/ticketStats";
 import { CreateTicketModal } from "./CreateTicketModal";
 import { TicketStatusPill } from "./TicketStatusPill";
 import { useI18n } from "@/lib/i18n";
 
+const PERIODS: { id: StatsPeriod; label: string }[] = [
+  { id: "7", label: "7 giorni" },
+  { id: "30", label: "30 giorni" },
+  { id: "90", label: "90 giorni" },
+  { id: "all", label: "Tutto" },
+];
+
 export function TicketDashboard() {
-  const { tickets, ticketStages, requests, conversations, createTicket } =
-    useInbox();
+  const {
+    tickets,
+    ticketStages,
+    requests,
+    conversations,
+    createTicket,
+    telephonyEnabled,
+  } = useInbox();
   const router = useRouter();
   const [showCreate, setShowCreate] = useState(false);
+  const [period, setPeriod] = useState<StatsPeriod>("all");
   const { t } = useI18n();
 
   const openIds = openStageIds(ticketStages);
@@ -42,6 +70,31 @@ export function TicketDashboard() {
       chatsOpen: conversations.filter((c) => c.status === "aperto").length,
     };
   }, [tickets, ticketStages, requests, conversations, openIds, closedIds]);
+
+  const breakdown = useMemo(() => {
+    const start = periodStart(period);
+    const opened = tickets.filter((ticket) => isOnOrAfter(ticket.createdAt, start));
+    const reasons = countGroups(
+      opened.map((ticket) => TICKET_CATEGORY_LABELS[ticket.category] ?? ticket.category)
+    );
+    const channels = countGroups(
+      opened.map((ticket) => TICKET_SOURCE_LABELS[ticket.source] ?? ticket.source)
+    );
+    const departments = countGroups(
+      opened.map((ticket) =>
+        ticket.department && isDepartmentId(ticket.department)
+          ? DEPARTMENT_LABELS[ticket.department]
+          : "Senza reparto"
+      )
+    );
+    return {
+      opened: opened.length,
+      reasons,
+      channels,
+      departments,
+      resolution: averageResolutionHours(tickets, start),
+    };
+  }, [tickets, period]);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -196,6 +249,56 @@ export function TicketDashboard() {
         </div>
 
         <section className="mt-5 rounded-2xl border border-border bg-surface/40 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-semibold text-ink">Statistiche</h2>
+              <p className="text-xs text-ink-faint">
+                Motivo, canale
+                {telephonyEnabled ? ", reparto" : ""} e tempo di risoluzione nel
+                periodo. {breakdown.opened} ticket creati nel periodo.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {PERIODS.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => setPeriod(item.id)}
+                  className={[
+                    "rounded-full border px-2.5 py-1 text-[11px] font-medium",
+                    period === item.id
+                      ? "border-brand/50 bg-brand-soft text-ink"
+                      : "border-border bg-base text-ink-muted hover:border-border-strong",
+                  ].join(" ")}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <CountList title="Per motivo" rows={breakdown.reasons} />
+            <CountList title="Per canale" rows={breakdown.channels} />
+            {telephonyEnabled && (
+              <CountList title="Per reparto" rows={breakdown.departments} />
+            )}
+            <div className="rounded-xl border border-border bg-base/60 p-3">
+              <p className="text-xs font-medium text-ink-faint">
+                Tempo medio di risoluzione
+              </p>
+              <p className="mt-2 text-lg font-semibold text-ink">
+                {formatResolutionHours(breakdown.resolution.averageHours)}
+              </p>
+              <p className="mt-1 text-[11px] text-ink-faint">
+                {breakdown.resolution.count === 0
+                  ? "Nessun ticket risolto nel periodo"
+                  : `Su ${breakdown.resolution.count} ticket risolti nel periodo`}
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section className="mt-5 rounded-2xl border border-border bg-surface/40 p-4">
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-sm font-semibold text-ink">{t("tickets.latest")}</h2>
             <Link
@@ -241,6 +344,41 @@ export function TicketDashboard() {
             router.push(`/ticket/lista?id=${encodeURIComponent(id)}`);
           }}
         />
+      )}
+    </div>
+  );
+}
+
+function CountList({
+  title,
+  rows,
+}: {
+  title: string;
+  rows: { key: string; count: number }[];
+}) {
+  const max = Math.max(1, ...rows.map((row) => row.count));
+  return (
+    <div className="rounded-xl border border-border bg-base/60 p-3">
+      <p className="text-xs font-medium text-ink-faint">{title}</p>
+      {rows.length === 0 ? (
+        <p className="py-6 text-center text-[11px] text-ink-faint">Nessun ticket</p>
+      ) : (
+        <ul className="mt-3 space-y-2">
+          {rows.map((row) => (
+            <li key={row.key}>
+              <div className="mb-1 flex items-center justify-between gap-2 text-xs">
+                <span className="truncate text-ink-muted">{row.key}</span>
+                <span className="font-semibold text-ink">{row.count}</span>
+              </div>
+              <div className="h-1.5 overflow-hidden rounded-full bg-surface-2">
+                <div
+                  className="h-full rounded-full bg-brand"
+                  style={{ width: `${(row.count / max) * 100}%` }}
+                />
+              </div>
+            </li>
+          ))}
+        </ul>
       )}
     </div>
   );

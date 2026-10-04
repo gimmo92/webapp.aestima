@@ -192,6 +192,8 @@ export function mapTicket(row: {
   aiProposalJson?: unknown;
   operatorChoiceJson?: unknown;
   formExtraJson?: unknown;
+  createdAt?: Date;
+  resolvedAt?: Date | null;
   createdLabel: string;
   createdFull: string;
   updatedFull: string;
@@ -225,6 +227,8 @@ export function mapTicket(row: {
     department: row.department ?? undefined,
     aiProposal: readProposal(row.aiProposalJson) ?? undefined,
     operatorChoice: readOperatorChoice(row.operatorChoiceJson) ?? undefined,
+    createdAt: row.createdAt ? row.createdAt.toISOString() : undefined,
+    resolvedAt: row.resolvedAt ? row.resolvedAt.toISOString() : undefined,
     formExtra:
       row.formExtraJson &&
       typeof row.formExtraJson === "object" &&

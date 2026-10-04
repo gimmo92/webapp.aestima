@@ -75,6 +75,8 @@ export interface ServiceTicketRecord {
   department?: string;
   aiProposal?: CallProposal;
   operatorChoice?: OperatorChoice;
+  createdAt?: string;
+  resolvedAt?: string;
   formExtra?: Record<string, string>;
   attachments?: TicketAttachmentMeta[];
 }

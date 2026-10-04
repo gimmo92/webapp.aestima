@@ -1,7 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@/lib/generated/prisma/client";
 import { normalizeTicketForm } from "@/lib/ticketForm";
-import { normalizeTicketStages } from "@/lib/ticketData";
+import { normalizeTicketStages, terminalStageIds } from "@/lib/ticketData";
+import { ticketFieldLabelsFromSettings } from "@/lib/ticketFieldLabels";
 import { applyDiscontinuedPrefix } from "@/lib/discontinuedSparePart";
 import { classifyTranscript } from "@/lib/telephony/classifyCall";
 import {
@@ -474,7 +475,12 @@ export async function applyWorkspaceMutation(
       const id = asString(p.id);
       const existing = await prisma.serviceTicket.findFirst({
         where: { id, companyId },
-        select: { status: true, department: true, assignedTechnicianId: true },
+        select: {
+          status: true,
+          department: true,
+          assignedTechnicianId: true,
+          resolvedAt: true,
+        },
       });
       if (!existing) return { ok: false, error: "Ticket non trovato" };
       const data: Prisma.ServiceTicketUpdateManyMutationInput = {};
@@ -509,9 +515,47 @@ export async function applyWorkspaceMutation(
       });
       data.department = department;
       data.assignedTechnicianId = technicianId;
+      const company = await prisma.company.findUnique({
+        where: { id: companyId },
+        select: { settingsJson: true },
+      });
+      const stages = normalizeTicketStages(
+        company?.settingsJson &&
+          typeof company.settingsJson === "object" &&
+          !Array.isArray(company.settingsJson)
+          ? (company.settingsJson as Record<string, unknown>).ticketStages
+          : undefined
+      );
+      const terminal = new Set(terminalStageIds(stages));
+      data.resolvedAt = terminal.has(data.status as string)
+        ? (existing.resolvedAt ?? new Date())
+        : null;
       await prisma.serviceTicket.updateMany({
         where: { id, companyId },
         data,
+      });
+      return { ok: true };
+    }
+    case "updateTicketFieldLabels": {
+      const company = await prisma.company.findUnique({
+        where: { id: companyId },
+        select: { settingsJson: true },
+      });
+      const prev =
+        company?.settingsJson &&
+        typeof company.settingsJson === "object" &&
+        !Array.isArray(company.settingsJson)
+          ? (company.settingsJson as Record<string, unknown>)
+          : {};
+      const labels = ticketFieldLabelsFromSettings({ ticketFieldLabels: p });
+      await prisma.company.update({
+        where: { id: companyId },
+        data: {
+          settingsJson: {
+            ...prev,
+            ticketFieldLabels: labels,
+          } as Prisma.InputJsonValue,
+        },
       });
       return { ok: true };
     }

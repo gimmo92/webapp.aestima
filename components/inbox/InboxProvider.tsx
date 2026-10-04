@@ -58,7 +58,13 @@ import {
   firstOpenStageId,
   newTicketId,
   normalizeTicketStages,
+  terminalStageIds,
 } from "@/lib/ticketData";
+import {
+  DEFAULT_TICKET_FIELD_LABELS,
+  ticketFieldLabelsFromSettings,
+} from "@/lib/ticketFieldLabels";
+import type { TicketFieldLabels } from "@/lib/ticketFieldLabels";
 import type {
   CreateTicketInput,
   ServiceTicketRecord,
@@ -185,6 +191,8 @@ interface InboxContextValue {
     choice: Omit<CallProposal, "confidence">
   ) => void;
   setTelephonyEnabled: (enabled: boolean) => void;
+  ticketFieldLabels: TicketFieldLabels;
+  setTicketFieldLabels: (labels: TicketFieldLabels) => void;
   setTicketForm: (
     config: TicketFormConfig | ((prev: TicketFormConfig) => TicketFormConfig)
   ) => void;
@@ -287,6 +295,8 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
     altro: null,
   });
   const [telephonyConfidence, setTelephonyConfidenceState] = useState(0.65);
+  const [ticketFieldLabels, setTicketFieldLabelsState] =
+    useState<TicketFieldLabels>(DEFAULT_TICKET_FIELD_LABELS);
   const [conversations, setConversations] = useState<ConversationRecord[]>([]);
   const conversationsHydratedRef = useRef(false);
   const cloudModeRef = useRef(false);
@@ -354,6 +364,13 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
         if (data.telephonyRouting) setTelephonyRoutingState(data.telephonyRouting);
         if (typeof data.telephonyConfidence === "number") {
           setTelephonyConfidenceState(data.telephonyConfidence);
+        }
+        if (data.ticketFieldLabels) {
+          setTicketFieldLabelsState(
+            ticketFieldLabelsFromSettings({
+              ticketFieldLabels: data.ticketFieldLabels,
+            })
+          );
         }
         setSuppliers(data.suppliers ?? []);
         setCustomers(data.customers ?? []);
@@ -438,6 +455,15 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
       persist("updateTelephony", { enabled, stages: nextStages });
     },
     [persist, ticketStages, tickets]
+  );
+
+  const setTicketFieldLabels = useCallback(
+    (labels: TicketFieldLabels) => {
+      const next = ticketFieldLabelsFromSettings({ ticketFieldLabels: labels });
+      setTicketFieldLabelsState(next);
+      persist("updateTicketFieldLabels", next);
+    },
+    [persist]
   );
 
   const setTelephonyRouting = useCallback(
@@ -702,6 +728,7 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
         createdLabel: sentLabel,
         createdFull: sentFull,
         updatedFull: sentFull,
+        createdAt: new Date().toISOString(),
       };
       setTickets((prev) => {
         if (prev.some((t) => t.id === id)) return prev;
@@ -749,6 +776,12 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
             department: next.department,
             technicianId: next.assignedTechnicianId,
           });
+          const terminal = new Set(terminalStageIds(ticketStages));
+          if (terminal.has(next.status)) {
+            next.resolvedAt = t.resolvedAt ?? new Date().toISOString();
+          } else {
+            next.resolvedAt = undefined;
+          }
           nextRow = next;
           return next;
         })
@@ -760,10 +793,11 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
           id,
           department: row.department ?? null,
           assignedTechnicianId: row.assignedTechnicianId ?? null,
+          resolvedAt: row.resolvedAt ?? null,
         });
       }
     },
-    [persist]
+    [persist, ticketStages]
   );
 
   const getTicketById = useCallback(
@@ -1124,6 +1158,7 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
         createdLabel: sentLabel,
         createdFull: sentFull,
         updatedFull: sentFull,
+        createdAt: new Date().toISOString(),
       };
       setTickets((prev) => [row, ...prev.filter((ticket) => ticket.id !== id)]);
       setPhoneCalls((prev) =>
@@ -1180,6 +1215,8 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
         setTelephonyRouting,
         confirmCallClassification,
         setTelephonyEnabled,
+        ticketFieldLabels,
+        setTicketFieldLabels,
         setTicketForm,
         createTicket,
         updateTicket,

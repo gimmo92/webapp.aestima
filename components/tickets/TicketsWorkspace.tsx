@@ -51,6 +51,7 @@ export function TicketsWorkspace() {
     customers,
     attachPhoneCall,
     createTicketFromPhoneCall,
+    ticketFieldLabels,
   } = useInbox();
   const { t } = useI18n();
   const tabs: { id: Tab; label: string }[] = [
@@ -299,6 +300,7 @@ export function TicketsWorkspace() {
                   departmentLabel={
                     telephonyEnabled ? departmentName(t.department) : undefined
                   }
+                  assetFallback={`${ticketFieldLabels.machineModel} n/d`}
                   onSelect={() => setSelectedId(t.id)}
                 />
               ))
@@ -350,12 +352,14 @@ function TicketListRow({
   active,
   technicianName,
   departmentLabel,
+  assetFallback,
   onSelect,
 }: {
   ticket: ServiceTicketRecord;
   active: boolean;
   technicianName?: string;
   departmentLabel?: string;
+  assetFallback: string;
   onSelect: () => void;
 }) {
   return (
@@ -381,7 +385,7 @@ function TicketListRow({
         </span>
       </div>
       <p className="truncate text-xs text-ink-faint">
-        {ticket.machineSerial ?? "Macchina n/d"} ·{" "}
+        {ticket.machineSerial ?? assetFallback} ·{" "}
         {TICKET_SOURCE_LABELS[ticket.source]} · {ticket.createdLabel}
       </p>
       {(departmentLabel || technicianName) && (
@@ -412,7 +416,7 @@ function TicketDetail({
   onLearnFromSolution: ReturnType<typeof useInbox>["addKnowledgeEntry"];
   onOpenTicket: (id: string) => void;
 }) {
-  const { ticketStages, phoneCalls, customers, tickets, attachPhoneCall, createTicketFromPhoneCall, telephonyEnabled, telephonyConfidence, confirmCallClassification } = useInbox();
+  const { ticketStages, phoneCalls, customers, tickets, attachPhoneCall, createTicketFromPhoneCall, telephonyEnabled, telephonyConfidence, confirmCallClassification, ticketFieldLabels } = useInbox();
   const [notes, setNotes] = useState(ticket.internalNotes ?? "");
   const [solution, setSolution] = useState(ticket.solution ?? "");
   const [learning, setLearning] = useState(false);
@@ -531,10 +535,10 @@ function TicketDetail({
         <MetaField label="Categoria">
           {TICKET_CATEGORY_LABELS[ticket.category]}
         </MetaField>
-        <MetaField label="Macchina">
+        <MetaField label={ticketFieldLabels.machineModel}>
           {ticket.machineModel ?? "—"}
         </MetaField>
-        <MetaField label="Matricola">
+        <MetaField label={ticketFieldLabels.machineSerial}>
           {ticket.machineSerial ?? "—"}
         </MetaField>
         <MetaField
