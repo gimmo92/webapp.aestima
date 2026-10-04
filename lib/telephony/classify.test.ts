@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   parseClassification,
+  resolveAssignmentStatus,
   statusAfterConfirm,
   withDepartment,
   DEFAULT_CATEGORY_ROUTING,
@@ -71,6 +72,51 @@ describe("reparto e conferma", () => {
         confidence: 0.8,
         threshold: 0.65,
         department: "commerciale",
+      }),
+      "assegnato"
+    );
+  });
+
+  it("senza reparto e senza tecnico non diventa Assegnato", () => {
+    assert.equal(
+      resolveAssignmentStatus({
+        currentStatus: "aperto",
+        requestedStatus: "assegnato",
+        department: null,
+        technicianId: null,
+      }),
+      "aperto"
+    );
+    assert.equal(
+      resolveAssignmentStatus({
+        currentStatus: "in_lavorazione",
+        requestedStatus: "assegnato",
+        department: null,
+        technicianId: null,
+      }),
+      "in_lavorazione"
+    );
+  });
+
+  it("togliere tecnico e reparto da Assegnato riporta a Da assegnare", () => {
+    assert.equal(
+      resolveAssignmentStatus({
+        currentStatus: "assegnato",
+        requestedStatus: "assegnato",
+        department: null,
+        technicianId: null,
+      }),
+      "aperto"
+    );
+  });
+
+  it("un reparto basta per restare Assegnato", () => {
+    assert.equal(
+      resolveAssignmentStatus({
+        currentStatus: "aperto",
+        requestedStatus: "assegnato",
+        department: "logistica",
+        technicianId: null,
       }),
       "assegnato"
     );

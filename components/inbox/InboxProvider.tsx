@@ -78,7 +78,7 @@ import {
 } from "@/lib/telephony/settings";
 import type { PhoneCallRecord } from "@/lib/telephony/types";
 import { matchCustomer } from "@/lib/telephony/phone";
-import { statusAfterConfirm } from "@/lib/telephony/classify";
+import { resolveAssignmentStatus, statusAfterConfirm } from "@/lib/telephony/classify";
 import type {
   CallProposal,
   DepartmentId,
@@ -733,6 +733,9 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
           if (input.solution !== undefined) next.solution = input.solution;
           if (input.knowledgeEntryId !== undefined)
             next.knowledgeEntryId = input.knowledgeEntryId;
+          if (input.department !== undefined) {
+            next.department = input.department ?? undefined;
+          }
           if (input.assignedTechnicianId !== undefined) {
             next.assignedTechnicianId =
               input.assignedTechnicianId ?? undefined;
@@ -740,11 +743,25 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
               next.status = "assegnato";
             }
           }
+          next.status = resolveAssignmentStatus({
+            currentStatus: t.status,
+            requestedStatus: next.status,
+            department: next.department,
+            technicianId: next.assignedTechnicianId,
+          });
           nextRow = next;
           return next;
         })
       );
-      if (nextRow) persist("updateTicket", { ...(nextRow as object), id });
+      if (nextRow) {
+        const row = nextRow as ServiceTicketRecord;
+        persist("updateTicket", {
+          ...row,
+          id,
+          department: row.department ?? null,
+          assignedTechnicianId: row.assignedTechnicianId ?? null,
+        });
+      }
     },
     [persist]
   );

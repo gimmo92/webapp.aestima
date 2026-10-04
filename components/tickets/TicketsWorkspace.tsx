@@ -22,6 +22,12 @@ import {
 } from "@/lib/telephony/phone";
 import { UserContactSelect } from "@/components/company/formFields";
 import { userContactLabel } from "@/lib/companyUsers";
+import {
+  DEPARTMENT_LABELS,
+  DEPARTMENTS,
+  isDepartmentId,
+} from "@/lib/telephony/classify";
+import type { DepartmentId } from "@/lib/telephony/classify";
 import { CreateTicketModal } from "./CreateTicketModal";
 import { TicketCallPanel } from "./TicketCallPanel";
 import { AiProposalCard } from "./AiProposalCard";
@@ -59,6 +65,9 @@ export function TicketsWorkspace() {
   const [tab, setTab] = useState<Tab>("aperti");
   const [statusFilter, setStatusFilter] = useState<TicketStatus | "all">("all");
   const [sourceFilter, setSourceFilter] = useState<TicketSource | "all">("all");
+  const [departmentFilter, setDepartmentFilter] = useState<
+    DepartmentId | "all" | "none"
+  >("all");
   const [selectedId, setSelectedId] = useState<string | null>(
     deepLinkId ?? tickets[0]?.id ?? null
   );
@@ -90,8 +99,24 @@ export function TicketsWorkspace() {
     if (telephonyEnabled && sourceFilter !== "all") {
       list = list.filter((t) => t.source === sourceFilter);
     }
+    if (telephonyEnabled && departmentFilter !== "all") {
+      list = list.filter((t) =>
+        departmentFilter === "none"
+          ? !t.department
+          : t.department === departmentFilter
+      );
+    }
     return list;
-  }, [tickets, tab, statusFilter, sourceFilter, telephonyEnabled, openIds, closedIds]);
+  }, [
+    tickets,
+    tab,
+    statusFilter,
+    sourceFilter,
+    departmentFilter,
+    telephonyEnabled,
+    openIds,
+    closedIds,
+  ]);
 
   const selected =
     tickets.find((t) => t.id === selectedId) ??
@@ -216,6 +241,28 @@ export function TicketsWorkspace() {
             {telephonyEnabled && (
               <div className="mt-2 flex flex-wrap gap-1.5">
                 <FilterChip
+                  active={departmentFilter === "all"}
+                  onClick={() => setDepartmentFilter("all")}
+                  label="Tutti i reparti"
+                />
+                {DEPARTMENTS.map((id) => (
+                  <FilterChip
+                    key={id}
+                    active={departmentFilter === id}
+                    onClick={() => setDepartmentFilter(id)}
+                    label={DEPARTMENT_LABELS[id]}
+                  />
+                ))}
+                <FilterChip
+                  active={departmentFilter === "none"}
+                  onClick={() => setDepartmentFilter("none")}
+                  label="Senza reparto"
+                />
+              </div>
+            )}
+            {telephonyEnabled && (
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                <FilterChip
                   active={sourceFilter === "all"}
                   onClick={() => setSourceFilter("all")}
                   label="Tutte le origini"
@@ -248,6 +295,9 @@ export function TicketsWorkspace() {
                           techById[t.assignedTechnicianId]?.name
                         ) || undefined
                       : undefined
+                  }
+                  departmentLabel={
+                    telephonyEnabled ? departmentName(t.department) : undefined
                   }
                   onSelect={() => setSelectedId(t.id)}
                 />
@@ -290,15 +340,22 @@ export function TicketsWorkspace() {
   );
 }
 
+function departmentName(value: string | null | undefined): string | undefined {
+  if (!value || !isDepartmentId(value)) return undefined;
+  return DEPARTMENT_LABELS[value];
+}
+
 function TicketListRow({
   ticket,
   active,
   technicianName,
+  departmentLabel,
   onSelect,
 }: {
   ticket: ServiceTicketRecord;
   active: boolean;
   technicianName?: string;
+  departmentLabel?: string;
   onSelect: () => void;
 }) {
   return (
@@ -327,9 +384,11 @@ function TicketListRow({
         {ticket.machineSerial ?? "Macchina n/d"} ·{" "}
         {TICKET_SOURCE_LABELS[ticket.source]} · {ticket.createdLabel}
       </p>
-      {technicianName && (
+      {(departmentLabel || technicianName) && (
         <p className="truncate text-xs text-ink-muted">
-          Tecnico: {technicianName}
+          {departmentLabel ? `Reparto: ${departmentLabel}` : ""}
+          {departmentLabel && technicianName ? " · " : ""}
+          {technicianName ? `Tecnico: ${technicianName}` : ""}
         </p>
       )}
     </button>
@@ -353,7 +412,7 @@ function TicketDetail({
   onLearnFromSolution: ReturnType<typeof useInbox>["addKnowledgeEntry"];
   onOpenTicket: (id: string) => void;
 }) {
-  const { ticketStages, phoneCalls, customers, tickets, attachPhoneCall, createTicketFromPhoneCall, telephonyConfidence, confirmCallClassification } = useInbox();
+  const { ticketStages, phoneCalls, customers, tickets, attachPhoneCall, createTicketFromPhoneCall, telephonyEnabled, telephonyConfidence, confirmCallClassification } = useInbox();
   const [notes, setNotes] = useState(ticket.internalNotes ?? "");
   const [solution, setSolution] = useState(ticket.solution ?? "");
   const [learning, setLearning] = useState(false);
@@ -478,9 +537,17 @@ function TicketDetail({
         <MetaField label="Matricola">
           {ticket.machineSerial ?? "—"}
         </MetaField>
-        <MetaField label="Tecnico assegnato" className="sm:col-span-2">
+        <MetaField
+          label="Tecnico assegnato"
+          className={telephonyEnabled ? undefined : "sm:col-span-2"}
+        >
           {assignedName ?? "Non assegnato"}
         </MetaField>
+        {telephonyEnabled && (
+          <MetaField label="Reparto">
+            {departmentName(ticket.department) ?? "Nessuno"}
+          </MetaField>
+        )}
         {ticket.formExtra && Object.keys(ticket.formExtra).length > 0 && (
           <MetaField label="Campi extra" className="sm:col-span-2">
             {Object.entries(ticket.formExtra).map(([label, value]) => (
@@ -639,23 +706,54 @@ function TicketDetail({
       </div>
 
       <div className="rounded-xl border border-border bg-base/60 p-4">
-        <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
-          Assegna tecnico
-        </p>
-        <UserContactSelect
-          users={companyUsers}
-          value={
-            companyUsers.some((u) => u.id === ticket.assignedTechnicianId)
-              ? ticket.assignedTechnicianId ?? ""
-              : ""
-          }
-          emptyLabel="Non assegnato"
-          onChange={(userId) =>
-            onUpdate(ticket.id, {
-              assignedTechnicianId: userId || null,
-            })
-          }
-        />
+        <div className={telephonyEnabled ? "grid gap-4 sm:grid-cols-2" : ""}>
+          <div>
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
+              Assegna tecnico
+            </p>
+            <UserContactSelect
+              users={companyUsers}
+              value={
+                companyUsers.some((u) => u.id === ticket.assignedTechnicianId)
+                  ? ticket.assignedTechnicianId ?? ""
+                  : ""
+              }
+              emptyLabel="Non assegnato"
+              onChange={(userId) =>
+                onUpdate(ticket.id, {
+                  assignedTechnicianId: userId || null,
+                })
+              }
+            />
+          </div>
+          {telephonyEnabled && (
+            <div>
+              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
+                Reparto
+              </p>
+              <select
+                value={
+                  ticket.department && isDepartmentId(ticket.department)
+                    ? ticket.department
+                    : ""
+                }
+                onChange={(event) =>
+                  onUpdate(ticket.id, {
+                    department: event.target.value || null,
+                  })
+                }
+                className="w-full rounded-lg border border-border bg-base px-3 py-2 text-sm text-ink outline-none focus:border-brand"
+              >
+                <option value="">Nessuno</option>
+                {DEPARTMENTS.map((id) => (
+                  <option key={id} value={id}>
+                    {DEPARTMENT_LABELS[id]}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="rounded-xl border border-border bg-base/60 p-4">
@@ -663,16 +761,29 @@ function TicketDetail({
           Aggiorna stato
         </p>
         <div className="flex flex-wrap gap-2">
-          {ticketStages.map((s) => (
-            <button
-              key={s.id}
-              onClick={() => onUpdate(ticket.id, { status: s.id })}
-              disabled={ticket.status === s.id}
-              className="rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-medium text-ink-muted transition-colors hover:border-border-strong hover:text-ink disabled:opacity-40"
-            >
-              {s.label}
-            </button>
-          ))}
+          {ticketStages.map((s) => {
+            const blocked =
+              s.id === "assegnato" &&
+              !ticket.department &&
+              !ticket.assignedTechnicianId;
+            return (
+              <button
+                key={s.id}
+                onClick={() => onUpdate(ticket.id, { status: s.id })}
+                disabled={ticket.status === s.id || blocked}
+                title={
+                  blocked
+                    ? telephonyEnabled
+                      ? "Serve un reparto oppure un tecnico"
+                      : "Serve un tecnico"
+                    : undefined
+                }
+                className="rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-medium text-ink-muted transition-colors hover:border-border-strong hover:text-ink disabled:opacity-40"
+              >
+                {s.label}
+              </button>
+            );
+          })}
         </div>
       </div>
 

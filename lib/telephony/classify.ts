@@ -157,6 +157,24 @@ export function isBelowThreshold(confidence: number, threshold: number): boolean
   return confidence < threshold;
 }
 
+/**
+ * Assegnato richiede un reparto oppure un tecnico.
+ * Se manca entrambi e lo stato richiesto è Assegnato, resta lo stato attuale;
+ * se era già Assegnato, torna Da assegnare.
+ */
+export function resolveAssignmentStatus(input: {
+  currentStatus: string;
+  requestedStatus: string;
+  department?: string | null;
+  technicianId?: string | null;
+}): string {
+  const hasAssignee = Boolean(input.department) || Boolean(input.technicianId);
+  if (input.requestedStatus === "assegnato" && !hasAssignee) {
+    return input.currentStatus === "assegnato" ? "aperto" : input.currentStatus;
+  }
+  return input.requestedStatus;
+}
+
 /** Conferma operatore: sotto soglia, o senza reparto, lo stato non diventa Assegnato. */
 export function statusAfterConfirm(input: {
   currentStatus: string;

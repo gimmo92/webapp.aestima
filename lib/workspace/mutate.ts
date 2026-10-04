@@ -9,6 +9,7 @@ import {
   isDepartmentId,
   isTelephonyCategory,
   readProposal,
+  resolveAssignmentStatus,
   statusAfterConfirm,
 } from "@/lib/telephony/classify";
 import type { CallProposal, OperatorChoice } from "@/lib/telephony/classify";
@@ -471,8 +472,12 @@ export async function applyWorkspaceMutation(
     }
     case "updateTicket": {
       const id = asString(p.id);
+      const existing = await prisma.serviceTicket.findFirst({
+        where: { id, companyId },
+        select: { status: true, department: true, assignedTechnicianId: true },
+      });
+      if (!existing) return { ok: false, error: "Ticket non trovato" };
       const data: Prisma.ServiceTicketUpdateManyMutationInput = {};
-      if (p.status !== undefined) data.status = asString(p.status);
       if (p.priority !== undefined) data.priority = asString(p.priority);
       if (p.internalNotes !== undefined)
         data.internalNotes = asString(p.internalNotes);
@@ -480,12 +485,30 @@ export async function applyWorkspaceMutation(
       if (p.solution !== undefined) data.solution = asString(p.solution);
       if (p.knowledgeEntryId !== undefined)
         data.knowledgeEntryId = asString(p.knowledgeEntryId);
+      if (p.updatedFull !== undefined) data.updatedFull = asString(p.updatedFull);
+
+      let department = existing.department;
+      if (p.department !== undefined) {
+        if (p.department == null || p.department === "") department = null;
+        else if (isDepartmentId(p.department)) department = p.department;
+        else return { ok: false, error: "Reparto non valido" };
+      }
+      let technicianId = existing.assignedTechnicianId;
       if (p.assignedTechnicianId !== undefined) {
-        data.assignedTechnicianId = p.assignedTechnicianId
+        technicianId = p.assignedTechnicianId
           ? asString(p.assignedTechnicianId)
           : null;
       }
-      if (p.updatedFull !== undefined) data.updatedFull = asString(p.updatedFull);
+      let requestedStatus =
+        p.status !== undefined ? asString(p.status) : existing.status;
+      data.status = resolveAssignmentStatus({
+        currentStatus: existing.status,
+        requestedStatus,
+        department,
+        technicianId,
+      });
+      data.department = department;
+      data.assignedTechnicianId = technicianId;
       await prisma.serviceTicket.updateMany({
         where: { id, companyId },
         data,

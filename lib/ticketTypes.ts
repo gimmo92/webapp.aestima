@@ -109,6 +109,7 @@ export interface UpdateTicketInput {
   status?: TicketStatus;
   priority?: TicketPriority;
   assignedTechnicianId?: string | null;
+  department?: string | null;
   internalNotes?: string;
   description?: string;
   solution?: string;
