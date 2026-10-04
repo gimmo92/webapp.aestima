@@ -11,6 +11,7 @@ const PUBLIC_PREFIXES = [
   "/api/service-chat",
   "/api/embed",
   "/api/me",
+  "/api/telephony/webhook",
 ];
 
 function isPublic(pathname: string) {
