@@ -28,6 +28,25 @@ export type StoredCall = {
   ticketStatus: string | null;
 };
 
+export type CallerSnapshot = {
+  id: string;
+  name: string;
+  contactName: string | null;
+  email: string | null;
+  phone: string | null;
+};
+
+export type OpenTicketMatch = {
+  id: string;
+  summary: string;
+  status: string;
+};
+
+export type CallerContext = {
+  customer: CallerSnapshot | null;
+  openTickets: OpenTicketMatch[];
+};
+
 export type InsertCallInput = {
   companyId: string;
   externalId: string;
@@ -47,9 +66,26 @@ export type InsertCallInput = {
     createdLabel: string;
     createdFull: string;
     updatedFull: string;
+    customerId?: string | null;
+    customerName?: string | null;
+    customerEmail?: string | null;
+    customerCompany?: string | null;
   };
   /** True solo se lo stage «Da richiamare» non è ancora tra gli stage del tenant. */
   persistCallbackStage: boolean;
+};
+
+export type UnlinkedCallInput = {
+  companyId: string;
+  externalId: string;
+  direction: CallDirection;
+  phone: string;
+  durationSec: number | null;
+  outcome: CallOutcome;
+  recordingUrl: string | null;
+  transcript: string | null;
+  operatorName: string | null;
+  occurredAt: Date;
 };
 
 export type InsertCallResult = {
@@ -65,15 +101,32 @@ export type TelephonyStore = {
     companyId: string,
     externalId: string
   ): Promise<StoredCall | null>;
+  findCallerContext(
+    companyId: string,
+    phone: string,
+    terminalStatuses: string[]
+  ): Promise<CallerContext>;
+  insertUnlinkedCall(input: UnlinkedCallInput): Promise<InsertCallResult>;
   insertTicketAndCall(input: InsertCallInput): Promise<InsertCallResult>;
+  attachCallToTicket(
+    companyId: string,
+    externalId: string,
+    ticketId: string
+  ): Promise<InsertCallResult | { error: string }>;
+  createTicketForExistingCall(
+    input: InsertCallInput
+  ): Promise<InsertCallResult | { error: string }>;
 };
 
 export type WebhookSuccess = {
   ok: true;
   idempotent: boolean;
+  action: "created" | "attached" | "suggest_attach";
   callId: string;
   ticketId: string | null;
   ticketStatus: string | null;
+  candidates?: OpenTicketMatch[];
+  customerName?: string | null;
 };
 
 export type WebhookFailure = {
@@ -84,4 +137,18 @@ export type WebhookFailure = {
 export type WebhookResult = {
   status: number;
   body: WebhookSuccess | WebhookFailure;
+};
+
+export type PhoneCallRecord = {
+  id: string;
+  externalId: string;
+  direction: CallDirection;
+  phone: string;
+  durationSec: number | null;
+  outcome: CallOutcome;
+  recordingUrl: string | null;
+  transcript: string | null;
+  operatorName: string | null;
+  occurredAt: string;
+  ticketId: string | null;
 };

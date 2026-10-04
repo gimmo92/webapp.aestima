@@ -73,8 +73,11 @@ import {
 import type { SparePart } from "@/lib/sparePartTypes";
 import {
   CALLBACK_STAGE_ID,
+  ticketDraftForCall,
   withCallbackStage,
 } from "@/lib/telephony/settings";
+import type { PhoneCallRecord } from "@/lib/telephony/types";
+import { matchCustomer } from "@/lib/telephony/phone";
 
 const TICKET_STAGES_STORAGE_KEY = "aftercore:ticket-stages:v1";
 
@@ -158,6 +161,9 @@ interface InboxContextValue {
   ) => TechnicianAssignment | undefined;
   interventionReports: InterventionReport[];
   tickets: ServiceTicketRecord[];
+  phoneCalls: PhoneCallRecord[];
+  attachPhoneCall: (callId: string, ticketId: string) => void;
+  createTicketFromPhoneCall: (callId: string) => string;
   ticketStages: TicketStage[];
   setTicketStages: (stages: TicketStage[]) => void;
   ticketForm: TicketFormConfig;
@@ -245,6 +251,7 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
     InterventionReport[]
   >([]);
   const [tickets, setTickets] = useState<ServiceTicketRecord[]>([]);
+  const [phoneCalls, setPhoneCalls] = useState<PhoneCallRecord[]>([]);
   const [ticketStages, setTicketStagesState] = useState<TicketStage[]>(
     DEFAULT_TICKET_STAGES
   );
@@ -312,6 +319,7 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
         );
         setKnowledgeBase(data.knowledgeBase ?? []);
         setTickets(data.tickets ?? []);
+        setPhoneCalls(data.phoneCalls ?? []);
         setTicketStagesState(normalizeTicketStages(data.ticketStages));
         setTicketFormState(normalizeTicketForm(data.ticketForm));
         setTelephonyEnabledState(data.telephonyEnabled === true);
@@ -962,6 +970,71 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
     [knowledgeBase]
   );
 
+  const attachPhoneCall = useCallback(
+    (callId: string, ticketId: string) => {
+      const call = phoneCalls.find((item) => item.id === callId);
+      setPhoneCalls((prev) =>
+        prev.map((item) => (item.id === callId ? { ...item, ticketId } : item))
+      );
+      if (call) {
+        setTickets((prev) =>
+          prev.map((ticket) =>
+            ticket.id === ticketId && !ticket.customerPhone
+              ? { ...ticket, customerPhone: call.phone }
+              : ticket
+          )
+        );
+      }
+      persist("attachPhoneCall", { callId, ticketId });
+    },
+    [persist, phoneCalls]
+  );
+
+  const createTicketFromPhoneCall = useCallback(
+    (callId: string): string => {
+      const call = phoneCalls.find((item) => item.id === callId);
+      if (!call) return "";
+      const customer = matchCustomer(call.phone, customers);
+      const { sentLabel, sentFull } = nowLabels();
+      const draft = ticketDraftForCall(
+        {
+          phone: call.phone,
+          direction: call.direction,
+          outcome: call.outcome,
+          durationSec: call.durationSec,
+          operatorName: call.operatorName,
+          transcript: call.transcript,
+        },
+        ticketStages
+      );
+      const id = newTicketId();
+      const row: ServiceTicketRecord = {
+        id,
+        status: draft.status,
+        priority: "normale",
+        source: "telefono",
+        category: "altro",
+        summary: draft.summary,
+        description: draft.description,
+        customerPhone: call.phone,
+        customerId: customer?.id,
+        customerName: customer?.contactName || customer?.name,
+        customerEmail: customer?.email,
+        customerCompany: customer?.name,
+        createdLabel: sentLabel,
+        createdFull: sentFull,
+        updatedFull: sentFull,
+      };
+      setTickets((prev) => [row, ...prev.filter((ticket) => ticket.id !== id)]);
+      setPhoneCalls((prev) =>
+        prev.map((item) => (item.id === callId ? { ...item, ticketId: id } : item))
+      );
+      persist("createTicketForPhoneCall", { ...row, callId });
+      return id;
+    },
+    [customers, persist, phoneCalls, ticketStages]
+  );
+
   return (
     <InboxContext.Provider
       value={{
@@ -995,6 +1068,9 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
         getTechnicianAssignmentForRequest,
         interventionReports,
         tickets,
+        phoneCalls,
+        attachPhoneCall,
+        createTicketFromPhoneCall,
         ticketStages,
         setTicketStages,
         ticketForm,

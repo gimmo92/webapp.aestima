@@ -186,6 +186,7 @@ export function mapTicket(row: {
   customerEmail?: string | null;
   customerPhone?: string | null;
   customerCompany?: string | null;
+  customerId?: string | null;
   formExtraJson?: unknown;
   createdLabel: string;
   createdFull: string;
@@ -216,6 +217,7 @@ export function mapTicket(row: {
     customerEmail: row.customerEmail ?? undefined,
     customerPhone: row.customerPhone ?? undefined,
     customerCompany: row.customerCompany ?? undefined,
+    customerId: row.customerId ?? undefined,
     formExtra:
       row.formExtraJson &&
       typeof row.formExtraJson === "object" &&

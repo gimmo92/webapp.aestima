@@ -19,6 +19,7 @@ import type { Label, PartRequest } from "@/lib/inboxTypes";
 import type { ConversationRecord } from "@/lib/conversationTypes";
 import type { KnowledgeEntry } from "@/lib/knowledgeTypes";
 import type { ServiceTicketRecord, TicketStage } from "@/lib/ticketTypes";
+import type { PhoneCallRecord } from "@/lib/telephony/types";
 import { normalizeTicketStages } from "@/lib/ticketData";
 import { isTelephonyEnabled } from "@/lib/telephony/settings";
 import {
@@ -42,6 +43,7 @@ export type WorkspaceSnapshot = {
   conversations: ConversationRecord[];
   knowledgeBase: KnowledgeEntry[];
   tickets: ServiceTicketRecord[];
+  phoneCalls: PhoneCallRecord[];
   suppliers: Supplier[];
   supplierRequests: SupplierRequest[];
   technicians: Technician[];
@@ -83,6 +85,7 @@ export async function loadCompanyWorkspace(
     conversations,
     knowledgeBase,
     tickets,
+    phoneCalls,
     suppliers,
     supplierRequests,
     technicians,
@@ -124,6 +127,10 @@ export async function loadCompanyWorkspace(
         },
       },
       orderBy: { updatedAt: "desc" },
+    }),
+    prisma.phoneCall.findMany({
+      where: { companyId },
+      orderBy: { occurredAt: "desc" },
     }),
     prisma.supplier.findMany({ where: { companyId }, orderBy: { name: "asc" } }),
     prisma.supplierRequest.findMany({
@@ -178,6 +185,22 @@ export async function loadCompanyWorkspace(
     conversations: conversations.map(mapConversation),
     knowledgeBase: knowledgeBase.map(mapKnowledge),
     tickets: tickets.map(mapTicket),
+    phoneCalls: phoneCalls.map((call) => ({
+      id: call.id,
+      externalId: call.externalId,
+      direction: call.direction === "outbound" ? "outbound" : "inbound",
+      phone: call.phone,
+      durationSec: call.durationSec,
+      outcome:
+        call.outcome === "missed" || call.outcome === "voicemail"
+          ? call.outcome
+          : "answered",
+      recordingUrl: call.recordingUrl,
+      transcript: call.transcript,
+      operatorName: call.operatorName,
+      occurredAt: call.occurredAt.toISOString(),
+      ticketId: call.ticketId,
+    })),
     suppliers: suppliers.map(mapSupplier),
     supplierRequests: supplierRequests.map(mapSupplierRequest),
     technicians: technicians.map(mapTechnician),

@@ -16,9 +16,13 @@ import type {
   TicketStatus,
   UpdateTicketInput,
 } from "@/lib/ticketTypes";
-import { userContactLabel } from "@/lib/companyUsers";
+import {
+  matchCustomer,
+  phonesMatch,
+} from "@/lib/telephony/phone";
 import { UserContactSelect } from "@/components/company/formFields";
 import { CreateTicketModal } from "./CreateTicketModal";
+import { TicketCallPanel } from "./TicketCallPanel";
 import { TicketStatusPill } from "./TicketStatusPill";
 import { useI18n } from "@/lib/i18n";
 
@@ -35,6 +39,10 @@ export function TicketsWorkspace() {
     updateTicket,
     addKnowledgeEntry,
     telephonyEnabled,
+    phoneCalls,
+    customers,
+    attachPhoneCall,
+    createTicketFromPhoneCall,
   } = useInbox();
   const { t } = useI18n();
   const tabs: { id: Tab; label: string }[] = [
@@ -193,6 +201,17 @@ export function TicketsWorkspace() {
               </div>
             )}
             {telephonyEnabled && (
+              <PendingCallNotes
+                phoneCalls={phoneCalls}
+                tickets={tickets}
+                customers={customers}
+                onOpen={(id) => {
+                  setSourceFilter("all");
+                  setSelectedId(id);
+                }}
+              />
+            )}
+            {telephonyEnabled && (
               <div className="mt-2 flex flex-wrap gap-1.5">
                 <FilterChip
                   active={sourceFilter === "all"}
@@ -245,6 +264,7 @@ export function TicketsWorkspace() {
               linkedConversationId={linkedConversation?.id}
               onUpdate={updateTicket}
               onLearnFromSolution={addKnowledgeEntry}
+              onOpenTicket={setSelectedId}
             />
           ) : (
             <div className="flex h-full items-center justify-center text-sm text-ink-faint">
@@ -321,6 +341,7 @@ function TicketDetail({
   linkedConversationId,
   onUpdate,
   onLearnFromSolution,
+  onOpenTicket,
 }: {
   ticket: ServiceTicketRecord;
   technicians: { id: string; name: string }[];
@@ -328,8 +349,9 @@ function TicketDetail({
   linkedConversationId?: string;
   onUpdate: (id: string, input: UpdateTicketInput) => void;
   onLearnFromSolution: ReturnType<typeof useInbox>["addKnowledgeEntry"];
+  onOpenTicket: (id: string) => void;
 }) {
-  const { ticketStages } = useInbox();
+  const { ticketStages, phoneCalls, customers, tickets, attachPhoneCall, createTicketFromPhoneCall } = useInbox();
   const [notes, setNotes] = useState(ticket.internalNotes ?? "");
   const [solution, setSolution] = useState(ticket.solution ?? "");
   const [learning, setLearning] = useState(false);
@@ -481,6 +503,20 @@ function TicketDetail({
           </MetaField>
         )}
       </div>
+
+      <TicketCallPanel
+        ticket={ticket}
+        tickets={tickets}
+        phoneCalls={phoneCalls}
+        customers={customers}
+        stages={ticketStages}
+        onOpenTicket={onOpenTicket}
+        onAttach={attachPhoneCall}
+        onCreate={(callId) => {
+          const id = createTicketFromPhoneCall(callId);
+          if (id) onOpenTicket(id);
+        }}
+      />
 
       {ticket.attachments && ticket.attachments.length > 0 && (
         <div className="rounded-xl border border-border bg-base/60 p-4">
@@ -647,6 +683,53 @@ function TicketDetail({
           Salva note
         </button>
       </div>
+    </div>
+  );
+}
+
+function PendingCallNotes({
+  phoneCalls,
+  tickets,
+  customers,
+  onOpen,
+}: {
+  phoneCalls: { id: string; phone: string; ticketId: string | null }[];
+  tickets: ServiceTicketRecord[];
+  customers: { id: string; name: string; contactName?: string; phone?: string }[];
+  onOpen: (ticketId: string) => void;
+}) {
+  const notes = phoneCalls.flatMap((call) => {
+    if (call.ticketId) return [];
+    const customer = matchCustomer(call.phone, customers);
+    const target = tickets.find(
+      (ticket) =>
+        phonesMatch(ticket.customerPhone, call.phone) ||
+        (customer != null &&
+          (ticket.customerId === customer.id ||
+            ticket.customerCompany?.trim().toLowerCase() ===
+              customer.name.trim().toLowerCase() ||
+            ticket.customerName?.trim().toLowerCase() ===
+              customer.name.trim().toLowerCase() ||
+            (customer.contactName != null &&
+              ticket.customerName?.trim().toLowerCase() ===
+                customer.contactName.trim().toLowerCase())))
+    );
+    if (!target) return [];
+    return [{ call, target }];
+  });
+  if (notes.length === 0) return null;
+  return (
+    <div className="mt-2 space-y-1.5">
+      {notes.map(({ call, target }) => (
+        <button
+          key={call.id}
+          type="button"
+          onClick={() => onOpen(target.id)}
+          className="block w-full rounded-lg border border-brand/40 bg-brand-soft/40 px-2.5 py-1.5 text-left text-xs text-ink"
+        >
+          Chiamata da {call.phone} — apri {target.summary}
+        </button>
+      ))}
     </div>
   );
 }

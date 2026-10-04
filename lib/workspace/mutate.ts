@@ -266,6 +266,74 @@ export async function applyWorkspaceMutation(
       });
       return { ok: true, id };
     }
+    case "attachPhoneCall": {
+      const callId = asString(p.callId);
+      const ticketId = asString(p.ticketId);
+      const call = await prisma.phoneCall.findFirst({
+        where: { id: callId, companyId },
+      });
+      const ticket = await prisma.serviceTicket.findFirst({
+        where: { id: ticketId, companyId },
+        select: { id: true, customerPhone: true },
+      });
+      if (!call || !ticket) return { ok: false, error: "Chiamata o ticket non trovato" };
+      await prisma.phoneCall.update({
+        where: { id: call.id },
+        data: { ticketId },
+      });
+      if (!ticket.customerPhone) {
+        await prisma.serviceTicket.updateMany({
+          where: { id: ticketId, companyId },
+          data: { customerPhone: call.phone },
+        });
+      }
+      return { ok: true };
+    }
+    case "createTicketForPhoneCall": {
+      const callId = asString(p.callId);
+      const call = await prisma.phoneCall.findFirst({
+        where: { id: callId, companyId },
+      });
+      if (!call) return { ok: false, error: "Chiamata non trovata" };
+      if (call.ticketId) return { ok: true, id: call.ticketId };
+      const id = asString(p.id);
+      const customerId = await (async () => {
+        const raw = asOptString(p.customerId);
+        if (!raw) return null;
+        const customer = await prisma.customer.findFirst({
+          where: { id: raw, companyId },
+          select: { id: true },
+        });
+        return customer?.id ?? null;
+      })();
+      await prisma.$transaction([
+        prisma.serviceTicket.create({
+          data: {
+            id,
+            companyId,
+            status: asString(p.status) || "aperto",
+            priority: asString(p.priority) || "normale",
+            source: "telefono",
+            category: asString(p.category) || "altro",
+            summary: asString(p.summary),
+            description: asString(p.description),
+            customerId,
+            customerName: asOptString(p.customerName),
+            customerEmail: asOptString(p.customerEmail),
+            customerPhone: asOptString(p.customerPhone) ?? call.phone,
+            customerCompany: asOptString(p.customerCompany),
+            createdLabel: asString(p.createdLabel),
+            createdFull: asString(p.createdFull),
+            updatedFull: asString(p.updatedFull),
+          },
+        }),
+        prisma.phoneCall.update({
+          where: { id: call.id },
+          data: { ticketId: id },
+        }),
+      ]);
+      return { ok: true, id };
+    }
     case "updateTicket": {
       const id = asString(p.id);
       const data: Prisma.ServiceTicketUpdateManyMutationInput = {};

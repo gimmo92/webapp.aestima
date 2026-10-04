@@ -61,6 +61,7 @@ export interface ServiceTicketRecord {
   customerEmail?: string;
   customerPhone?: string;
   customerCompany?: string;
+  customerId?: string;
   formExtra?: Record<string, string>;
   attachments?: TicketAttachmentMeta[];
 }

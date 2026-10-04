@@ -171,3 +171,15 @@ export function readCompanySlug(body: unknown, querySlug: string): string {
   if (!isRecord(body) || typeof body.companySlug !== "string") return "";
   return body.companySlug.trim();
 }
+
+export function readCallChoice(body: unknown): {
+  attachToTicketId: string | null;
+  createNew: boolean;
+} {
+  if (!isRecord(body)) return { attachToTicketId: null, createNew: false };
+  const raw = typeof body.attachToTicketId === "string" ? body.attachToTicketId.trim() : "";
+  return {
+    attachToTicketId: raw || null,
+    createNew: body.createNew === true,
+  };
+}
