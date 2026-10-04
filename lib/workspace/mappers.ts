@@ -3,6 +3,7 @@ import type { Label, PartRequest } from "@/lib/inboxTypes";
 import type { ConversationRecord } from "@/lib/conversationTypes";
 import type { KnowledgeEntry } from "@/lib/knowledgeTypes";
 import type { ServiceTicketRecord } from "@/lib/ticketTypes";
+import { readOperatorChoice, readProposal } from "@/lib/telephony/classify";
 import type { Supplier, SupplierRequest } from "@/lib/supplierTypes";
 import type { Customer } from "@/lib/customerTypes";
 import type {
@@ -187,6 +188,9 @@ export function mapTicket(row: {
   customerPhone?: string | null;
   customerCompany?: string | null;
   customerId?: string | null;
+  department?: string | null;
+  aiProposalJson?: unknown;
+  operatorChoiceJson?: unknown;
   formExtraJson?: unknown;
   createdLabel: string;
   createdFull: string;
@@ -218,6 +222,9 @@ export function mapTicket(row: {
     customerPhone: row.customerPhone ?? undefined,
     customerCompany: row.customerCompany ?? undefined,
     customerId: row.customerId ?? undefined,
+    department: row.department ?? undefined,
+    aiProposal: readProposal(row.aiProposalJson) ?? undefined,
+    operatorChoice: readOperatorChoice(row.operatorChoiceJson) ?? undefined,
     formExtra:
       row.formExtraJson &&
       typeof row.formExtraJson === "object" &&

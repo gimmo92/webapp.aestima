@@ -21,8 +21,10 @@ import {
   phonesMatch,
 } from "@/lib/telephony/phone";
 import { UserContactSelect } from "@/components/company/formFields";
+import { userContactLabel } from "@/lib/companyUsers";
 import { CreateTicketModal } from "./CreateTicketModal";
 import { TicketCallPanel } from "./TicketCallPanel";
+import { AiProposalCard } from "./AiProposalCard";
 import { TicketStatusPill } from "./TicketStatusPill";
 import { useI18n } from "@/lib/i18n";
 
@@ -351,7 +353,7 @@ function TicketDetail({
   onLearnFromSolution: ReturnType<typeof useInbox>["addKnowledgeEntry"];
   onOpenTicket: (id: string) => void;
 }) {
-  const { ticketStages, phoneCalls, customers, tickets, attachPhoneCall, createTicketFromPhoneCall } = useInbox();
+  const { ticketStages, phoneCalls, customers, tickets, attachPhoneCall, createTicketFromPhoneCall, telephonyConfidence, confirmCallClassification } = useInbox();
   const [notes, setNotes] = useState(ticket.internalNotes ?? "");
   const [solution, setSolution] = useState(ticket.solution ?? "");
   const [learning, setLearning] = useState(false);
@@ -517,6 +519,17 @@ function TicketDetail({
           if (id) onOpenTicket(id);
         }}
       />
+
+      {ticket.aiProposal && (
+        <AiProposalCard
+          key={ticket.id}
+          proposal={ticket.aiProposal}
+          initial={ticket.operatorChoice ?? ticket.aiProposal}
+          confirmed={Boolean(ticket.operatorChoice)}
+          threshold={telephonyConfidence}
+          onConfirm={(choice) => confirmCallClassification(ticket.id, choice)}
+        />
+      )}
 
       {ticket.attachments && ticket.attachments.length > 0 && (
         <div className="rounded-xl border border-border bg-base/60 p-4">

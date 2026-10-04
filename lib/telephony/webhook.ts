@@ -15,6 +15,7 @@ import type {
   WebhookResult,
   WebhookSuccess,
 } from "./types";
+import type { CallProposal } from "./classify";
 
 function secretsMatch(provided: string, expected: string): boolean {
   const a = createHash("sha256").update(provided).digest();
@@ -83,6 +84,10 @@ export async function handleTelephonyWebhook(input: {
   body: unknown;
   store: TelephonyStore;
   newId?: () => string;
+  classify?: (
+    transcript: string,
+    settingsJson: unknown
+  ) => Promise<CallProposal | null>;
 }): Promise<WebhookResult> {
   const expected = input.expectedSecret?.trim() ?? "";
   if (!expected) {
@@ -193,6 +198,29 @@ export async function handleTelephonyWebhook(input: {
     ? await input.store.createTicketForExistingCall(ticketInput)
     : await input.store.insertTicketAndCall(ticketInput);
   if ("error" in inserted) return fail(400, inserted.error);
+
+  if (
+    inserted.created &&
+    inserted.ticketId &&
+    event.transcript?.trim() &&
+    input.classify
+  ) {
+    try {
+      const proposal = await input.classify(
+        event.transcript,
+        company.settingsJson
+      );
+      if (proposal) {
+        await input.store.saveAiProposal(
+          company.id,
+          inserted.ticketId,
+          proposal
+        );
+      }
+    } catch (err) {
+      console.error("Classificazione chiamata fallita:", err);
+    }
+  }
 
   return success({
     ok: true,

@@ -78,6 +78,12 @@ import {
 } from "@/lib/telephony/settings";
 import type { PhoneCallRecord } from "@/lib/telephony/types";
 import { matchCustomer } from "@/lib/telephony/phone";
+import { statusAfterConfirm } from "@/lib/telephony/classify";
+import type {
+  CallProposal,
+  DepartmentId,
+  TelephonyCategory,
+} from "@/lib/telephony/classify";
 
 const TICKET_STAGES_STORAGE_KEY = "aftercore:ticket-stages:v1";
 
@@ -168,6 +174,16 @@ interface InboxContextValue {
   setTicketStages: (stages: TicketStage[]) => void;
   ticketForm: TicketFormConfig;
   telephonyEnabled: boolean;
+  telephonyRouting: Record<TelephonyCategory, DepartmentId | null>;
+  telephonyConfidence: number;
+  setTelephonyRouting: (
+    routing: Record<TelephonyCategory, DepartmentId | null>,
+    confidence: number
+  ) => void;
+  confirmCallClassification: (
+    ticketId: string,
+    choice: Omit<CallProposal, "confidence">
+  ) => void;
   setTelephonyEnabled: (enabled: boolean) => void;
   setTicketForm: (
     config: TicketFormConfig | ((prev: TicketFormConfig) => TicketFormConfig)
@@ -259,6 +275,18 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
     DEFAULT_TICKET_FORM
   );
   const [telephonyEnabled, setTelephonyEnabledState] = useState(false);
+  const [telephonyRouting, setTelephonyRoutingState] = useState<
+    Record<TelephonyCategory, DepartmentId | null>
+  >({
+    supporto_montaggio: "ufficio_tecnico",
+    manuale: "ufficio_tecnico",
+    pezzo_mancante: "logistica",
+    integrazione_ordine: "commerciale",
+    ricambio: "logistica",
+    reso: "commerciale",
+    altro: null,
+  });
+  const [telephonyConfidence, setTelephonyConfidenceState] = useState(0.65);
   const [conversations, setConversations] = useState<ConversationRecord[]>([]);
   const conversationsHydratedRef = useRef(false);
   const cloudModeRef = useRef(false);
@@ -323,6 +351,10 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
         setTicketStagesState(normalizeTicketStages(data.ticketStages));
         setTicketFormState(normalizeTicketForm(data.ticketForm));
         setTelephonyEnabledState(data.telephonyEnabled === true);
+        if (data.telephonyRouting) setTelephonyRoutingState(data.telephonyRouting);
+        if (typeof data.telephonyConfidence === "number") {
+          setTelephonyConfidenceState(data.telephonyConfidence);
+        }
         setSuppliers(data.suppliers ?? []);
         setCustomers(data.customers ?? []);
         setCompanyUsers(data.companyUsers ?? []);
@@ -406,6 +438,57 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
       persist("updateTelephony", { enabled, stages: nextStages });
     },
     [persist, ticketStages, tickets]
+  );
+
+  const setTelephonyRouting = useCallback(
+    (
+      routing: Record<TelephonyCategory, DepartmentId | null>,
+      confidence: number
+    ) => {
+      setTelephonyRoutingState(routing);
+      setTelephonyConfidenceState(confidence);
+      persist("updateTelephonyRouting", { routing, confidence });
+    },
+    [persist]
+  );
+
+  const confirmCallClassification = useCallback(
+    (ticketId: string, choice: Omit<CallProposal, "confidence">) => {
+      const { sentFull } = nowLabels();
+      setTickets((prev) =>
+        prev.map((ticket) => {
+          if (ticket.id !== ticketId || !ticket.aiProposal) return ticket;
+          const status = statusAfterConfirm({
+            currentStatus: ticket.status,
+            confidence: ticket.aiProposal.confidence,
+            threshold: telephonyConfidence,
+            department: choice.department,
+          });
+          return {
+            ...ticket,
+            status,
+            priority: choice.urgency,
+            category: choice.category,
+            summary: choice.summary,
+            department: choice.department ?? undefined,
+            machineModel: choice.product ?? undefined,
+            machineSerial: choice.orderNumber ?? undefined,
+            updatedFull: sentFull,
+            operatorChoice: {
+              ...choice,
+              confidence: ticket.aiProposal.confidence,
+              confirmedAt: new Date().toISOString(),
+            },
+          };
+        })
+      );
+      persist("confirmCallClassification", {
+        id: ticketId,
+        choice,
+        updatedFull: sentFull,
+      });
+    },
+    [persist, telephonyConfidence]
   );
 
   const setTicketForm = useCallback(
@@ -1075,6 +1158,10 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
         setTicketStages,
         ticketForm,
         telephonyEnabled,
+        telephonyRouting,
+        telephonyConfidence,
+        setTelephonyRouting,
+        confirmCallClassification,
         setTelephonyEnabled,
         setTicketForm,
         createTicket,

@@ -1,3 +1,5 @@
+import type { CallProposal } from "./classify";
+
 export type CallDirection = "inbound" | "outbound";
 
 export type CallOutcome = "answered" | "missed" | "voicemail";
@@ -116,6 +118,11 @@ export type TelephonyStore = {
   createTicketForExistingCall(
     input: InsertCallInput
   ): Promise<InsertCallResult | { error: string }>;
+  saveAiProposal(
+    companyId: string,
+    ticketId: string,
+    proposal: CallProposal
+  ): Promise<void>;
 };
 
 export type WebhookSuccess = {

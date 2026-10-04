@@ -23,6 +23,11 @@ import type { PhoneCallRecord } from "@/lib/telephony/types";
 import { normalizeTicketStages } from "@/lib/ticketData";
 import { isTelephonyEnabled } from "@/lib/telephony/settings";
 import {
+  confidenceThreshold,
+  routingFromSettings,
+} from "@/lib/telephony/classify";
+import type { DepartmentId, TelephonyCategory } from "@/lib/telephony/classify";
+import {
   normalizeTicketForm,
   type TicketFormConfig,
 } from "@/lib/ticketForm";
@@ -54,6 +59,8 @@ export type WorkspaceSnapshot = {
   ticketStages: TicketStage[];
   ticketForm: TicketFormConfig;
   telephonyEnabled: boolean;
+  telephonyRouting: Record<TelephonyCategory, DepartmentId | null>;
+  telephonyConfidence: number;
   customers: Customer[];
   companyUsers: CompanyUserOption[];
 };
@@ -215,6 +222,8 @@ export async function loadCompanyWorkspace(
       (company.settingsJson as { ticketForm?: unknown } | null)?.ticketForm
     ),
     telephonyEnabled: isTelephonyEnabled(company.settingsJson),
+    telephonyRouting: routingFromSettings(company.settingsJson),
+    telephonyConfidence: confidenceThreshold(company.settingsJson),
     customers: customers.map(mapCustomer),
     companyUsers,
   };

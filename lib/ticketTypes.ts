@@ -4,6 +4,8 @@
 // sincronizzati con email, chat AI e assegnazioni tecnici.
 // =============================================================
 
+import type { CallProposal, OperatorChoice } from "@/lib/telephony/classify";
+
 /** ID stage ticket — i default restano aperti/assegnato/…, in settings se ne possono aggiungere. */
 export type TicketStatus = string;
 
@@ -16,7 +18,15 @@ export type TicketSource =
   | "form"
   | "telefono";
 
-export type TicketCategory = "ricambio" | "troubleshooting" | "altro";
+export type TicketCategory =
+  | "ricambio"
+  | "troubleshooting"
+  | "altro"
+  | "supporto_montaggio"
+  | "manuale"
+  | "pezzo_mancante"
+  | "integrazione_ordine"
+  | "reso";
 
 export interface TicketStatusConfig {
   id: TicketStatus;
@@ -62,6 +72,9 @@ export interface ServiceTicketRecord {
   customerPhone?: string;
   customerCompany?: string;
   customerId?: string;
+  department?: string;
+  aiProposal?: CallProposal;
+  operatorChoice?: OperatorChoice;
   formExtra?: Record<string, string>;
   attachments?: TicketAttachmentMeta[];
 }

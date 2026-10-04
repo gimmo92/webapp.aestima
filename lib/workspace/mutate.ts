@@ -3,6 +3,15 @@ import type { Prisma } from "@/lib/generated/prisma/client";
 import { normalizeTicketForm } from "@/lib/ticketForm";
 import { normalizeTicketStages } from "@/lib/ticketData";
 import { applyDiscontinuedPrefix } from "@/lib/discontinuedSparePart";
+import { classifyTranscript } from "@/lib/telephony/classifyCall";
+import {
+  confidenceThreshold,
+  isDepartmentId,
+  isTelephonyCategory,
+  readProposal,
+  statusAfterConfirm,
+} from "@/lib/telephony/classify";
+import type { CallProposal, OperatorChoice } from "@/lib/telephony/classify";
 
 type MutateBody = {
   action: string;
@@ -21,6 +30,35 @@ function asOptString(v: unknown) {
   if (typeof v !== "string") return null;
   const t = v.trim();
   return t ? t : null;
+}
+
+function readChoicePayload(value: unknown): Omit<CallProposal, "confidence"> | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const row = value as Record<string, unknown>;
+  if (!isTelephonyCategory(row.category)) return null;
+  if (row.urgency !== "normale" && row.urgency !== "alta") return null;
+  const summary = asOptString(row.summary);
+  const suggestedAction = asOptString(row.suggestedAction);
+  if (!summary || !suggestedAction) return null;
+  const department =
+    row.department == null || row.department === "" ? null : row.department;
+  if (department != null && !isDepartmentId(department)) return null;
+  const partCodes = Array.isArray(row.partCodes)
+    ? row.partCodes
+        .filter((code): code is string => typeof code === "string")
+        .map((code) => code.trim())
+        .filter(Boolean)
+    : [];
+  return {
+    category: row.category,
+    department,
+    urgency: row.urgency,
+    summary,
+    product: asOptString(row.product),
+    orderNumber: asOptString(row.orderNumber),
+    partCodes,
+    suggestedAction,
+  };
 }
 
 async function asCompanyUserId(companyId: string, v: unknown) {
@@ -332,7 +370,104 @@ export async function applyWorkspaceMutation(
           data: { ticketId: id },
         }),
       ]);
+      if (call.transcript?.trim()) {
+        try {
+          const company = await prisma.company.findUnique({
+            where: { id: companyId },
+            select: { settingsJson: true },
+          });
+          const proposal = await classifyTranscript(
+            call.transcript,
+            company?.settingsJson
+          );
+          if (proposal) {
+            await prisma.serviceTicket.updateMany({
+              where: { id, companyId },
+              data: { aiProposalJson: proposal as Prisma.InputJsonValue },
+            });
+          }
+        } catch (err) {
+          console.error("Classificazione chiamata fallita:", err);
+        }
+      }
       return { ok: true, id };
+    }
+    case "confirmCallClassification": {
+      const id = asString(p.id);
+      const ticket = await prisma.serviceTicket.findFirst({
+        where: { id, companyId },
+        select: { id: true, status: true, aiProposalJson: true },
+      });
+      if (!ticket) return { ok: false, error: "Ticket non trovato" };
+      const proposal = readProposal(ticket.aiProposalJson);
+      if (!proposal) return { ok: false, error: "Nessuna proposta AI da confermare" };
+      const choice = readChoicePayload(p.choice);
+      if (!choice) return { ok: false, error: "Scelta operatore non valida" };
+      const company = await prisma.company.findUnique({
+        where: { id: companyId },
+        select: { settingsJson: true },
+      });
+      const nextStatus = statusAfterConfirm({
+        currentStatus: ticket.status,
+        confidence: proposal.confidence,
+        threshold: confidenceThreshold(company?.settingsJson),
+        department: choice.department,
+      });
+      const operatorChoice: OperatorChoice = {
+        ...choice,
+        confidence: proposal.confidence,
+        confirmedAt: new Date().toISOString(),
+      };
+      await prisma.serviceTicket.updateMany({
+        where: { id, companyId },
+        data: {
+          status: nextStatus,
+          priority: choice.urgency,
+          category: choice.category,
+          summary: choice.summary,
+          department: choice.department,
+          machineModel: choice.product,
+          machineSerial: choice.orderNumber,
+          operatorChoiceJson: operatorChoice as Prisma.InputJsonValue,
+          updatedFull: asString(p.updatedFull) || undefined,
+        },
+      });
+      return { ok: true, status: nextStatus };
+    }
+    case "updateTelephonyRouting": {
+      const company = await prisma.company.findUnique({
+        where: { id: companyId },
+        select: { settingsJson: true },
+      });
+      const prev =
+        company?.settingsJson &&
+        typeof company.settingsJson === "object" &&
+        !Array.isArray(company.settingsJson)
+          ? (company.settingsJson as Record<string, unknown>)
+          : {};
+      const routing: Record<string, string | null> = {};
+      if (p.routing && typeof p.routing === "object" && !Array.isArray(p.routing)) {
+        for (const [key, value] of Object.entries(p.routing as Record<string, unknown>)) {
+          if (!isTelephonyCategory(key)) continue;
+          if (value == null || value === "") routing[key] = null;
+          else if (isDepartmentId(value)) routing[key] = value;
+        }
+      }
+      const threshold =
+        typeof p.confidence === "number" && Number.isFinite(p.confidence)
+          ? Math.min(1, Math.max(0, p.confidence))
+          : confidenceThreshold(prev);
+      await prisma.company.update({
+        where: { id: companyId },
+        data: {
+          settingsJson: {
+            ...prev,
+            telephonyRouting: routing,
+            telephonyConfidence: threshold,
+          } as Prisma.InputJsonValue,
+        },
+      });
+      return { ok: true };
     }
     case "updateTicket": {
       const id = asString(p.id);

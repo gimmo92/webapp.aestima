@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prismaTelephonyStore } from "@/lib/telephony/store";
+import { classifyTranscript } from "@/lib/telephony/classifyCall";
 import { handleTelephonyWebhook } from "@/lib/telephony/webhook";
 
 export async function POST(req: Request) {
@@ -17,6 +18,7 @@ export async function POST(req: Request) {
     queryCompany: url.searchParams.get("company") ?? "",
     body,
     store: prismaTelephonyStore,
+    classify: classifyTranscript,
   });
 
   return NextResponse.json(result.body, { status: result.status });

@@ -112,6 +112,11 @@ export const TICKET_CATEGORY_LABELS: Record<
   ricambio: "Ricambio",
   troubleshooting: "Troubleshooting",
   altro: "Altro",
+  supporto_montaggio: "Supporto montaggio",
+  manuale: "Manuale o documentazione",
+  pezzo_mancante: "Pezzo mancante",
+  integrazione_ordine: "Integrazione ordine",
+  reso: "Reso",
 };
 
 export function newTicketId(): string {

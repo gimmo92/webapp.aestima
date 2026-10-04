@@ -5,6 +5,7 @@ import {
   openTicketsForCaller,
 } from "./phone";
 import { settingsWithCallbackStage } from "./settings";
+import type { CallProposal } from "./classify";
 import type {
   CallerContext,
   InsertCallInput,
@@ -328,5 +329,12 @@ export const prismaTelephonyStore: TelephonyStore = {
         ticketStatus: existing.ticketStatus,
       };
     }
+  },
+
+  async saveAiProposal(companyId, ticketId, proposal: CallProposal) {
+    await prisma.serviceTicket.updateMany({
+      where: { id: ticketId, companyId },
+      data: { aiProposalJson: proposal as Prisma.InputJsonValue },
+    });
   },
 };

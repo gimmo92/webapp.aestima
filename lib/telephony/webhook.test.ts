@@ -24,9 +24,11 @@ function memoryStore(
 ): TelephonyStore & {
   tickets: InsertCallInput[];
   calls: StoredCall[];
+  proposals: { ticketId: string }[];
 } {
   const tickets: InsertCallInput[] = [];
   const calls: StoredCall[] = [];
+  const proposals: { ticketId: string }[] = [];
   const knownTickets = new Map(caller.openTickets.map((ticket) => [ticket.id, ticket.status]));
 
   function rememberStage(input: InsertCallInput) {
@@ -45,6 +47,7 @@ function memoryStore(
   return {
     tickets,
     calls,
+    proposals,
     async findCompanyBySlug(slug) {
       return slug === initial.slug ? initial : null;
     },
@@ -134,6 +137,9 @@ function memoryStore(
         ticketId: input.ticket.id,
         ticketStatus: input.ticket.status,
       };
+    },
+    async saveAiProposal(_companyId, ticketId) {
+      proposals.push({ ticketId });
     },
   };
 }
@@ -280,6 +286,55 @@ describe("webhook telefonia", () => {
     assert.equal(replay.body.idempotent, true);
     assert.equal(store.calls.length, 1);
     assert.equal(store.tickets.length, 0);
+  });
+
+  it("salva la proposta AI senza cambiare lo stato se la classificazione riesce", async () => {
+    const store = memoryStore(company({ features: { telephony: true } }));
+    const result = await handleTelephonyWebhook({
+      secretHeader: SECRET,
+      expectedSecret: SECRET,
+      queryCompany: "",
+      body: internalBody("voicemail", "vm-ai"),
+      store,
+      newId: () => "SRV-1001",
+      classify: async () => ({
+        category: "manuale",
+        urgency: "normale",
+        summary: "Chiede il manuale del parapetto standard.",
+        product: "Parapetto modulare",
+        orderNumber: null,
+        partCodes: [],
+        suggestedAction: "Inviare il PDF.",
+        confidence: 0.4,
+        department: "ufficio_tecnico",
+      }),
+    });
+    assert.equal(result.body.ok, true);
+    if (!result.body.ok) return;
+    assert.equal(result.body.ticketStatus, CALLBACK_STAGE_ID);
+    assert.equal(store.proposals.length, 1);
+    assert.equal(store.tickets[0]?.ticket.status, CALLBACK_STAGE_ID);
+  });
+
+  it("crea il ticket anche se la classificazione va in errore", async () => {
+    const store = memoryStore(company({ features: { telephony: true } }));
+    const body = internalBody("answered", "call-ai-fail");
+    body.call.transcript = "Come fisso il palo intermedio?";
+    const result = await handleTelephonyWebhook({
+      secretHeader: SECRET,
+      expectedSecret: SECRET,
+      queryCompany: "",
+      body,
+      store,
+      newId: () => "SRV-1002",
+      classify: async () => {
+        throw new Error("timeout");
+      },
+    });
+    assert.equal(result.status, 200);
+    assert.equal(result.body.ok, true);
+    assert.equal(store.tickets.length, 1);
+    assert.equal(store.proposals.length, 0);
   });
 });
 
