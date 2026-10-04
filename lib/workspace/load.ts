@@ -26,6 +26,7 @@ import type { TicketFieldLabels } from "@/lib/ticketFieldLabels";
 import {
   confidenceThreshold,
   routingFromSettings,
+  autoRouteFromSettings,
 } from "@/lib/telephony/classify";
 import type { DepartmentId, TelephonyCategory } from "@/lib/telephony/classify";
 import { isTelephonyEnabled } from "@/lib/telephony/settings";
@@ -63,6 +64,7 @@ export type WorkspaceSnapshot = {
   telephonyEnabled: boolean;
   telephonyRouting: Record<TelephonyCategory, DepartmentId | null>;
   telephonyConfidence: number;
+  telephonyAutoRoute: boolean;
   ticketFieldLabels: TicketFieldLabels;
   customers: Customer[];
   companyUsers: CompanyUserOption[];
@@ -227,6 +229,7 @@ export async function loadCompanyWorkspace(
     telephonyEnabled: isTelephonyEnabled(company.settingsJson),
     telephonyRouting: routingFromSettings(company.settingsJson),
     telephonyConfidence: confidenceThreshold(company.settingsJson),
+    telephonyAutoRoute: autoRouteFromSettings(company.settingsJson),
     ticketFieldLabels: ticketFieldLabelsFromSettings(company.settingsJson),
     customers: customers.map(mapCustomer),
     companyUsers,

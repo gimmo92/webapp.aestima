@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  autoAppliedChoice,
   parseClassification,
   resolveAssignmentStatus,
   statusAfterConfirm,
@@ -131,6 +132,49 @@ describe("reparto e conferma", () => {
         department: "logistica",
       }),
       "aperto"
+    );
+  });
+
+  it("in automatico sopra soglia assegna il reparto", () => {
+    const applied = autoAppliedChoice(
+      {
+        category: "pezzo_mancante",
+        urgency: "alta",
+        summary: "Manca il modulo intermedio.",
+        product: "Scala",
+        orderNumber: "4412",
+        partCodes: ["SC-INT-90"],
+        suggestedAction: "Spedire il modulo.",
+        confidence: 0.9,
+        department: "logistica",
+      },
+      "aperto",
+      { telephonyAutoRoute: true }
+    );
+    assert.equal(applied?.status, "assegnato");
+    assert.equal(applied?.choice.department, "logistica");
+    assert.equal(applied?.choice.automatic, true);
+  });
+
+  it("spento o sotto soglia non instrada da solo", () => {
+    const proposal = {
+      category: "pezzo_mancante" as const,
+      urgency: "normale" as const,
+      summary: "Manca il modulo intermedio.",
+      product: null,
+      orderNumber: null,
+      partCodes: [],
+      suggestedAction: "Verificare.",
+      confidence: 0.9,
+      department: "logistica" as const,
+    };
+    assert.equal(autoAppliedChoice(proposal, "aperto", {}), null);
+    assert.equal(
+      autoAppliedChoice(proposal, "aperto", {
+        telephonyAutoRoute: true,
+        telephonyConfidence: 0.95,
+      }),
+      null
     );
   });
 });

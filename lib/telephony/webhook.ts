@@ -216,6 +216,23 @@ export async function handleTelephonyWebhook(input: {
           inserted.ticketId,
           proposal
         );
+        const routed = await input.store.applyAutoRoute(
+          company.id,
+          inserted.ticketId,
+          inserted.ticketStatus ?? "aperto",
+          proposal,
+          company.settingsJson
+        );
+        if (routed) {
+          return success({
+            ok: true,
+            idempotent: !inserted.created,
+            action: "created",
+            callId: inserted.callId,
+            ticketId: inserted.ticketId,
+            ticketStatus: routed,
+          });
+        }
       }
     } catch (err) {
       console.error("Classificazione chiamata fallita:", err);

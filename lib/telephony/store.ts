@@ -6,6 +6,7 @@ import {
 } from "./phone";
 import { settingsWithCallbackStage } from "./settings";
 import type { CallProposal } from "./classify";
+import { autoAppliedChoice } from "./classify";
 import type {
   CallerContext,
   InsertCallInput,
@@ -336,5 +337,25 @@ export const prismaTelephonyStore: TelephonyStore = {
       where: { id: ticketId, companyId },
       data: { aiProposalJson: proposal as Prisma.InputJsonValue },
     });
+  },
+
+  async applyAutoRoute(companyId, ticketId, currentStatus, proposal, settingsJson) {
+    const applied = autoAppliedChoice(proposal, currentStatus, settingsJson);
+    if (!applied) return null;
+    await prisma.serviceTicket.updateMany({
+      where: { id: ticketId, companyId },
+      data: {
+        status: applied.status,
+        priority: applied.choice.urgency,
+        category: applied.choice.category,
+        summary: applied.choice.summary,
+        department: applied.choice.department,
+        machineModel: applied.choice.product,
+        machineSerial: applied.choice.orderNumber,
+        aiProposalJson: proposal as Prisma.InputJsonValue,
+        operatorChoiceJson: applied.choice as Prisma.InputJsonValue,
+      },
+    });
+    return applied.status;
   },
 };

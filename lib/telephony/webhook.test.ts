@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { fromAircallPayload } from "./adapter";
+import { autoAppliedChoice } from "./classify";
 import { CALLBACK_STAGE_ID } from "./settings";
 import type {
   CallerContext,
@@ -140,6 +141,15 @@ function memoryStore(
     },
     async saveAiProposal(_companyId, ticketId) {
       proposals.push({ ticketId });
+    },
+    async applyAutoRoute(_companyId, ticketId, currentStatus, proposal, settingsJson) {
+      const applied = autoAppliedChoice(proposal, currentStatus, settingsJson);
+      if (!applied) return null;
+      const row = tickets.find((item) => item.ticket.id === ticketId);
+      if (row) row.ticket.status = applied.status;
+      const call = calls.find((item) => item.ticketId === ticketId);
+      if (call) call.ticketStatus = applied.status;
+      return applied.status;
     },
   };
 }
@@ -314,6 +324,37 @@ describe("webhook telefonia", () => {
     assert.equal(result.body.ticketStatus, CALLBACK_STAGE_ID);
     assert.equal(store.proposals.length, 1);
     assert.equal(store.tickets[0]?.ticket.status, CALLBACK_STAGE_ID);
+  });
+
+  it("in automatico porta un ticket Da assegnare nel reparto", async () => {
+    const store = memoryStore(
+      company({ features: { telephony: true }, telephonyAutoRoute: true })
+    );
+    const body = internalBody("answered", "auto-route");
+    body.call.transcript = "Manca il modulo intermedio della scala, ordine 4412.";
+    const result = await handleTelephonyWebhook({
+      secretHeader: SECRET,
+      expectedSecret: SECRET,
+      queryCompany: "",
+      body,
+      store,
+      newId: () => "SRV-1003",
+      classify: async () => ({
+        category: "pezzo_mancante",
+        urgency: "alta",
+        summary: "Manca il modulo intermedio della scala.",
+        product: "Scala modulare",
+        orderNumber: "4412",
+        partCodes: ["SC-INT-90"],
+        suggestedAction: "Spedire il modulo.",
+        confidence: 0.91,
+        department: "logistica",
+      }),
+    });
+    assert.equal(result.body.ok, true);
+    if (!result.body.ok) return;
+    assert.equal(result.body.ticketStatus, "assegnato");
+    assert.equal(store.tickets[0]?.ticket.status, "assegnato");
   });
 
   it("crea il ticket anche se la classificazione va in errore", async () => {

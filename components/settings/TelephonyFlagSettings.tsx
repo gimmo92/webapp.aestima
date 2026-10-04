@@ -17,15 +17,18 @@ export function TelephonyFlagSettings() {
     setTelephonyEnabled,
     telephonyRouting,
     telephonyConfidence,
+    telephonyAutoRoute,
     setTelephonyRouting,
   } = useInbox();
   const [routing, setRouting] = useState(telephonyRouting);
   const [confidence, setConfidence] = useState(String(telephonyConfidence));
+  const [autoRoute, setAutoRoute] = useState(telephonyAutoRoute);
 
   useEffect(() => {
     setRouting(telephonyRouting);
     setConfidence(String(telephonyConfidence));
-  }, [telephonyRouting, telephonyConfidence]);
+    setAutoRoute(telephonyAutoRoute);
+  }, [telephonyRouting, telephonyConfidence, telephonyAutoRoute]);
 
   return (
     <section className="mx-auto max-w-3xl px-5 pt-8 sm:px-8">
@@ -58,11 +61,41 @@ export function TelephonyFlagSettings() {
         </div>
         {telephonyEnabled && (
           <div className="mt-4 border-t border-border pt-4">
-            <p className="text-xs font-semibold text-ink">Categoria → reparto</p>
+            <p className="text-xs font-semibold text-ink">Instradamento ai reparti</p>
             <p className="mt-1 text-xs text-ink-muted">
-              La proposta AI usa questa mappa. Sotto la soglia di confidenza il
-              ticket resta Da assegnare anche dopo la conferma.
+              La mappa dice a quale reparto va ogni motivo. In manuale il
+              reparto resta nella proposta finché qualcuno preme Conferma. In
+              automatico, se la confidenza è almeno la soglia e c&apos;è un
+              reparto, il ticket viene instradato subito.
             </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setAutoRoute(false)}
+                aria-pressed={!autoRoute}
+                className={[
+                  "rounded-lg border px-3 py-1.5 text-xs font-semibold",
+                  autoRoute
+                    ? "border-border bg-base text-ink-muted"
+                    : "border-brand/50 bg-brand-soft text-ink",
+                ].join(" ")}
+              >
+                Manuale
+              </button>
+              <button
+                type="button"
+                onClick={() => setAutoRoute(true)}
+                aria-pressed={autoRoute}
+                className={[
+                  "rounded-lg border px-3 py-1.5 text-xs font-semibold",
+                  autoRoute
+                    ? "border-brand/50 bg-brand-soft text-ink"
+                    : "border-border bg-base text-ink-muted",
+                ].join(" ")}
+              >
+                Automatico
+              </button>
+            </div>
             <div className="mt-3 space-y-2">
               {TELEPHONY_CATEGORIES.map((category) => (
                 <label
@@ -105,12 +138,13 @@ export function TelephonyFlagSettings() {
                 const parsed = Number(confidence);
                 setTelephonyRouting(
                   routing,
-                  Number.isFinite(parsed) ? parsed : telephonyConfidence
+                  Number.isFinite(parsed) ? parsed : telephonyConfidence,
+                  autoRoute
                 );
               }}
               className="mt-3 rounded-lg border border-border bg-base px-3 py-2 text-xs font-semibold text-ink hover:border-brand"
             >
-              Salva mappa
+              Salva instradamento
             </button>
           </div>
         )}

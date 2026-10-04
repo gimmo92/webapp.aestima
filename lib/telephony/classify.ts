@@ -61,6 +61,7 @@ export type CallProposal = ParsedClassification & {
 
 export type OperatorChoice = CallProposal & {
   confirmedAt: string;
+  automatic?: boolean;
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -175,6 +176,39 @@ export function resolveAssignmentStatus(input: {
   return input.requestedStatus;
 }
 
+export function autoRouteFromSettings(settingsJson: unknown): boolean {
+  return isRecord(settingsJson) && settingsJson.telephonyAutoRoute === true;
+}
+
+/**
+ * Instradamento automatico: sopra soglia e con un reparto applica la proposta.
+ * Sotto soglia, senza reparto, o con la modalità spenta, non assegna nulla.
+ */
+export function autoAppliedChoice(
+  proposal: CallProposal,
+  currentStatus: string,
+  settingsJson: unknown,
+  now = new Date()
+): { status: string; choice: OperatorChoice } | null {
+  if (!autoRouteFromSettings(settingsJson)) return null;
+  const threshold = confidenceThreshold(settingsJson);
+  if (isBelowThreshold(proposal.confidence, threshold)) return null;
+  if (!proposal.department) return null;
+  return {
+    status: statusAfterConfirm({
+      currentStatus,
+      confidence: proposal.confidence,
+      threshold,
+      department: proposal.department,
+    }),
+    choice: {
+      ...proposal,
+      confirmedAt: now.toISOString(),
+      automatic: true,
+    },
+  };
+}
+
 /** Conferma operatore: sotto soglia, o senza reparto, lo stato non diventa Assegnato. */
 export function statusAfterConfirm(input: {
   currentStatus: string;
@@ -200,5 +234,9 @@ export function readProposal(value: unknown): CallProposal | null {
 export function readOperatorChoice(value: unknown): OperatorChoice | null {
   const proposal = readProposal(value);
   if (!proposal || !isRecord(value) || typeof value.confirmedAt !== "string") return null;
-  return { ...proposal, confirmedAt: value.confirmedAt };
+  return {
+    ...proposal,
+    confirmedAt: value.confirmedAt,
+    automatic: value.automatic === true,
+  };
 }

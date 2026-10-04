@@ -21,12 +21,14 @@ export function AiProposalCard({
   proposal,
   initial,
   confirmed,
+  automatic = false,
   threshold,
   onConfirm,
 }: {
   proposal: CallProposal;
   initial: Choice;
   confirmed: boolean;
+  automatic?: boolean;
   threshold: number;
   onConfirm: (choice: Choice) => void;
 }) {
@@ -46,7 +48,11 @@ export function AiProposalCard({
         <p className="text-xs text-ink-muted">
           Confidenza {Math.round(proposal.confidence * 100)}%
           {low ? " · sotto soglia, non passa ad Assegnato" : ""}
-          {confirmed ? " · confermata" : ""}
+          {confirmed
+            ? automatic
+              ? " · instradata in automatico"
+              : " · confermata"
+            : ""}
         </p>
       </div>
       {editing ? (

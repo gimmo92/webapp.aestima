@@ -12,6 +12,7 @@ import {
   readProposal,
   resolveAssignmentStatus,
   statusAfterConfirm,
+  autoAppliedChoice,
 } from "@/lib/telephony/classify";
 import type { CallProposal, OperatorChoice } from "@/lib/telephony/classify";
 
@@ -383,9 +384,26 @@ export async function applyWorkspaceMutation(
             company?.settingsJson
           );
           if (proposal) {
+            const applied = autoAppliedChoice(
+              proposal,
+              asString(p.status) || "aperto",
+              company?.settingsJson
+            );
             await prisma.serviceTicket.updateMany({
               where: { id, companyId },
-              data: { aiProposalJson: proposal as Prisma.InputJsonValue },
+              data: applied
+                ? {
+                    status: applied.status,
+                    priority: applied.choice.urgency,
+                    category: applied.choice.category,
+                    summary: applied.choice.summary,
+                    department: applied.choice.department,
+                    machineModel: applied.choice.product,
+                    machineSerial: applied.choice.orderNumber,
+                    aiProposalJson: proposal as Prisma.InputJsonValue,
+                    operatorChoiceJson: applied.choice as Prisma.InputJsonValue,
+                  }
+                : { aiProposalJson: proposal as Prisma.InputJsonValue },
             });
           }
         } catch (err) {
@@ -459,6 +477,10 @@ export async function applyWorkspaceMutation(
         typeof p.confidence === "number" && Number.isFinite(p.confidence)
           ? Math.min(1, Math.max(0, p.confidence))
           : confidenceThreshold(prev);
+      const autoRoute =
+        p.autoRoute === undefined
+          ? prev.telephonyAutoRoute === true
+          : p.autoRoute === true;
       await prisma.company.update({
         where: { id: companyId },
         data: {
@@ -466,6 +488,7 @@ export async function applyWorkspaceMutation(
             ...prev,
             telephonyRouting: routing,
             telephonyConfidence: threshold,
+            telephonyAutoRoute: autoRoute,
           } as Prisma.InputJsonValue,
         },
       });

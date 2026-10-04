@@ -123,6 +123,13 @@ export type TelephonyStore = {
     ticketId: string,
     proposal: CallProposal
   ): Promise<void>;
+  applyAutoRoute(
+    companyId: string,
+    ticketId: string,
+    currentStatus: string,
+    proposal: CallProposal,
+    settingsJson: unknown
+  ): Promise<string | null>;
 };
 
 export type WebhookSuccess = {

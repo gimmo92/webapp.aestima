@@ -182,9 +182,11 @@ interface InboxContextValue {
   telephonyEnabled: boolean;
   telephonyRouting: Record<TelephonyCategory, DepartmentId | null>;
   telephonyConfidence: number;
+  telephonyAutoRoute: boolean;
   setTelephonyRouting: (
     routing: Record<TelephonyCategory, DepartmentId | null>,
-    confidence: number
+    confidence: number,
+    autoRoute: boolean
   ) => void;
   confirmCallClassification: (
     ticketId: string,
@@ -295,6 +297,7 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
     altro: null,
   });
   const [telephonyConfidence, setTelephonyConfidenceState] = useState(0.65);
+  const [telephonyAutoRoute, setTelephonyAutoRouteState] = useState(false);
   const [ticketFieldLabels, setTicketFieldLabelsState] =
     useState<TicketFieldLabels>(DEFAULT_TICKET_FIELD_LABELS);
   const [conversations, setConversations] = useState<ConversationRecord[]>([]);
@@ -365,6 +368,7 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
         if (typeof data.telephonyConfidence === "number") {
           setTelephonyConfidenceState(data.telephonyConfidence);
         }
+        setTelephonyAutoRouteState(data.telephonyAutoRoute === true);
         if (data.ticketFieldLabels) {
           setTicketFieldLabelsState(
             ticketFieldLabelsFromSettings({
@@ -469,11 +473,13 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
   const setTelephonyRouting = useCallback(
     (
       routing: Record<TelephonyCategory, DepartmentId | null>,
-      confidence: number
+      confidence: number,
+      autoRoute: boolean
     ) => {
       setTelephonyRoutingState(routing);
       setTelephonyConfidenceState(confidence);
-      persist("updateTelephonyRouting", { routing, confidence });
+      setTelephonyAutoRouteState(autoRoute);
+      persist("updateTelephonyRouting", { routing, confidence, autoRoute });
     },
     [persist]
   );
@@ -1212,6 +1218,7 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
         telephonyEnabled,
         telephonyRouting,
         telephonyConfidence,
+        telephonyAutoRoute,
         setTelephonyRouting,
         confirmCallClassification,
         setTelephonyEnabled,

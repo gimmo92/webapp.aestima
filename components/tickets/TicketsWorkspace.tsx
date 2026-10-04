@@ -597,6 +597,7 @@ function TicketDetail({
           proposal={ticket.aiProposal}
           initial={ticket.operatorChoice ?? ticket.aiProposal}
           confirmed={Boolean(ticket.operatorChoice)}
+          automatic={ticket.operatorChoice?.automatic === true}
           threshold={telephonyConfidence}
           onConfirm={(choice) => confirmCallClassification(ticket.id, choice)}
         />
