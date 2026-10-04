@@ -102,6 +102,7 @@ export const TICKET_SOURCE_LABELS: Record<
   manuale: "Manuale",
   inbox: "Inbox",
   form: "Form web",
+  telefono: "Telefono",
 };
 
 export const TICKET_CATEGORY_LABELS: Record<

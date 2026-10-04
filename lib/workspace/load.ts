@@ -20,6 +20,7 @@ import type { ConversationRecord } from "@/lib/conversationTypes";
 import type { KnowledgeEntry } from "@/lib/knowledgeTypes";
 import type { ServiceTicketRecord, TicketStage } from "@/lib/ticketTypes";
 import { normalizeTicketStages } from "@/lib/ticketData";
+import { isTelephonyEnabled } from "@/lib/telephony/settings";
 import {
   normalizeTicketForm,
   type TicketFormConfig,
@@ -50,6 +51,7 @@ export type WorkspaceSnapshot = {
   spareParts: SparePart[];
   ticketStages: TicketStage[];
   ticketForm: TicketFormConfig;
+  telephonyEnabled: boolean;
   customers: Customer[];
   companyUsers: CompanyUserOption[];
 };
@@ -189,6 +191,7 @@ export async function loadCompanyWorkspace(
     ticketForm: normalizeTicketForm(
       (company.settingsJson as { ticketForm?: unknown } | null)?.ticketForm
     ),
+    telephonyEnabled: isTelephonyEnabled(company.settingsJson),
     customers: customers.map(mapCustomer),
     companyUsers,
   };

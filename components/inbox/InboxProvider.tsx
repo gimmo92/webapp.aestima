@@ -71,6 +71,10 @@ import {
   type TicketFormConfig,
 } from "@/lib/ticketForm";
 import type { SparePart } from "@/lib/sparePartTypes";
+import {
+  CALLBACK_STAGE_ID,
+  withCallbackStage,
+} from "@/lib/telephony/settings";
 
 const TICKET_STAGES_STORAGE_KEY = "aftercore:ticket-stages:v1";
 
@@ -157,6 +161,8 @@ interface InboxContextValue {
   ticketStages: TicketStage[];
   setTicketStages: (stages: TicketStage[]) => void;
   ticketForm: TicketFormConfig;
+  telephonyEnabled: boolean;
+  setTelephonyEnabled: (enabled: boolean) => void;
   setTicketForm: (
     config: TicketFormConfig | ((prev: TicketFormConfig) => TicketFormConfig)
   ) => void;
@@ -245,6 +251,7 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
   const [ticketForm, setTicketFormState] = useState<TicketFormConfig>(
     DEFAULT_TICKET_FORM
   );
+  const [telephonyEnabled, setTelephonyEnabledState] = useState(false);
   const [conversations, setConversations] = useState<ConversationRecord[]>([]);
   const conversationsHydratedRef = useRef(false);
   const cloudModeRef = useRef(false);
@@ -307,6 +314,7 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
         setTickets(data.tickets ?? []);
         setTicketStagesState(normalizeTicketStages(data.ticketStages));
         setTicketFormState(normalizeTicketForm(data.ticketForm));
+        setTelephonyEnabledState(data.telephonyEnabled === true);
         setSuppliers(data.suppliers ?? []);
         setCustomers(data.customers ?? []);
         setCompanyUsers(data.companyUsers ?? []);
@@ -375,6 +383,21 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
       }
     },
     [persist]
+  );
+
+  const setTelephonyEnabled = useCallback(
+    (enabled: boolean) => {
+      const used = tickets.some((ticket) => ticket.status === CALLBACK_STAGE_ID);
+      const nextStages = enabled
+        ? withCallbackStage(ticketStages)
+        : used
+          ? ticketStages
+          : ticketStages.filter((stage) => stage.id !== CALLBACK_STAGE_ID);
+      setTelephonyEnabledState(enabled);
+      setTicketStagesState(nextStages);
+      persist("updateTelephony", { enabled, stages: nextStages });
+    },
+    [persist, ticketStages, tickets]
   );
 
   const setTicketForm = useCallback(
@@ -975,6 +998,8 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
         ticketStages,
         setTicketStages,
         ticketForm,
+        telephonyEnabled,
+        setTelephonyEnabled,
         setTicketForm,
         createTicket,
         updateTicket,

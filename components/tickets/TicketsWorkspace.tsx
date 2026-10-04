@@ -12,6 +12,7 @@ import {
 } from "@/lib/ticketData";
 import type {
   ServiceTicketRecord,
+  TicketSource,
   TicketStatus,
   UpdateTicketInput,
 } from "@/lib/ticketTypes";
@@ -33,6 +34,7 @@ export function TicketsWorkspace() {
     createTicket,
     updateTicket,
     addKnowledgeEntry,
+    telephonyEnabled,
   } = useInbox();
   const { t } = useI18n();
   const tabs: { id: Tab; label: string }[] = [
@@ -46,6 +48,7 @@ export function TicketsWorkspace() {
   const deepLinkId = searchParams.get("id");
   const [tab, setTab] = useState<Tab>("aperti");
   const [statusFilter, setStatusFilter] = useState<TicketStatus | "all">("all");
+  const [sourceFilter, setSourceFilter] = useState<TicketSource | "all">("all");
   const [selectedId, setSelectedId] = useState<string | null>(
     deepLinkId ?? tickets[0]?.id ?? null
   );
@@ -74,8 +77,11 @@ export function TicketsWorkspace() {
     if (statusFilter !== "all") {
       list = list.filter((t) => t.status === statusFilter);
     }
+    if (telephonyEnabled && sourceFilter !== "all") {
+      list = list.filter((t) => t.source === sourceFilter);
+    }
     return list;
-  }, [tickets, tab, statusFilter, openIds, closedIds]);
+  }, [tickets, tab, statusFilter, sourceFilter, telephonyEnabled, openIds, closedIds]);
 
   const selected =
     tickets.find((t) => t.id === selectedId) ??
@@ -161,7 +167,10 @@ export function TicketsWorkspace() {
           <div className="border-b border-border px-4 py-3">
             <h2 className="text-sm font-semibold text-ink">Ticket service</h2>
             <p className="text-xs text-ink-faint">
-              {filtered.length} in vista · da Assistenza AI, email o manuale
+              {filtered.length} in vista ·{" "}
+              {telephonyEnabled
+                ? "da Assistenza AI, email, telefono o manuale"
+                : "da Assistenza AI, email o manuale"}
             </p>
             {tab !== "chiusi" && (
               <div className="mt-2 flex flex-wrap gap-1.5">
@@ -181,6 +190,20 @@ export function TicketsWorkspace() {
                       color={s.color}
                     />
                   ))}
+              </div>
+            )}
+            {telephonyEnabled && (
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                <FilterChip
+                  active={sourceFilter === "all"}
+                  onClick={() => setSourceFilter("all")}
+                  label="Tutte le origini"
+                />
+                <FilterChip
+                  active={sourceFilter === "telefono"}
+                  onClick={() => setSourceFilter("telefono")}
+                  label={TICKET_SOURCE_LABELS.telefono}
+                />
               </div>
             )}
           </div>

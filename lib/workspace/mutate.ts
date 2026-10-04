@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@/lib/generated/prisma/client";
 import { normalizeTicketForm } from "@/lib/ticketForm";
+import { normalizeTicketStages } from "@/lib/ticketData";
 import { applyDiscontinuedPrefix } from "@/lib/discontinuedSparePart";
 
 type MutateBody = {
@@ -773,6 +774,36 @@ export async function applyWorkspaceMutation(
             ticketForm: normalizeTicketForm(p.config),
           } as Prisma.InputJsonValue,
         },
+      });
+      return { ok: true };
+    }
+    case "updateTelephony": {
+      const company = await prisma.company.findUnique({
+        where: { id: companyId },
+        select: { settingsJson: true },
+      });
+      const prev =
+        company?.settingsJson &&
+        typeof company.settingsJson === "object" &&
+        !Array.isArray(company.settingsJson)
+          ? (company.settingsJson as Record<string, unknown>)
+          : {};
+      const prevFeatures =
+        prev.features &&
+        typeof prev.features === "object" &&
+        !Array.isArray(prev.features)
+          ? (prev.features as Record<string, unknown>)
+          : {};
+      const next: Record<string, unknown> = {
+        ...prev,
+        features: { ...prevFeatures, telephony: p.enabled === true },
+      };
+      if (Array.isArray(p.stages)) {
+        next.ticketStages = normalizeTicketStages(p.stages);
+      }
+      await prisma.company.update({
+        where: { id: companyId },
+        data: { settingsJson: next as Prisma.InputJsonValue },
       });
       return { ok: true };
     }

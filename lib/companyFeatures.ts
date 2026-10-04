@@ -1,3 +1,5 @@
+export { isTelephonyEnabled } from "@/lib/telephony/settings";
+
 /** Company per cui il ticketing è nascosto in UI. */
 const TICKETING_HIDDEN_SLUGS = new Set<string>([]);
 

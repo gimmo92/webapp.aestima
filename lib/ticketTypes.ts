@@ -9,7 +9,12 @@ export type TicketStatus = string;
 
 export type TicketPriority = "normale" | "alta";
 
-export type TicketSource = "chat_ai" | "manuale" | "inbox" | "form";
+export type TicketSource =
+  | "chat_ai"
+  | "manuale"
+  | "inbox"
+  | "form"
+  | "telefono";
 
 export type TicketCategory = "ricambio" | "troubleshooting" | "altro";
 
