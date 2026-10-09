@@ -433,6 +433,14 @@ export const it = {
     navAria: "Sezioni azienda",
     edit: "Modifica azienda",
     users: "Utenti",
+    departments: "Reparti",
+    departmentsHint:
+      "Crea i reparti del team. Compaiono nell'assegnazione di utenti e ticket.",
+    newDepartment: "Nuovo reparto",
+    addDepartment: "Aggiungi",
+    departmentInUse:
+      "Questo reparto è usato da utenti o ticket. Spostali prima di eliminarlo.",
+    noDepartments: "Nessun reparto.",
     customers: "Clienti",
     suppliers: "Fornitori",
   },

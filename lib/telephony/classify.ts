@@ -56,7 +56,7 @@ export type ParsedClassification = {
 };
 
 export type CallProposal = ParsedClassification & {
-  department: DepartmentId | null;
+  department: string | null;
 };
 
 export type OperatorChoice = CallProposal & {
@@ -77,6 +77,11 @@ export function isTelephonyCategory(value: unknown): value is TelephonyCategory 
 
 export function isDepartmentId(value: unknown): value is DepartmentId {
   return typeof value === "string" && (DEPARTMENTS as readonly string[]).includes(value);
+}
+
+/** Id di un reparto aziendale, anche creato dalle impostazioni. */
+export function isDepartmentSlug(value: unknown): value is string {
+  return typeof value === "string" && /^[a-z][a-z0-9_]{0,39}$/.test(value);
 }
 
 function optionalText(value: unknown, max: number): string | null {
@@ -124,8 +129,10 @@ export function parseClassification(text: string): ParsedClassification | null {
 
 export function routingFromSettings(
   settingsJson: unknown
-): Record<TelephonyCategory, DepartmentId | null> {
-  const routing = { ...DEFAULT_CATEGORY_ROUTING };
+): Record<TelephonyCategory, string | null> {
+  const routing: Record<TelephonyCategory, string | null> = {
+    ...DEFAULT_CATEGORY_ROUTING,
+  };
   if (!isRecord(settingsJson) || !isRecord(settingsJson.telephonyRouting)) return routing;
   for (const category of TELEPHONY_CATEGORIES) {
     const value = settingsJson.telephonyRouting[category];
@@ -133,7 +140,7 @@ export function routingFromSettings(
       routing[category] = null;
       continue;
     }
-    if (isDepartmentId(value)) routing[category] = value;
+    if (isDepartmentSlug(value)) routing[category] = value;
   }
   return routing;
 }
@@ -149,7 +156,7 @@ export function confidenceThreshold(settingsJson: unknown): number {
 
 export function withDepartment(
   parsed: ParsedClassification,
-  routing: Record<TelephonyCategory, DepartmentId | null>
+  routing: Record<TelephonyCategory, string | null>
 ): CallProposal {
   return { ...parsed, department: routing[parsed.category] };
 }
@@ -214,7 +221,7 @@ export function statusAfterConfirm(input: {
   currentStatus: string;
   confidence: number;
   threshold: number;
-  department: DepartmentId | null;
+  department: string | null;
 }): string {
   if (input.currentStatus !== "aperto") return input.currentStatus;
   if (isBelowThreshold(input.confidence, input.threshold)) return input.currentStatus;
@@ -227,7 +234,7 @@ export function readProposal(value: unknown): CallProposal | null {
   const parsed = parseClassification(JSON.stringify(value));
   if (!parsed) return null;
   const department = value.department == null ? null : value.department;
-  if (department != null && !isDepartmentId(department)) return null;
+  if (department != null && !isDepartmentSlug(department)) return null;
   return { ...parsed, department };
 }
 

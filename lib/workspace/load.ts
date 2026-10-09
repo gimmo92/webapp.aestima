@@ -28,7 +28,7 @@ import {
   routingFromSettings,
   autoRouteFromSettings,
 } from "@/lib/telephony/classify";
-import type { DepartmentId, TelephonyCategory } from "@/lib/telephony/classify";
+import type { TelephonyCategory } from "@/lib/telephony/classify";
 import { isTelephonyEnabled } from "@/lib/telephony/settings";
 import {
   normalizeTicketForm,
@@ -36,6 +36,8 @@ import {
 } from "@/lib/ticketForm";
 import type { Supplier, SupplierRequest } from "@/lib/supplierTypes";
 import type { Customer } from "@/lib/customerTypes";
+import { departmentsFromSettings } from "@/lib/companyDepartments";
+import type { CompanyDepartment } from "@/lib/companyDepartments";
 import type { CompanyUserOption } from "@/lib/companyUsers";
 import type {
   InterventionReport,
@@ -62,7 +64,8 @@ export type WorkspaceSnapshot = {
   ticketStages: TicketStage[];
   ticketForm: TicketFormConfig;
   telephonyEnabled: boolean;
-  telephonyRouting: Record<TelephonyCategory, DepartmentId | null>;
+  telephonyRouting: Record<TelephonyCategory, string | null>;
+  departments: CompanyDepartment[];
   telephonyConfidence: number;
   telephonyAutoRoute: boolean;
   ticketFieldLabels: TicketFieldLabels;
@@ -187,7 +190,7 @@ export async function loadCompanyWorkspace(
     prisma.user.findMany({
       where: { companyId },
       orderBy: { name: "asc" },
-      select: { id: true, name: true, email: true },
+      select: { id: true, name: true, email: true, department: true },
     }),
   ]);
 
@@ -228,6 +231,7 @@ export async function loadCompanyWorkspace(
     ),
     telephonyEnabled: isTelephonyEnabled(company.settingsJson),
     telephonyRouting: routingFromSettings(company.settingsJson),
+    departments: departmentsFromSettings(company.settingsJson),
     telephonyConfidence: confidenceThreshold(company.settingsJson),
     telephonyAutoRoute: autoRouteFromSettings(company.settingsJson),
     ticketFieldLabels: ticketFieldLabelsFromSettings(company.settingsJson),

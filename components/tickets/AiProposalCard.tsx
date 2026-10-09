@@ -2,18 +2,13 @@
 
 import { useState } from "react";
 import { useInbox } from "@/components/inbox/InboxProvider";
+import { labelForDepartment } from "@/lib/companyDepartments";
 import {
-  DEPARTMENT_LABELS,
-  DEPARTMENTS,
   isBelowThreshold,
   TELEPHONY_CATEGORIES,
   TELEPHONY_CATEGORY_LABELS,
 } from "@/lib/telephony/classify";
-import type {
-  CallProposal,
-  DepartmentId,
-  TelephonyCategory,
-} from "@/lib/telephony/classify";
+import type { CallProposal, TelephonyCategory } from "@/lib/telephony/classify";
 
 type Choice = Omit<CallProposal, "confidence">;
 
@@ -32,7 +27,7 @@ export function AiProposalCard({
   threshold: number;
   onConfirm: (choice: Choice) => void;
 }) {
-  const { ticketFieldLabels } = useInbox();
+  const { ticketFieldLabels, departments } = useInbox();
   const [editing, setEditing] = useState(false);
   const [choice, setChoice] = useState<Choice>(initial);
 
@@ -77,12 +72,12 @@ export function AiProposalCard({
             onChange={(value) =>
               setChoice((prev) => ({
                 ...prev,
-                department: (value || null) as DepartmentId | null,
+                department: value || null,
               }))
             }
             options={[
               { id: "", label: "Nessuno" },
-              ...DEPARTMENTS.map((id) => ({ id, label: DEPARTMENT_LABELS[id] })),
+              ...departments.map((item) => ({ id: item.id, label: item.label })),
             ]}
           />
           <Select
@@ -146,7 +141,7 @@ export function AiProposalCard({
           <Item label="Categoria" value={TELEPHONY_CATEGORY_LABELS[shown.category]} />
           <Item
             label="Reparto"
-            value={shown.department ? DEPARTMENT_LABELS[shown.department] : "Nessuno"}
+            value={labelForDepartment(departments, shown.department) ?? "Nessuno"}
           />
           <Item label="Urgenza" value={shown.urgency === "alta" ? "Alta" : "Normale"} />
           <Item label={ticketFieldLabels.machineModel} value={shown.product ?? "—"} />

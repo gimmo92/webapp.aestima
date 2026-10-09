@@ -2,6 +2,7 @@ export type CompanyUserOption = {
   id: string;
   name: string;
   email: string;
+  department?: string | null;
 };
 
 export function userContactLabel(

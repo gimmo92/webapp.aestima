@@ -8,10 +8,9 @@ import {
   type AuthActionState,
 } from "@/app/actions/auth";
 import {
-  DEPARTMENT_LABELS,
-  DEPARTMENTS,
-  isDepartmentId,
-} from "@/lib/telephony/classify";
+  labelForDepartment,
+  type CompanyDepartment,
+} from "@/lib/companyDepartments";
 import { Field, inputClass } from "./formFields";
 
 const ROLE_LABEL: Record<string, string> = {
@@ -29,18 +28,22 @@ export type CompanyMember = {
   createdAt: string;
 };
 
-function departmentLabel(value: string | null): string {
-  if (!value || !isDepartmentId(value)) return "—";
-  return DEPARTMENT_LABELS[value];
+function departmentLabel(
+  departments: CompanyDepartment[],
+  value: string | null
+): string {
+  return labelForDepartment(departments, value) ?? "—";
 }
 
 export function CompanyUsersPanel({
   members,
+  departments,
   canManage,
   currentUserId,
   currentRole,
 }: {
   members: CompanyMember[];
+  departments: CompanyDepartment[];
   canManage: boolean;
   currentUserId: string;
   currentRole: string;
@@ -55,7 +58,7 @@ export function CompanyUsersPanel({
       m.name.toLowerCase().includes(q) ||
       m.email.toLowerCase().includes(q) ||
       (ROLE_LABEL[m.role] ?? m.role).toLowerCase().includes(q) ||
-      departmentLabel(m.department).toLowerCase().includes(q)
+      departmentLabel(departments, m.department).toLowerCase().includes(q)
     );
   });
 
@@ -110,7 +113,7 @@ export function CompanyUsersPanel({
                   </span>
                 </td>
                 <td className="px-5 py-3 text-ink-muted">
-                  {departmentLabel(m.department)}
+                  {departmentLabel(departments, m.department)}
                 </td>
                 <td className="px-5 py-3 text-ink-faint">
                   {new Date(m.createdAt).toLocaleDateString("it-IT")}
@@ -145,6 +148,7 @@ export function CompanyUsersPanel({
       {modal && (
         <UserFormModal
           member={modal === "new" ? null : modal}
+          departments={departments}
           currentRole={currentRole}
           currentUserId={currentUserId}
           onClose={() => setModal(null)}
@@ -184,11 +188,13 @@ function DeleteUserButton({ userId, name }: { userId: string; name: string }) {
 
 function UserFormModal({
   member,
+  departments,
   currentRole,
   currentUserId,
   onClose,
 }: {
   member: CompanyMember | null;
+  departments: CompanyDepartment[];
   currentRole: string;
   currentUserId: string;
   onClose: () => void;
@@ -267,16 +273,17 @@ function UserFormModal({
             <select
               name="department"
               defaultValue={
-                member?.department && isDepartmentId(member.department)
+                member?.department &&
+                departments.some((item) => item.id === member.department)
                   ? member.department
                   : ""
               }
               className={inputClass}
             >
               <option value="">Nessuno</option>
-              {DEPARTMENTS.map((id) => (
-                <option key={id} value={id}>
-                  {DEPARTMENT_LABELS[id]}
+              {departments.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.label}
                 </option>
               ))}
             </select>

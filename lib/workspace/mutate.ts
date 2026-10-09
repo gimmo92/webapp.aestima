@@ -2,12 +2,13 @@ import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@/lib/generated/prisma/client";
 import { normalizeTicketForm } from "@/lib/ticketForm";
 import { normalizeTicketStages, terminalStageIds } from "@/lib/ticketData";
+import { sanitizeDepartments } from "@/lib/companyDepartments";
 import { ticketFieldLabelsFromSettings } from "@/lib/ticketFieldLabels";
 import { applyDiscontinuedPrefix } from "@/lib/discontinuedSparePart";
 import { classifyTranscript } from "@/lib/telephony/classifyCall";
 import {
   confidenceThreshold,
-  isDepartmentId,
+  isDepartmentSlug,
   isTelephonyCategory,
   readProposal,
   resolveAssignmentStatus,
@@ -45,7 +46,7 @@ function readChoicePayload(value: unknown): Omit<CallProposal, "confidence"> | n
   if (!summary || !suggestedAction) return null;
   const department =
     row.department == null || row.department === "" ? null : row.department;
-  if (department != null && !isDepartmentId(department)) return null;
+  if (department != null && !isDepartmentSlug(department)) return null;
   const partCodes = Array.isArray(row.partCodes)
     ? row.partCodes
         .filter((code): code is string => typeof code === "string")
@@ -471,7 +472,7 @@ export async function applyWorkspaceMutation(
         for (const [key, value] of Object.entries(p.routing as Record<string, unknown>)) {
           if (!isTelephonyCategory(key)) continue;
           if (value == null || value === "") routing[key] = null;
-          else if (isDepartmentId(value)) routing[key] = value;
+          else if (isDepartmentSlug(value)) routing[key] = value;
         }
       }
       const threshold =
@@ -520,7 +521,7 @@ export async function applyWorkspaceMutation(
       let department = existing.department;
       if (p.department !== undefined) {
         if (p.department == null || p.department === "") department = null;
-        else if (isDepartmentId(p.department)) department = p.department;
+        else if (isDepartmentSlug(p.department)) department = p.department;
         else return { ok: false, error: "Reparto non valido" };
       }
       let technicianId = existing.assignedTechnicianId;
@@ -1098,6 +1099,28 @@ export async function applyWorkspaceMutation(
       await prisma.company.update({
         where: { id: companyId },
         data: { settingsJson: next as Prisma.InputJsonValue },
+      });
+      return { ok: true };
+    }
+    case "updateDepartments": {
+      const company = await prisma.company.findUnique({
+        where: { id: companyId },
+        select: { settingsJson: true },
+      });
+      const prev =
+        company?.settingsJson &&
+        typeof company.settingsJson === "object" &&
+        !Array.isArray(company.settingsJson)
+          ? (company.settingsJson as Record<string, unknown>)
+          : {};
+      await prisma.company.update({
+        where: { id: companyId },
+        data: {
+          settingsJson: {
+            ...prev,
+            departments: sanitizeDepartments(p.departments),
+          } as Prisma.InputJsonValue,
+        },
       });
       return { ok: true };
     }

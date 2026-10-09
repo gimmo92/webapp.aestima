@@ -6,6 +6,7 @@ import {
   type AuthActionState,
 } from "@/app/actions/auth";
 import type { CompanyProfile } from "@/lib/companyProfile";
+import { CompanyDepartmentsPanel } from "./CompanyDepartmentsPanel";
 import { Field, inputClass } from "./formFields";
 
 export function CompanySettingsForm({
@@ -132,6 +133,8 @@ export function CompanySettingsForm({
           )}
         </form>
       </section>
+
+      <CompanyDepartmentsPanel canManage={canManage} />
     </div>
   );
 }

@@ -3,14 +3,9 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useInbox } from "@/components/inbox/InboxProvider";
+import { labelForDepartment } from "@/lib/companyDepartments";
 import { userContactLabel } from "@/lib/companyUsers";
 import { boardStages } from "@/lib/ticketData";
-import {
-  DEPARTMENT_LABELS,
-  DEPARTMENTS,
-  isDepartmentId,
-} from "@/lib/telephony/classify";
-import type { DepartmentId } from "@/lib/telephony/classify";
 import { TicketStatusPill } from "./TicketStatusPill";
 
 export function TicketQueueBoard() {
@@ -22,14 +17,13 @@ export function TicketQueueBoard() {
     updateTicket,
     telephonyEnabled,
     ticketFieldLabels,
+    departments,
   } = useInbox();
   const router = useRouter();
   const columns = useMemo(() => boardStages(ticketStages), [ticketStages]);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState<string | null>(null);
-  const [departmentFilter, setDepartmentFilter] = useState<
-    DepartmentId | "all" | "none"
-  >("all");
+  const [departmentFilter, setDepartmentFilter] = useState("all");
 
   const techById = useMemo(
     () => Object.fromEntries(technicians.map((t) => [t.id, t.name])),
@@ -82,12 +76,12 @@ export function TicketQueueBoard() {
               label="Tutti i reparti"
               onClick={() => setDepartmentFilter("all")}
             />
-            {DEPARTMENTS.map((id) => (
+            {departments.map((item) => (
               <QueueChip
-                key={id}
-                active={departmentFilter === id}
-                label={DEPARTMENT_LABELS[id]}
-                onClick={() => setDepartmentFilter(id)}
+                key={item.id}
+                active={departmentFilter === item.id}
+                label={item.label}
+                onClick={() => setDepartmentFilter(item.id)}
               />
             ))}
             <QueueChip
@@ -173,10 +167,8 @@ export function TicketQueueBoard() {
                             `${ticketFieldLabels.machineModel} n/d`}
                         </p>
                         <p className="mt-2 text-[11px] text-ink-faint">
-                          {telephonyEnabled &&
-                          t.department &&
-                          isDepartmentId(t.department)
-                            ? `${DEPARTMENT_LABELS[t.department]} · `
+                          {telephonyEnabled && labelForDepartment(departments, t.department)
+                            ? `${labelForDepartment(departments, t.department)} · `
                             : ""}
                           {t.assignedTechnicianId
                             ? userContactLabel(

@@ -10,7 +10,7 @@ import {
   setSessionCookie,
 } from "@/lib/auth/session";
 import { slugifyCompanyName } from "@/lib/auth/user";
-import { isDepartmentId } from "@/lib/telephony/classify";
+import { departmentsFromSettings } from "@/lib/companyDepartments";
 import {
   RESET_TOKEN_TTL_MS,
   appBaseUrl,
@@ -201,7 +201,7 @@ export async function inviteMemberAction(
   const roleRaw = String(formData.get("role") ?? "MEMBER");
   const role =
     roleRaw === "ADMIN" || roleRaw === "OWNER" ? roleRaw : "MEMBER";
-  const department = parseDepartment(formData);
+  const department = await parseDepartment(me.companyId, formData);
 
   if (!name || !email.includes("@") || password.length < 8) {
     return { error: "Compila nome, email e password (min. 8 caratteri)." };
@@ -233,10 +233,18 @@ export async function inviteMemberAction(
   return { ok: true };
 }
 
-function parseDepartment(formData: FormData): string | null | "invalid" {
+async function parseDepartment(
+  companyId: string,
+  formData: FormData
+): Promise<string | null | "invalid"> {
   const raw = String(formData.get("department") ?? "").trim();
   if (!raw) return null;
-  return isDepartmentId(raw) ? raw : "invalid";
+  const company = await prisma.company.findUnique({
+    where: { id: companyId },
+    select: { settingsJson: true },
+  });
+  const known = departmentsFromSettings(company?.settingsJson);
+  return known.some((item) => item.id === raw) ? raw : "invalid";
 }
 
 function parseManagedRole(
@@ -273,7 +281,7 @@ export async function updateMemberAction(
   if (password && password.length < 8) {
     return { error: "La nuova password deve avere almeno 8 caratteri." };
   }
-  const department = parseDepartment(formData);
+  const department = await parseDepartment(me.companyId, formData);
   if (department === "invalid") return { error: "Reparto non valido." };
 
   const target = await prisma.user.findFirst({

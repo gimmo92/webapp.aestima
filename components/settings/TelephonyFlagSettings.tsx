@@ -4,12 +4,9 @@ import { useEffect, useState } from "react";
 import { useInbox } from "@/components/inbox/InboxProvider";
 import {
   DEFAULT_CONFIDENCE_THRESHOLD,
-  DEPARTMENT_LABELS,
-  DEPARTMENTS,
   TELEPHONY_CATEGORIES,
   TELEPHONY_CATEGORY_LABELS,
 } from "@/lib/telephony/classify";
-import type { DepartmentId } from "@/lib/telephony/classify";
 
 export function TelephonyFlagSettings() {
   const {
@@ -19,6 +16,7 @@ export function TelephonyFlagSettings() {
     telephonyConfidence,
     telephonyAutoRoute,
     setTelephonyRouting,
+    departments,
   } = useInbox();
   const [routing, setRouting] = useState(telephonyRouting);
   const [confidence, setConfidence] = useState(String(telephonyConfidence));
@@ -109,15 +107,15 @@ export function TelephonyFlagSettings() {
                       const value = event.target.value;
                       setRouting((prev) => ({
                         ...prev,
-                        [category]: (value || null) as DepartmentId | null,
+                        [category]: value || null,
                       }));
                     }}
                     className="rounded-lg border border-border bg-base px-2 py-1 text-sm text-ink"
                   >
                     <option value="">Nessuno</option>
-                    {DEPARTMENTS.map((id) => (
-                      <option key={id} value={id}>
-                        {DEPARTMENT_LABELS[id]}
+                    {departments.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.label}
                       </option>
                     ))}
                   </select>

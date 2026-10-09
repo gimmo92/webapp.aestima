@@ -21,13 +21,8 @@ import {
   phonesMatch,
 } from "@/lib/telephony/phone";
 import { UserContactSelect } from "@/components/company/formFields";
+import { labelForDepartment } from "@/lib/companyDepartments";
 import { userContactLabel } from "@/lib/companyUsers";
-import {
-  DEPARTMENT_LABELS,
-  DEPARTMENTS,
-  isDepartmentId,
-} from "@/lib/telephony/classify";
-import type { DepartmentId } from "@/lib/telephony/classify";
 import { CreateTicketModal } from "./CreateTicketModal";
 import { TicketCallPanel } from "./TicketCallPanel";
 import { AiProposalCard } from "./AiProposalCard";
@@ -47,6 +42,7 @@ export function TicketsWorkspace() {
     updateTicket,
     addKnowledgeEntry,
     telephonyEnabled,
+    departments,
     phoneCalls,
     customers,
     ticketFieldLabels,
@@ -64,9 +60,7 @@ export function TicketsWorkspace() {
   const [tab, setTab] = useState<Tab>("aperti");
   const [statusFilter, setStatusFilter] = useState<TicketStatus | "all">("all");
   const [sourceFilter, setSourceFilter] = useState<TicketSource | "all">("all");
-  const [departmentFilter, setDepartmentFilter] = useState<
-    DepartmentId | "all" | "none"
-  >("all");
+  const [departmentFilter, setDepartmentFilter] = useState<string>("all");
   const [selectedId, setSelectedId] = useState<string | null>(
     deepLinkId ?? tickets[0]?.id ?? null
   );
@@ -244,12 +238,12 @@ export function TicketsWorkspace() {
                   onClick={() => setDepartmentFilter("all")}
                   label="Tutti i reparti"
                 />
-                {DEPARTMENTS.map((id) => (
+                {departments.map((item) => (
                   <FilterChip
-                    key={id}
-                    active={departmentFilter === id}
-                    onClick={() => setDepartmentFilter(id)}
-                    label={DEPARTMENT_LABELS[id]}
+                    key={item.id}
+                    active={departmentFilter === item.id}
+                    onClick={() => setDepartmentFilter(item.id)}
+                    label={item.label}
                   />
                 ))}
                 <FilterChip
@@ -296,7 +290,9 @@ export function TicketsWorkspace() {
                       : undefined
                   }
                   departmentLabel={
-                    telephonyEnabled ? departmentName(t.department) : undefined
+                    telephonyEnabled
+                      ? labelForDepartment(departments, t.department) ?? undefined
+                      : undefined
                   }
                   assetFallback={`${ticketFieldLabels.machineModel} n/d`}
                   onSelect={() => setSelectedId(t.id)}
@@ -338,11 +334,6 @@ export function TicketsWorkspace() {
       )}
     </div>
   );
-}
-
-function departmentName(value: string | null | undefined): string | undefined {
-  if (!value || !isDepartmentId(value)) return undefined;
-  return DEPARTMENT_LABELS[value];
 }
 
 function TicketListRow({
@@ -414,7 +405,7 @@ function TicketDetail({
   onLearnFromSolution: ReturnType<typeof useInbox>["addKnowledgeEntry"];
   onOpenTicket: (id: string) => void;
 }) {
-  const { ticketStages, phoneCalls, customers, tickets, attachPhoneCall, createTicketFromPhoneCall, telephonyEnabled, telephonyConfidence, confirmCallClassification, ticketFieldLabels } = useInbox();
+  const { ticketStages, phoneCalls, customers, tickets, attachPhoneCall, createTicketFromPhoneCall, telephonyEnabled, telephonyConfidence, confirmCallClassification, ticketFieldLabels, departments } = useInbox();
   const [notes, setNotes] = useState(ticket.internalNotes ?? "");
   const [solution, setSolution] = useState(ticket.solution ?? "");
   const [learning, setLearning] = useState(false);
@@ -547,7 +538,7 @@ function TicketDetail({
         </MetaField>
         {telephonyEnabled && (
           <MetaField label="Reparto">
-            {departmentName(ticket.department) ?? "Nessuno"}
+            {labelForDepartment(departments, ticket.department) ?? "Nessuno"}
           </MetaField>
         )}
         {ticket.formExtra && Object.keys(ticket.formExtra).length > 0 && (
@@ -603,7 +594,8 @@ function TicketDetail({
               </p>
               <select
                 value={
-                  ticket.department && isDepartmentId(ticket.department)
+                  ticket.department &&
+                  departments.some((item) => item.id === ticket.department)
                     ? ticket.department
                     : ""
                 }
@@ -615,9 +607,9 @@ function TicketDetail({
                 className="w-full rounded-lg border border-border bg-base px-3 py-2 text-sm text-ink outline-none focus:border-brand"
               >
                 <option value="">Nessuno</option>
-                {DEPARTMENTS.map((id) => (
-                  <option key={id} value={id}>
-                    {DEPARTMENT_LABELS[id]}
+                {departments.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.label}
                   </option>
                 ))}
               </select>

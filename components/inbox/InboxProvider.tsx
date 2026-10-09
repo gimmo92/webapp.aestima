@@ -22,6 +22,11 @@ import type {
 } from "@/lib/supplierTypes";
 import { newCustomerId } from "@/lib/customerData";
 import type { Customer, CustomerInput } from "@/lib/customerTypes";
+import {
+  DEFAULT_DEPARTMENTS,
+  sanitizeDepartments,
+  type CompanyDepartment,
+} from "@/lib/companyDepartments";
 import type { CompanyUserOption } from "@/lib/companyUsers";
 import {
   newTechnicianAssignmentId,
@@ -85,11 +90,7 @@ import {
 import type { PhoneCallRecord } from "@/lib/telephony/types";
 import { matchCustomer } from "@/lib/telephony/phone";
 import { resolveAssignmentStatus, statusAfterConfirm } from "@/lib/telephony/classify";
-import type {
-  CallProposal,
-  DepartmentId,
-  TelephonyCategory,
-} from "@/lib/telephony/classify";
+import type { CallProposal, TelephonyCategory } from "@/lib/telephony/classify";
 
 const TICKET_STAGES_STORAGE_KEY = "aftercore:ticket-stages:v1";
 
@@ -178,13 +179,15 @@ interface InboxContextValue {
   createTicketFromPhoneCall: (callId: string) => string;
   ticketStages: TicketStage[];
   setTicketStages: (stages: TicketStage[]) => void;
+  departments: CompanyDepartment[];
+  setDepartments: (departments: CompanyDepartment[]) => void;
   ticketForm: TicketFormConfig;
   telephonyEnabled: boolean;
-  telephonyRouting: Record<TelephonyCategory, DepartmentId | null>;
+  telephonyRouting: Record<TelephonyCategory, string | null>;
   telephonyConfidence: number;
   telephonyAutoRoute: boolean;
   setTelephonyRouting: (
-    routing: Record<TelephonyCategory, DepartmentId | null>,
+    routing: Record<TelephonyCategory, string | null>,
     confidence: number,
     autoRoute: boolean
   ) => void;
@@ -285,8 +288,10 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
     DEFAULT_TICKET_FORM
   );
   const [telephonyEnabled, setTelephonyEnabledState] = useState(false);
+  const [departments, setDepartmentsState] =
+    useState<CompanyDepartment[]>(DEFAULT_DEPARTMENTS);
   const [telephonyRouting, setTelephonyRoutingState] = useState<
-    Record<TelephonyCategory, DepartmentId | null>
+    Record<TelephonyCategory, string | null>
   >({
     supporto_montaggio: "ufficio_tecnico",
     manuale: "ufficio_tecnico",
@@ -362,6 +367,9 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
         setTickets(data.tickets ?? []);
         setPhoneCalls(data.phoneCalls ?? []);
         setTicketStagesState(normalizeTicketStages(data.ticketStages));
+        if (Array.isArray(data.departments)) {
+          setDepartmentsState(sanitizeDepartments(data.departments));
+        }
         setTicketFormState(normalizeTicketForm(data.ticketForm));
         setTelephonyEnabledState(data.telephonyEnabled === true);
         if (data.telephonyRouting) setTelephonyRoutingState(data.telephonyRouting);
@@ -430,6 +438,15 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
     persistWorkspace(action, payload);
   }, []);
 
+  const setDepartments = useCallback(
+    (next: CompanyDepartment[]) => {
+      const clean = sanitizeDepartments(next);
+      setDepartmentsState(clean);
+      persist("updateDepartments", { departments: clean });
+    },
+    [persist]
+  );
+
   const setTicketStages = useCallback(
     (stages: TicketStage[]) => {
       const next = normalizeTicketStages(stages);
@@ -472,7 +489,7 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
 
   const setTelephonyRouting = useCallback(
     (
-      routing: Record<TelephonyCategory, DepartmentId | null>,
+      routing: Record<TelephonyCategory, string | null>,
       confidence: number,
       autoRoute: boolean
     ) => {
@@ -1219,6 +1236,8 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
         createTicketFromPhoneCall,
         ticketStages,
         setTicketStages,
+        departments,
+        setDepartments,
         ticketForm,
         telephonyEnabled,
         telephonyRouting,

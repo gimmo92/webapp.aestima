@@ -10,12 +10,11 @@ import {
   openStageIds,
   terminalStageIds,
 } from "@/lib/ticketData";
-import { userContactLabel } from "@/lib/companyUsers";
 import {
-  DEPARTMENT_LABELS,
-  DEPARTMENTS,
-  isDepartmentId,
-} from "@/lib/telephony/classify";
+  labelForDepartment,
+  type CompanyDepartment,
+} from "@/lib/companyDepartments";
+import { userContactLabel } from "@/lib/companyUsers";
 import type { ServiceTicketRecord } from "@/lib/ticketTypes";
 import {
   averageResolutionHours,
@@ -46,6 +45,7 @@ export function TicketDashboard() {
     telephonyEnabled,
     companyUsers,
     technicians,
+    departments,
   } = useInbox();
   const router = useRouter();
   const [showCreate, setShowCreate] = useState(false);
@@ -88,29 +88,27 @@ export function TicketDashboard() {
     const channels = countGroups(
       opened.map((ticket) => TICKET_SOURCE_LABELS[ticket.source] ?? ticket.source)
     );
-    const departments = countGroups(
+    const departmentCounts = countGroups(
       opened.map((ticket) =>
-        ticket.department && isDepartmentId(ticket.department)
-          ? DEPARTMENT_LABELS[ticket.department]
-          : "Senza reparto"
+        labelForDepartment(departments, ticket.department) ?? "Senza reparto"
       )
     );
     return {
       opened: opened.length,
       reasons,
       channels,
-      departments,
+      departments: departmentCounts,
       resolution: averageResolutionHours(tickets, start),
     };
-  }, [tickets, period]);
+  }, [tickets, period, departments]);
 
   const assignments = useMemo(() => {
     const open = tickets.filter((ticket) => openIds.includes(ticket.status));
-    return groupByDepartment(open, companyUsers, technicians, {
+    return groupByDepartment(open, companyUsers, technicians, departments, {
       noDepartment: t("tickets.noDepartment"),
       noAssignee: t("tickets.noAssignee"),
     });
-  }, [tickets, openIds, companyUsers, technicians, t]);
+  }, [tickets, openIds, companyUsers, technicians, departments, t]);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -514,19 +512,20 @@ function groupByDepartment(
   tickets: ServiceTicketRecord[],
   companyUsers: { id: string; name: string; email: string }[],
   technicians: { id: string; name: string }[],
+  departments: CompanyDepartment[],
   labels: { noDepartment: string; noAssignee: string }
 ): {
   id: string;
   label: string;
   people: { id: string; name: string; tickets: ServiceTicketRecord[] }[];
 }[] {
-  const order = [...DEPARTMENTS, "none"] as const;
+  const known = new Set(departments.map((item) => item.id));
+  const extras = new Set<string>();
   const buckets = new Map<string, Map<string, ServiceTicketRecord[]>>();
   for (const ticket of tickets) {
-    const department =
-      ticket.department && isDepartmentId(ticket.department)
-        ? ticket.department
-        : "none";
+    const raw = ticket.department?.trim() ?? "";
+    const department = raw || "none";
+    if (department !== "none" && !known.has(department)) extras.add(department);
     const person = ticket.assignedTechnicianId || "none";
     const people = buckets.get(department) ?? new Map<string, ServiceTicketRecord[]>();
     const list = people.get(person) ?? [];
@@ -534,6 +533,7 @@ function groupByDepartment(
     people.set(person, list);
     buckets.set(department, people);
   }
+  const order = [...departments.map((item) => item.id), ...extras, "none"];
   return order
     .filter((id) => buckets.has(id))
     .map((id) => {
@@ -558,7 +558,10 @@ function groupByDepartment(
       });
       return {
         id,
-        label: id === "none" ? labels.noDepartment : DEPARTMENT_LABELS[id],
+        label:
+          id === "none"
+            ? labels.noDepartment
+            : labelForDepartment(departments, id) ?? id,
         people,
       };
     });
