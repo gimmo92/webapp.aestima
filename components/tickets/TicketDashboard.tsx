@@ -10,7 +10,13 @@ import {
   openStageIds,
   terminalStageIds,
 } from "@/lib/ticketData";
-import { DEPARTMENT_LABELS, isDepartmentId } from "@/lib/telephony/classify";
+import { userContactLabel } from "@/lib/companyUsers";
+import {
+  DEPARTMENT_LABELS,
+  DEPARTMENTS,
+  isDepartmentId,
+} from "@/lib/telephony/classify";
+import type { ServiceTicketRecord } from "@/lib/ticketTypes";
 import {
   averageResolutionHours,
   countGroups,
@@ -38,6 +44,8 @@ export function TicketDashboard() {
     conversations,
     createTicket,
     telephonyEnabled,
+    companyUsers,
+    technicians,
   } = useInbox();
   const router = useRouter();
   const [showCreate, setShowCreate] = useState(false);
@@ -96,6 +104,14 @@ export function TicketDashboard() {
     };
   }, [tickets, period]);
 
+  const assignments = useMemo(() => {
+    const open = tickets.filter((ticket) => openIds.includes(ticket.status));
+    return groupByDepartment(open, companyUsers, technicians, {
+      noDepartment: t("tickets.noDepartment"),
+      noAssignee: t("tickets.noAssignee"),
+    });
+  }, [tickets, openIds, companyUsers, technicians, t]);
+
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="flex items-center justify-between gap-4 border-b border-border bg-surface/40 px-5 py-3">
@@ -131,7 +147,62 @@ export function TicketDashboard() {
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto p-5">
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <section className="rounded-2xl border border-border bg-surface/40 p-4">
+          <h2 className="text-sm font-semibold text-ink">{t("tickets.assignments")}</h2>
+          <p className="text-xs text-ink-faint">{t("tickets.assignmentsHint")}</p>
+          {assignments.length === 0 ? (
+            <p className="py-8 text-center text-xs text-ink-faint">
+              {t("tickets.noOpenAssignments")}
+            </p>
+          ) : (
+            <div className="mt-4 grid gap-3 lg:grid-cols-2">
+              {assignments.map((group) => (
+                <div
+                  key={group.id}
+                  className="rounded-xl border border-border bg-base/60 p-3"
+                >
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <h3 className="text-sm font-semibold text-ink">{group.label}</h3>
+                    <span className="text-xs font-semibold text-ink-muted">
+                      {group.people.reduce((sum, person) => sum + person.tickets.length, 0)}
+                    </span>
+                  </div>
+                  <ul className="space-y-3">
+                    {group.people.map((person) => (
+                      <li key={person.id}>
+                        <p className="text-xs font-semibold text-ink">
+                          {person.name}
+                          <span className="ml-1.5 font-medium text-ink-faint">
+                            {person.tickets.length}
+                          </span>
+                        </p>
+                        <ul className="mt-1 space-y-1">
+                          {person.tickets.map((ticket) => (
+                            <li key={ticket.id}>
+                              <Link
+                                href={`/ticket/lista?id=${encodeURIComponent(ticket.id)}`}
+                                className="flex items-baseline gap-2 rounded-md px-1 py-0.5 hover:bg-surface-2/70"
+                              >
+                                <span className="shrink-0 font-mono text-[11px] text-brand">
+                                  #{ticket.id}
+                                </span>
+                                <span className="min-w-0 truncate text-xs text-ink-muted">
+                                  {ticket.summary}
+                                </span>
+                              </Link>
+                            </li>
+                          ))}
+                        </ul>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
+        <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <Kpi
             href="/ticket/lista"
             label={t("tickets.open")}
@@ -437,6 +508,60 @@ function TicketRow({
       <TicketStatusPill status={status} compact />
     </Link>
   );
+}
+
+function groupByDepartment(
+  tickets: ServiceTicketRecord[],
+  companyUsers: { id: string; name: string; email: string }[],
+  technicians: { id: string; name: string }[],
+  labels: { noDepartment: string; noAssignee: string }
+): {
+  id: string;
+  label: string;
+  people: { id: string; name: string; tickets: ServiceTicketRecord[] }[];
+}[] {
+  const order = [...DEPARTMENTS, "none"] as const;
+  const buckets = new Map<string, Map<string, ServiceTicketRecord[]>>();
+  for (const ticket of tickets) {
+    const department =
+      ticket.department && isDepartmentId(ticket.department)
+        ? ticket.department
+        : "none";
+    const person = ticket.assignedTechnicianId || "none";
+    const people = buckets.get(department) ?? new Map<string, ServiceTicketRecord[]>();
+    const list = people.get(person) ?? [];
+    list.push(ticket);
+    people.set(person, list);
+    buckets.set(department, people);
+  }
+  return order
+    .filter((id) => buckets.has(id))
+    .map((id) => {
+      const people = [...(buckets.get(id)?.entries() ?? [])].map(
+        ([personId, items]) => ({
+          id: personId,
+          name:
+            personId === "none"
+              ? labels.noAssignee
+              : userContactLabel(
+                  companyUsers,
+                  personId,
+                  technicians.find((tech) => tech.id === personId)?.name
+                ) || labels.noAssignee,
+          tickets: items,
+        })
+      );
+      people.sort((a, b) => {
+        if (a.id === "none") return 1;
+        if (b.id === "none") return -1;
+        return b.tickets.length - a.tickets.length || a.name.localeCompare(b.name, "it");
+      });
+      return {
+        id,
+        label: id === "none" ? labels.noDepartment : DEPARTMENT_LABELS[id],
+        people,
+      };
+    });
 }
 
 function EmptyHint() {
