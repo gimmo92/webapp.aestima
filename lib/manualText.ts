@@ -132,29 +132,42 @@ export function formatManualsForPrompt(
   return [...header, ...blocks].join("\n");
 }
 
-/** Passaggio del manuale più vicino alla domanda. Null se non c'è testo utile. */
-export function bestManualHit(
-  manuals: ManualSource[],
-  query: string
-): { name: string; excerpt: string; score: number } | null {
-  const tokens = queryTokens(query);
-  if (tokens.length === 0) return null;
+export type ManualHit = { name: string; excerpt: string; score: number };
 
-  let best: { name: string; excerpt: string; score: number } | null = null;
+/** Passaggi dei manuali più vicini alla domanda, i più pertinenti prima. */
+export function manualHits(
+  manuals: ManualSource[],
+  query: string,
+  limit = 4
+): ManualHit[] {
+  const tokens = queryTokens(query);
+  if (tokens.length === 0) return [];
+
+  const hits: ManualHit[] = [];
   for (const manual of manuals) {
     if (!manual.textExtracted || !manual.extractedText) continue;
     const score = scoreManual(manual, tokens);
     if (score === 0) continue;
-    const excerpt = excerptAround(
-      manual.extractedText,
-      firstTokenIndex(manual.extractedText, tokens),
-      EXCERPT_LEN
-    );
-    if (!best || score > best.score) {
-      best = { name: manual.name, excerpt, score };
-    }
+    hits.push({
+      name: manual.name,
+      score,
+      excerpt: excerptAround(
+        manual.extractedText,
+        firstTokenIndex(manual.extractedText, tokens),
+        EXCERPT_LEN
+      ),
+    });
   }
-  return best;
+  hits.sort((a, b) => b.score - a.score);
+  return hits.slice(0, limit);
+}
+
+/** Passaggio del manuale più vicino alla domanda. Null se non c'è testo utile. */
+export function bestManualHit(
+  manuals: ManualSource[],
+  query: string
+): ManualHit | null {
+  return manualHits(manuals, query, 1)[0] ?? null;
 }
 
 function scoreManual(manual: ManualSource, tokens: string[]): number {
