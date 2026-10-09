@@ -253,6 +253,8 @@ export const it = {
   tickets: {
     section: "Ticketing",
     navAria: "Sezioni ticketing",
+    assignTicket: "Assegna ticket",
+    assignToDepartment: "Assegna ticket a {department}",
     dashboard: "Dashboard",
     list: "Lista ticket",
     queue: "Coda ticket",

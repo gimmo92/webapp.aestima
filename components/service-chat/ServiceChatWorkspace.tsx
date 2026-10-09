@@ -29,11 +29,11 @@ import { useSpeechDictation } from "@/lib/useSpeechDictation";
 import { SparePartDetailSheet } from "./SparePartDetailSheet";
 import { WorkspaceTabBar } from "./WorkspaceTabBar";
 import { sortConversations } from "@/lib/conversationStorage";
+import { assignTicketLabel, routeTextToDepartment } from "@/lib/departmentFromText";
 import {
   buildTicketDescription,
   buildTicketSummary,
   extractMachineFromMessages,
-  inferTicketCategory,
   inferTicketPriority,
   isAiUnresolved,
   isHumanEscalationIntent,
@@ -122,6 +122,9 @@ export function ServiceChatWorkspace({
     addKnowledgeEntry,
     createTicket,
     resolveConversation,
+    departments,
+    telephonyRouting,
+    getTicketById,
   } = useInbox();
   const { t, locale, dateLocale } = useI18n();
   const welcome = useMemo(() => buildWelcome(t), [t]);
@@ -240,9 +243,17 @@ export function ServiceChatWorkspace({
         machineModel,
         machineSerial,
       });
+      const routed = routeTextToDepartment(
+        history
+          .filter((message) => message.role === "user")
+          .map((message) => message.content)
+          .join("\n"),
+        telephonyRouting
+      );
       const ticketId = createTicket({
         source: "chat_ai",
-        category: inferTicketCategory(history),
+        category: routed.category,
+        department: routed.department,
         priority: inferTicketPriority(history),
         summary,
         description: buildTicketDescription(history, reason),
@@ -275,6 +286,7 @@ export function ServiceChatWorkspace({
       createTicket,
       appendConversationMessage,
       customerName,
+      telephonyRouting,
     ]
   );
 
@@ -1096,7 +1108,20 @@ export function ServiceChatWorkspace({
                       strokeLinejoin="round"
                     />
                   </svg>
-                  {t("chat.createTicket")}
+                  {assignTicketLabel(
+                    t,
+                    departments,
+                    (existingTicketId
+                      ? getTicketById(existingTicketId)?.department
+                      : null) ||
+                      routeTextToDepartment(
+                        messages
+                          .filter((message) => message.role === "user")
+                          .map((message) => message.content)
+                          .join("\n"),
+                        telephonyRouting
+                      ).department
+                  )}
                 </button>
               )}
               <button

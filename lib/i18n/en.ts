@@ -249,6 +249,8 @@ export const en: Messages = {
   tickets: {
     section: "Ticketing",
     navAria: "Ticketing sections",
+    assignTicket: "Assign ticket",
+    assignToDepartment: "Assign ticket to {department}",
     dashboard: "Dashboard",
     list: "Ticket list",
     queue: "Ticket queue",

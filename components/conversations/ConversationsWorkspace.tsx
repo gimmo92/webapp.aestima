@@ -18,6 +18,7 @@ import type {
 import { sortConversations } from "@/lib/conversationStorage";
 import type { ServiceTicketRecord } from "@/lib/ticketTypes";
 import { useI18n } from "@/lib/i18n";
+import { assignTicketLabel, routeTextToDepartment } from "@/lib/departmentFromText";
 import { extractKnowledgeFromChat } from "@/lib/learnFromChat";
 import { extractMachineFromMessages } from "@/lib/ticketEscalate";
 
@@ -32,6 +33,7 @@ export function ConversationsWorkspace() {
     updateTicket,
     getTicketById,
     addKnowledgeEntry,
+    telephonyRouting,
   } = useInbox();
   const { t } = useI18n();
   const searchParams = useSearchParams();
@@ -369,9 +371,17 @@ export function ConversationsWorkspace() {
                 selected.messages
                   .filter((m) => m.role === "user")
                   .at(-1)?.content ?? `Chat ${selected.id}`;
+              const routed = routeTextToDepartment(
+                selected.messages
+                  .filter((m) => m.role === "user")
+                  .map((m) => m.content)
+                  .join("\n"),
+                telephonyRouting
+              );
               const ticketId = createTicket({
                 source: "chat_ai",
-                category: "troubleshooting",
+                category: routed.category,
+                department: routed.department,
                 summary:
                   summary.length > 90
                     ? `${summary.slice(0, 87).trim()}…`
@@ -502,7 +512,7 @@ function ConversationPanel({
   onOpenTicket,
 }: {
   conversation: ConversationRecord;
-  linkedTicket?: Pick<ServiceTicketRecord, "id" | "status" | "summary">;
+  linkedTicket?: Pick<ServiceTicketRecord, "id" | "status" | "summary" | "department">;
   onTakeOver: () => void;
   onResolve: () => void;
   onMarkSolution: () => Promise<string | undefined>;
@@ -513,6 +523,19 @@ function ConversationPanel({
   const [marking, setMarking] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const { t } = useI18n();
+  const { departments, telephonyRouting } = useInbox();
+  const routed = routeTextToDepartment(
+    conversation.messages
+      .filter((m) => m.role === "user")
+      .map((m) => m.content)
+      .join("\n"),
+    telephonyRouting
+  );
+  const assignLabel = assignTicketLabel(
+    t,
+    departments,
+    linkedTicket?.department || routed.department
+  );
   const isOperator = conversation.assignee === "operatore";
   const isResolved = conversation.status === "risolto";
   const canReply = isOperator && !isResolved;
@@ -590,7 +613,7 @@ function ConversationPanel({
                 onClick={onOpenTicket}
                 className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs font-semibold text-ink-muted transition-colors hover:border-brand/40 hover:text-brand"
               >
-                Apri ticket
+                {assignLabel}
               </button>
             )
           )}

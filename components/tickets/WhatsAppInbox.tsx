@@ -13,6 +13,7 @@ import {
   type WaChat,
   type WaMessage,
 } from "@/lib/whatsappData";
+import { assignTicketLabel, routeTextToDepartment } from "@/lib/departmentFromText";
 import { useI18n } from "@/lib/i18n";
 import { TicketStatusPill } from "./TicketStatusPill";
 
@@ -31,6 +32,14 @@ function chatSummary(chat: WaChat): string {
   const text = parts.slice(0, 2).join(" ");
   if (!text) return chat.role;
   return text.length > 180 ? `${text.slice(0, 177)}…` : text;
+}
+
+function customerText(chat: WaChat): string {
+  return chat.messages
+    .filter((message) => message.direction === "in")
+    .map(messageBody)
+    .filter(Boolean)
+    .join("\n");
 }
 
 function chatTranscript(chat: WaChat): string {
@@ -62,7 +71,7 @@ function linkedTicket(
 }
 
 export function WhatsAppInbox() {
-  const { customers, tickets, createTicket } = useInbox();
+  const { customers, tickets, createTicket, telephonyRouting } = useInbox();
   const { t } = useI18n();
   const router = useRouter();
   const [query, setQuery] = useState("");
@@ -101,9 +110,11 @@ export function WhatsAppInbox() {
     const customer = chat.isGroup
       ? null
       : matchCustomer(chat.phone, customers);
+    const routed = routeTextToDepartment(customerText(chat), telephonyRouting);
     const id = createTicket({
       source: "whatsapp",
-      category: "troubleshooting",
+      category: routed.category,
+      department: routed.department,
       summary: chatSummary(chat),
       description: chatTranscript(chat),
       machineModel: chat.machine,
@@ -223,8 +234,15 @@ function ChatDetail({
   existingTicket?: ServiceTicketRecord;
 }) {
   const { t } = useI18n();
+  const { departments, telephonyRouting } = useInbox();
   const customer = chat.isGroup ? null : matchCustomer(chat.phone, customers);
   const summary = chatSummary(chat);
+  const routed = routeTextToDepartment(customerText(chat), telephonyRouting);
+  const assignLabel = assignTicketLabel(
+    t,
+    departments,
+    existingTicket?.department || routed.department
+  );
   const history = useMemo(() => {
     const ref = {
       id: customer?.id ?? chat.id,
@@ -258,7 +276,7 @@ function ChatDetail({
             href={`/ticket/lista?id=${encodeURIComponent(existingTicket.id)}`}
             className="rounded-lg bg-brand px-3 py-2 text-sm font-semibold text-white hover:bg-brand-strong"
           >
-            {t("tickets.whatsappInbox.openTicket")} #{existingTicket.id}
+            {assignLabel} #{existingTicket.id}
           </Link>
         ) : (
           <button
@@ -266,7 +284,7 @@ function ChatDetail({
             onClick={onCreateTicket}
             className="rounded-lg bg-brand px-3 py-2 text-sm font-semibold text-white hover:bg-brand-strong"
           >
-            {t("tickets.whatsappInbox.createTicket")}
+            {assignLabel}
           </button>
         )}
       </div>

@@ -14,6 +14,7 @@ import {
 } from "@/lib/telephony/phone";
 import type { PhoneCallRecord } from "@/lib/telephony/types";
 import type { ServiceTicketRecord } from "@/lib/ticketTypes";
+import { assignTicketLabel, routeTextToDepartment } from "@/lib/departmentFromText";
 import { useI18n } from "@/lib/i18n";
 import { TicketStatusPill } from "./TicketStatusPill";
 
@@ -199,6 +200,12 @@ export function CallsWorkspace() {
     });
   }, [phoneCalls, query, ticketById, customers, companyUsers]);
 
+  const openCallTicket = (call: PhoneCallRecord) => {
+    const ticketId = call.ticketId || createTicketFromPhoneCall(call.id);
+    if (!ticketId) return;
+    router.push(`/ticket/lista?id=${encodeURIComponent(ticketId)}`);
+  };
+
   const assignCall = (call: PhoneCallRecord, userId: string) => {
     let ticketId = call.ticketId;
     if (!ticketId) {
@@ -329,6 +336,7 @@ export function CallsWorkspace() {
             customers={customers}
             operators={companyUsers}
             onAssign={(userId) => assignCall(selected, userId)}
+            onOpenTicket={() => openCallTicket(selected)}
             onOpenCustomer={() => setShowCustomer(true)}
           />
         )}
@@ -363,6 +371,7 @@ function CallDetail({
   customers,
   operators,
   onAssign,
+  onOpenTicket,
   onOpenCustomer,
 }: {
   call: PhoneCallRecord;
@@ -370,9 +379,20 @@ function CallDetail({
   customers: Customer[];
   operators: CompanyUserOption[];
   onAssign: (userId: string) => void;
+  onOpenTicket: () => void;
   onOpenCustomer: () => void;
 }) {
   const { t, dateLocale } = useI18n();
+  const { departments, telephonyRouting } = useInbox();
+  const routed = routeTextToDepartment(
+    `${call.transcript ?? ""}\n${callSummary(call, ticket) ?? ""}`,
+    telephonyRouting
+  );
+  const assignLabel = assignTicketLabel(
+    t,
+    departments,
+    ticket?.department || routed.department
+  );
   const customer =
     (ticket?.customerId
       ? customers.find((item) => item.id === ticket.customerId)
@@ -400,10 +420,19 @@ function CallDetail({
           <h2 className="mt-1 text-xl font-bold text-ink">{displayName}</h2>
           <p className="mt-1 text-sm text-ink-muted">{call.phone}</p>
         </div>
-        <OutcomeBadge
-          outcome={call.outcome}
-          label={t(OUTCOME_KEY[call.outcome])}
-        />
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={onOpenTicket}
+            className="rounded-lg bg-brand px-3 py-2 text-sm font-semibold text-white hover:bg-brand-strong"
+          >
+            {assignLabel}
+          </button>
+          <OutcomeBadge
+            outcome={call.outcome}
+            label={t(OUTCOME_KEY[call.outcome])}
+          />
+        </div>
       </div>
 
       <div className="grid gap-3 rounded-xl border border-border bg-base/60 p-4 sm:grid-cols-3">

@@ -107,6 +107,7 @@ export interface CreateTicketInput {
   customerPhone?: string;
   customerCompany?: string;
   customerId?: string;
+  department?: string | null;
 }
 
 export interface UpdateTicketInput {

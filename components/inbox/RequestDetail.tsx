@@ -24,6 +24,8 @@ import {
   findCatalogPartInText,
   isSparePartOfferable,
 } from "@/lib/inboxCatalogMatch";
+import { assignTicketLabel, routeTextToDepartment } from "@/lib/departmentFromText";
+import { useI18n } from "@/lib/i18n";
 
 // COLONNA DESTRA — dettaglio richiesta + pannello agente aftercore.
 
@@ -53,7 +55,10 @@ export function RequestDetail({
     updateTechnicianAssignmentStatus,
     createConversation,
     createTicket,
+    departments,
+    telephonyRouting,
   } = useInbox();
+  const { t } = useI18n();
   const [menu, setMenu] = useState<OpenMenu>(null);
   const [newLabel, setNewLabel] = useState("");
   const [showTechnicianPicker, setShowTechnicianPicker] = useState(false);
@@ -116,9 +121,14 @@ export function RequestDetail({
       request.body,
     ].join("\n");
 
+    const routed = routeTextToDepartment(
+      `${request.subject}\n${request.body}`,
+      telephonyRouting
+    );
     const ticketId = createTicket({
       source: "inbox",
-      category: "ricambio",
+      category: routed.category,
+      department: routed.department,
       priority: "normale",
       summary: request.subject || `Richiesta da ${request.from}`,
       description: emailContent,
@@ -450,7 +460,16 @@ export function RequestDetail({
                 strokeLinejoin="round"
               />
             </svg>
-            Crea ticket
+            {request
+              ? assignTicketLabel(
+                  t,
+                  departments,
+                  routeTextToDepartment(
+                    `${request.subject}\n${request.body}`,
+                    telephonyRouting
+                  ).department
+                )
+              : t("tickets.assignTicket")}
           </button>
         </div>
       </div>

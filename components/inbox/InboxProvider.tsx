@@ -88,6 +88,7 @@ import {
   withCallbackStage,
 } from "@/lib/telephony/settings";
 import type { PhoneCallRecord } from "@/lib/telephony/types";
+import { routeTextToDepartment } from "@/lib/departmentFromText";
 import { matchCustomer } from "@/lib/telephony/phone";
 import { resolveAssignmentStatus, statusAfterConfirm } from "@/lib/telephony/classify";
 import type { CallProposal, TelephonyCategory } from "@/lib/telephony/classify";
@@ -740,7 +741,6 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
       const id = input.id?.trim() || newTicketId();
       const row: ServiceTicketRecord = {
         id,
-        status: firstOpenStageId(ticketStages),
         priority: input.priority ?? "normale",
         source: input.source,
         category: input.category ?? "altro",
@@ -753,6 +753,8 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
         customerPhone: input.customerPhone,
         customerCompany: input.customerCompany,
         customerId: input.customerId,
+        department: input.department ?? undefined,
+        status: input.department ? "assegnato" : firstOpenStageId(ticketStages),
         createdLabel: sentLabel,
         createdFull: sentFull,
         updatedFull: sentFull,
@@ -1169,13 +1171,18 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
         },
         ticketStages
       );
+      const routed = routeTextToDepartment(
+        `${call.transcript ?? ""}\n${draft.summary}`,
+        telephonyRouting
+      );
       const id = newTicketId();
       const row: ServiceTicketRecord = {
         id,
-        status: draft.status,
+        status: routed.department ? "assegnato" : draft.status,
         priority: "normale",
         source: "telefono",
-        category: "altro",
+        category: routed.category,
+        department: routed.department ?? undefined,
         summary: draft.summary,
         description: draft.description,
         customerPhone: call.phone,
@@ -1195,7 +1202,7 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
       persist("createTicketForPhoneCall", { ...row, callId });
       return id;
     },
-    [customers, persist, phoneCalls, ticketStages]
+    [customers, persist, phoneCalls, telephonyRouting, ticketStages]
   );
 
   return (

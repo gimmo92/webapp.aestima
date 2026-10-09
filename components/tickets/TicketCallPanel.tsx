@@ -10,6 +10,9 @@ import type { PhoneCallRecord } from "@/lib/telephony/types";
 import type { ServiceTicketRecord } from "@/lib/ticketTypes";
 import { terminalStageIds } from "@/lib/ticketData";
 import type { TicketStage } from "@/lib/ticketTypes";
+import { useInbox } from "@/components/inbox/InboxProvider";
+import { assignTicketLabel, routeTextToDepartment } from "@/lib/departmentFromText";
+import { useI18n } from "@/lib/i18n";
 
 const OUTCOME_LABEL = {
   answered: "Risposta",
@@ -47,6 +50,8 @@ export function TicketCallPanel({
   onAttach: (callId: string, ticketId: string) => void;
   onCreate: (callId: string) => void;
 }) {
+  const { t } = useI18n();
+  const { departments, telephonyRouting } = useInbox();
   const customer =
     customers.find((item) => item.id === ticket.customerId) ??
     matchCustomer(ticket.customerPhone ?? "", customers);
@@ -119,7 +124,14 @@ export function TicketCallPanel({
               onClick={() => onCreate(call.id)}
               className="rounded-lg border border-border bg-base px-3 py-2 text-xs font-medium text-ink-muted hover:text-ink"
             >
-              Crea un ticket nuovo
+              {assignTicketLabel(
+                t,
+                departments,
+                routeTextToDepartment(
+                  call.transcript ?? "",
+                  telephonyRouting
+                ).department
+              )}
             </button>
           </div>
         </div>
