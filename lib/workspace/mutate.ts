@@ -300,6 +300,7 @@ export async function applyWorkspaceMutation(
           customerEmail: asOptString(p.customerEmail),
           customerPhone: asOptString(p.customerPhone),
           customerCompany: asOptString(p.customerCompany),
+          customerId: asOptString(p.customerId),
           createdLabel: asString(p.createdLabel),
           createdFull: asString(p.createdFull),
           updatedFull: asString(p.updatedFull),

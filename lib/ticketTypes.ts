@@ -16,7 +16,8 @@ export type TicketSource =
   | "manuale"
   | "inbox"
   | "form"
-  | "telefono";
+  | "telefono"
+  | "whatsapp";
 
 export type TicketCategory =
   | "ricambio"
@@ -105,6 +106,7 @@ export interface CreateTicketInput {
   customerEmail?: string;
   customerPhone?: string;
   customerCompany?: string;
+  customerId?: string;
 }
 
 export interface UpdateTicketInput {

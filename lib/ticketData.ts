@@ -103,6 +103,7 @@ export const TICKET_SOURCE_LABELS: Record<
   inbox: "Inbox",
   form: "Form web",
   telefono: "Telefono",
+  whatsapp: "WhatsApp",
 };
 
 export const TICKET_CATEGORY_LABELS: Record<
