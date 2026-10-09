@@ -599,6 +599,7 @@ export const it = {
       "I file sono salvati ma il testo non è stato estratto. Serve un PDF con testo selezionabile.",
     unavailable: "Non riesco a rispondere adesso. Riprova tra poco.",
     source: "Fonte: {name}",
+    page: "pag. {page}",
     thinking: "Cerco nel manuale…",
     error: "Richiesta non riuscita.",
     history: "Storico",

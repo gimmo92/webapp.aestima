@@ -9,7 +9,7 @@ import {
   type ChatAttachment,
 } from "@/lib/serviceChatAttachments";
 
-type ManualSourceRef = { name: string; excerpt: string };
+type ManualSourceRef = { name: string; excerpt: string; page?: number | null };
 
 type ChatTurn = {
   role: "user" | "assistant";
@@ -337,7 +337,15 @@ export function InstallerChat() {
                 key={`${source.name}-${index}`}
                 className="rounded-xl border border-border bg-base px-3 py-2.5"
               >
-                <p className="truncate text-xs font-semibold text-brand">{source.name}</p>
+                <p className="truncate text-xs font-semibold text-brand">
+                  {source.name}
+                  {source.page != null && (
+                    <span className="font-normal text-ink-faint">
+                      {" · "}
+                      {t("installerChat.page", { page: String(source.page) })}
+                    </span>
+                  )}
+                </p>
                 <p className="mt-1 whitespace-pre-wrap text-xs leading-relaxed text-ink-muted">
                   {source.excerpt}
                 </p>

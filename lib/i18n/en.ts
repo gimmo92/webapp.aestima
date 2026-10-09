@@ -593,6 +593,7 @@ export const en: Messages = {
       "The files are saved but the text was not extracted. Use a PDF with selectable text.",
     unavailable: "I can't answer right now. Try again shortly.",
     source: "Source: {name}",
+    page: "p. {page}",
     thinking: "Looking in the manual…",
     error: "Request failed.",
     history: "History",

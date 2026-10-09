@@ -137,14 +137,15 @@ export async function POST(request: Request) {
   const query =
     [...messages].reverse().find((message) => message.role === "user")
       ?.content ?? "";
-  const sources = manualHits(usable, query).map(({ name, excerpt }) => ({
+  const sources = manualHits(usable, query).map(({ name, excerpt, page }) => ({
     name,
     excerpt,
+    page,
   }));
   const lang = locale === "en" ? "English" : "italiano";
   const system = `Sei l'assistente di montaggio per gli installatori di ${me.company.name}.
 Rispondi solo usando i manuali nel contesto. Lingua: ${lang}. Frasi corte, passi numerati nell'ordine del manuale.
-Cita sempre il nome del file. Se il testo non contiene la risposta, dillo chiaramente e non inventare coppie, sequenze, misure o quote.
+Cita sempre il nome del file e la pagina (es. «manuale.pdf, pag. 8»), e i riferimenti a figure ([Fig. N]) e codici solo come scritti nel testo. Se il testo non contiene la risposta, dillo chiaramente e non inventare coppie, sequenze, misure o quote.
 Una foto allegata serve a capire il pezzo o il passaggio: la procedura resta quella scritta nel manuale.
 Non identificare ricambi e non proporre codici che non compaiono nel testo.
 
@@ -162,10 +163,14 @@ ${formatManualsForPrompt(usable, query)}`;
 
   const hit = sources[0];
   if (hit) {
+    const where =
+      hit.page == null
+        ? hit.name
+        : `${hit.name}${locale === "en" ? ", page " : ", pag. "}${hit.page}`;
     const message =
       locale === "en"
-        ? `From the manual “${hit.name}”:\n\n${hit.excerpt}`
-        : `Nel manuale «${hit.name}» ho trovato questo passaggio:\n\n${hit.excerpt}`;
+        ? `From the manual “${where}”:\n\n${hit.excerpt}`
+        : `Nel manuale «${where}» ho trovato questo passaggio:\n\n${hit.excerpt}`;
     return NextResponse.json({ message, sources });
   }
 

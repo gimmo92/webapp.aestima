@@ -9,6 +9,7 @@ const STORE_LIMIT = 250_000;
 const PROMPT_BUDGET = 16_000;
 const PROMPT_PER_MANUAL = 4_500;
 const EXCERPT_LEN = 900;
+const PASSAGE_LEN = 900;
 
 const QUERY_STOP = new Set([
   "sono",
@@ -85,54 +86,80 @@ export function formatManualsForPrompt(
     "=== MANUALI CARICATI (sezione Manuale, fonte per la chat) ===",
     manuals.length === 0
       ? "(nessun manuale caricato per questa company)"
-      : "Usa questi testi per uso, manutenzione, procedure e specifiche. Cita il nome del file. Non inventare passaggi assenti dal testo.",
+      : "Usa questi testi per uso, manutenzione, procedure e specifiche. Cita il nome del file e la pagina indicata tra parentesi quadre. Non inventare passaggi assenti dal testo.",
   ];
   if (manuals.length === 0) return header.join("\n");
 
-  const tokens = queryTokens(query);
-  const ranked = manuals
-    .map((manual, index) => ({
-      manual,
-      index,
-      score: scoreManual(manual, tokens),
-    }))
-    .sort((a, b) => b.score - a.score || a.index - b.index);
-
+  const unique = uniqueByName(manuals);
+  const withText = unique.filter(hasText);
   let budget = PROMPT_BUDGET;
   const blocks: string[] = [];
-  const omitted: string[] = [];
 
-  for (const { manual } of ranked) {
+  for (const manual of unique) {
+    if (hasText(manual)) continue;
+    const line = `\n[${manual.name}]\n(file salvato, testo non estratto: cita solo il nome, non il contenuto)`;
+    blocks.push(line);
+    budget -= line.length;
+  }
+
+  const ranked = rankPassages(withText, query);
+  if (ranked.length > 0) {
+    const picked: Passage[] = [];
+    for (const { passage } of ranked) {
+      const cost = passage.text.length + passage.manual.name.length + 24;
+      if (cost > budget) continue;
+      picked.push(passage);
+      budget -= cost;
+      if (budget < 200) break;
+    }
+    picked.sort(
+      (a, b) =>
+        withText.indexOf(a.manual) - withText.indexOf(b.manual) ||
+        a.order - b.order
+    );
+    for (const passage of picked) {
+      blocks.push(`\n[${passageLabel(passage)}]\n${passage.text}`);
+    }
+    const cited = new Set(picked.map((passage) => passage.manual));
+    const others = withText.filter((manual) => !cited.has(manual));
+    if (others.length > 0) {
+      blocks.push(
+        `\n(altri manuali senza passaggi pertinenti alla domanda: ${others.map((m) => m.name).join(", ")})`
+      );
+    }
+    return [...header, ...blocks].join("\n");
+  }
+
+  const omitted: string[] = [];
+  for (const manual of withText) {
     if (budget < 200) {
       omitted.push(manual.name);
       continue;
     }
-    if (!manual.textExtracted || !manual.extractedText.trim()) {
-      const line = `\n[${manual.name}]\n(file salvato, testo non estratto: cita solo il nome, non il contenuto)`;
-      blocks.push(line);
-      budget -= line.length;
-      continue;
-    }
-    const take = Math.min(PROMPT_PER_MANUAL, budget);
-    const at = tokens.length
-      ? firstTokenIndex(manual.extractedText, tokens)
-      : 0;
-    const body = excerptAround(manual.extractedText, at, take);
+    const body = excerptAround(
+      manual.extractedText,
+      0,
+      Math.min(PROMPT_PER_MANUAL, budget)
+    );
     const block = `\n[${manual.name}]\n${body}`;
     blocks.push(block);
     budget -= block.length;
   }
-
   if (omitted.length > 0) {
     blocks.push(
       `\n(altri manuali non inclusi per lunghezza: ${omitted.join(", ")})`
     );
   }
-
   return [...header, ...blocks].join("\n");
 }
 
-export type ManualHit = { name: string; excerpt: string; score: number };
+export type ManualHit = {
+  name: string;
+  excerpt: string;
+  score: number;
+  /** Pagina del PDF ([Pagina N] nel testo estratto), se nota. */
+  page: number | null;
+};
 
 /** Passaggi dei manuali più vicini alla domanda, i più pertinenti prima. */
 export function manualHits(
@@ -140,26 +167,20 @@ export function manualHits(
   query: string,
   limit = 4
 ): ManualHit[] {
-  const tokens = queryTokens(query);
-  if (tokens.length === 0) return [];
-
-  const hits: ManualHit[] = [];
-  for (const manual of manuals) {
-    if (!manual.textExtracted || !manual.extractedText) continue;
-    const score = scoreManual(manual, tokens);
-    if (score === 0) continue;
-    hits.push({
-      name: manual.name,
+  const ranked = rankPassages(uniqueByName(manuals).filter(hasText), query);
+  const best = ranked[0]?.score ?? 0;
+  return ranked
+    .filter(({ score }) => score >= best * 0.4)
+    .slice(0, limit)
+    .map(({ passage, score }) => ({
+      name: passage.manual.name,
+      page: passage.page,
       score,
-      excerpt: excerptAround(
-        manual.extractedText,
-        firstTokenIndex(manual.extractedText, tokens),
-        EXCERPT_LEN
-      ),
-    });
-  }
-  hits.sort((a, b) => b.score - a.score);
-  return hits.slice(0, limit);
+      excerpt:
+        passage.text.length > EXCERPT_LEN
+          ? `${passage.text.slice(0, EXCERPT_LEN).trimEnd()}…`
+          : passage.text,
+    }));
 }
 
 /** Passaggio del manuale più vicino alla domanda. Null se non c'è testo utile. */
@@ -170,28 +191,119 @@ export function bestManualHit(
   return manualHits(manuals, query, 1)[0] ?? null;
 }
 
-function scoreManual(manual: ManualSource, tokens: string[]): number {
-  if (!manual.textExtracted || !manual.extractedText || tokens.length === 0) {
-    return 0;
-  }
-  const lower = manual.extractedText.toLowerCase();
-  const name = manual.name.toLowerCase();
-  let score = 0;
-  for (const token of tokens) {
-    if (lower.includes(token)) score += 1;
-    if (name.includes(token)) score += 1;
-  }
-  return score;
+type Passage = {
+  manual: ManualSource;
+  page: number | null;
+  order: number;
+  text: string;
+  lower: string;
+};
+
+function hasText(manual: ManualSource): boolean {
+  return manual.textExtracted && manual.extractedText.trim().length > 0;
 }
 
-function firstTokenIndex(text: string, tokens: string[]): number {
-  const lower = text.toLowerCase();
-  let at = -1;
-  for (const token of tokens) {
-    const idx = lower.indexOf(token);
-    if (idx >= 0 && (at < 0 || idx < at)) at = idx;
+/** Stesso file caricato più volte: tiene solo il primo (il più recente). */
+function uniqueByName(manuals: ManualSource[]): ManualSource[] {
+  const seen = new Set<string>();
+  return manuals.filter((manual) => {
+    const key = manual.name.toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function passageLabel(passage: Passage): string {
+  return passage.page == null
+    ? passage.manual.name
+    : `${passage.manual.name} — Pagina ${passage.page}`;
+}
+
+/** Divide il testo in passaggi brevi, rispettando i marcatori [Pagina N]. */
+function passagesOf(manual: ManualSource): Passage[] {
+  const text = manual.extractedText;
+  const segments: { page: number | null; body: string }[] = [];
+  const pageRe = /\[Pagina (\d+)\]/g;
+  let page: number | null = null;
+  let last = 0;
+  let match: RegExpExecArray | null;
+  while ((match = pageRe.exec(text))) {
+    segments.push({ page, body: text.slice(last, match.index) });
+    page = Number(match[1]);
+    last = match.index + match[0].length;
   }
-  return at < 0 ? 0 : at;
+  segments.push({ page, body: text.slice(last) });
+
+  const out: Passage[] = [];
+  const push = (pageNo: number | null, body: string) => {
+    const trimmed = body.trim();
+    if (!trimmed) return;
+    out.push({
+      manual,
+      page: pageNo,
+      order: out.length,
+      text: trimmed,
+      lower: trimmed.toLowerCase(),
+    });
+  };
+  for (const segment of segments) {
+    let buffer = "";
+    for (const raw of segment.body.split(/\n{2,}/)) {
+      let para = raw.trim();
+      if (!para) continue;
+      if (buffer && buffer.length + para.length + 2 > PASSAGE_LEN) {
+        push(segment.page, buffer);
+        buffer = "";
+      }
+      while (para.length > PASSAGE_LEN * 1.5) {
+        const cut = para.lastIndexOf(" ", PASSAGE_LEN);
+        const at = cut > PASSAGE_LEN / 2 ? cut : PASSAGE_LEN;
+        push(segment.page, para.slice(0, at));
+        para = para.slice(at).trim();
+      }
+      buffer = buffer ? `${buffer}\n\n${para}` : para;
+    }
+    push(segment.page, buffer);
+  }
+  return out;
+}
+
+/** Passaggi ordinati per pertinenza: termini rari nel manuale pesano di più. */
+function rankPassages(
+  manuals: ManualSource[],
+  query: string
+): { passage: Passage; score: number }[] {
+  const terms = queryTerms(query);
+  if (terms.length === 0) return [];
+  const passages = manuals.flatMap(passagesOf);
+  if (passages.length === 0) return [];
+
+  const patterns = terms.map(
+    (term) =>
+      new RegExp(
+        `(?:^|[^a-z0-9à-ÿ])${term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`,
+        "g"
+      )
+  );
+  const counts = passages.map((passage) =>
+    patterns.map((pattern) => passage.lower.match(pattern)?.length ?? 0)
+  );
+  const weights = patterns.map((_, i) => {
+    const df = counts.filter((row) => row[i] > 0).length;
+    return df === 0 ? 0 : Math.log(1 + passages.length / df);
+  });
+
+  return passages
+    .map((passage, index) => {
+      let score = 0;
+      counts[index].forEach((count, i) => {
+        if (count > 0) score += weights[i] * (1 + 0.15 * Math.min(count - 1, 4));
+      });
+      return { passage, score };
+    })
+    .filter(({ score }) => score > 0)
+    .sort((a, b) => b.score - a.score || a.passage.order - b.passage.order);
 }
 
 function excerptAround(text: string, index: number, maxLen: number): string {
@@ -207,13 +319,22 @@ function excerptAround(text: string, index: number, maxLen: number): string {
   return slice;
 }
 
-function queryTokens(query: string): string[] {
+/** Parole della domanda ridotte alla radice (montanti → montan), codici con cifre interi. */
+function queryTerms(query: string): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
   for (const raw of query.toLowerCase().split(/[^a-z0-9àèéìòù]+/i)) {
-    if (raw.length < 4 || QUERY_STOP.has(raw) || seen.has(raw)) continue;
-    seen.add(raw);
-    out.push(raw);
+    if (raw.length < 4 || QUERY_STOP.has(raw)) continue;
+    const term = /\d/.test(raw)
+      ? raw
+      : raw.length >= 7
+        ? raw.slice(0, -2)
+        : raw.length >= 5
+          ? raw.slice(0, -1)
+          : raw;
+    if (seen.has(term)) continue;
+    seen.add(term);
+    out.push(term);
   }
   return out;
 }
