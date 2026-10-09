@@ -528,7 +528,7 @@ export async function applyWorkspaceMutation(
           ? asString(p.assignedTechnicianId)
           : null;
       }
-      let requestedStatus =
+      const requestedStatus =
         p.status !== undefined ? asString(p.status) : existing.status;
       data.status = resolveAssignmentStatus({
         currentStatus: existing.status,

@@ -49,8 +49,6 @@ export function TicketsWorkspace() {
     telephonyEnabled,
     phoneCalls,
     customers,
-    attachPhoneCall,
-    createTicketFromPhoneCall,
     ticketFieldLabels,
   } = useInbox();
   const { t } = useI18n();
