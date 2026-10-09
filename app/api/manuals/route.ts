@@ -1,16 +1,14 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/user";
 import { prisma } from "@/lib/prisma";
 import { listCompanyManuals } from "@/lib/companyManuals";
-import {
-  MANUAL_MAX_BYTES,
-  extractManualText,
-  manualExt,
-} from "@/lib/manualText";
+import { MANUAL_MAX_BYTES, manualExt } from "@/lib/manualText";
+import { backfillManualText, resolveManualText } from "@/lib/manualExtraction";
 import { formatSize } from "@/lib/uploadSourceFile";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 300;
 
 const MAX_FILES = 10;
 
@@ -27,6 +25,9 @@ export async function GET() {
     return NextResponse.json({ error: "Non autenticato" }, { status: 401 });
   }
   const manuals = await listCompanyManuals(me.companyId);
+  if (manuals.some((manual) => !manual.textExtracted)) {
+    after(() => backfillManualText(me.companyId, 1).then(() => undefined));
+  }
   return NextResponse.json({ manuals });
 }
 
@@ -58,6 +59,7 @@ export async function POST(req: Request) {
   }
 
   const createdIds: string[] = [];
+  const warnings: string[] = [];
 
   for (const file of entries) {
     const ext = manualExt(file.name);
@@ -70,7 +72,8 @@ export async function POST(req: Request) {
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
-    const extracted = extractManualText(file.name, buffer);
+    const extracted = await resolveManualText(file.name, buffer);
+    if (extracted.error) warnings.push(extracted.error);
     const row = await prisma.companyManual.create({
       data: {
         companyId: me.companyId,
@@ -97,5 +100,6 @@ export async function POST(req: Request) {
   return NextResponse.json({
     manuals,
     createdIds,
+    warning: warnings.length > 0 ? warnings.join(" ") : undefined,
   });
 }

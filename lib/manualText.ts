@@ -218,6 +218,15 @@ function queryTokens(query: string): string[] {
   return out;
 }
 
+/** Testo pronto per extractedText: normalizzato, senza surrogati orfani, entro il limite. */
+export function cleanManualText(text: string): string {
+  return clamp(
+    normalizeExtracted(text)
+      .replace(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])/g, "")
+      .replace(/(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g, "")
+  );
+}
+
 function clamp(text: string): string {
   return text.length > STORE_LIMIT ? text.slice(0, STORE_LIMIT) : text;
 }

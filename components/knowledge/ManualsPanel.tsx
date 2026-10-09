@@ -57,10 +57,14 @@ export function ManualsPanel() {
     setError(null);
     try {
       let latest: ManualRow[] | null = null;
+      const warnings: string[] = [];
       for (const file of files) {
-        latest = await uploadOne(file, t);
+        const result = await uploadOne(file, t);
+        latest = result.manuals;
+        if (result.warning) warnings.push(result.warning);
       }
       if (latest) setManuals(latest);
+      if (warnings.length > 0) setError(warnings.join(" "));
     } catch (err) {
       setError(err instanceof Error ? err.message : t("manuals.error"));
     } finally {
@@ -186,7 +190,7 @@ export function ManualsPanel() {
 async function uploadOne(
   file: File,
   t: (key: string) => string
-): Promise<ManualRow[]> {
+): Promise<{ manuals: ManualRow[]; warning?: string }> {
   const ext = file.name.match(/\.([a-z0-9]+)$/i)?.[1]?.toLowerCase() ?? "";
   if (!["pdf", "txt", "md", "text"].includes(ext)) {
     throw new Error(t("manuals.badType"));
@@ -219,8 +223,9 @@ async function uploadOne(
   const data = (await res.json().catch(() => null)) as {
     manuals?: ManualRow[];
     error?: string;
+    warning?: string;
   } | null;
   if (res.status === 401) throw new Error(t("manuals.auth"));
   if (!res.ok) throw new Error(data?.error || t("manuals.error"));
-  return data?.manuals ?? [];
+  return { manuals: data?.manuals ?? [], warning: data?.warning };
 }

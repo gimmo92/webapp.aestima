@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/user";
 import {
   callAnthropicConversation,
@@ -7,10 +7,12 @@ import {
   type AnthropicImageMediaType,
 } from "@/lib/anthropicKey";
 import { loadCompanyManuals } from "@/lib/companyManuals";
+import { backfillManualText } from "@/lib/manualExtraction";
 import { manualHits, formatManualsForPrompt } from "@/lib/manualText";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 300;
 
 const IMAGE_TYPES = new Set<AnthropicImageMediaType>([
   "image/jpeg",
@@ -103,14 +105,33 @@ export async function POST(request: Request) {
     return NextResponse.json({ code: "empty" }, { status: 400 });
   }
 
-  const manuals = await loadCompanyManuals(me.companyId);
-  const usable = manuals.filter(
+  let manuals = await loadCompanyManuals(me.companyId);
+  let usable = manuals.filter(
     (manual) => manual.textExtracted && manual.extractedText.trim()
   );
+  if (manuals.length === 0) {
+    return NextResponse.json({ code: "noManuals" });
+  }
   if (usable.length === 0) {
-    return NextResponse.json({
-      code: manuals.length === 0 ? "noManuals" : "noText",
-    });
+    const backfill = await backfillManualText(me.companyId, 1);
+    if (backfill.done > 0) {
+      manuals = await loadCompanyManuals(me.companyId);
+      usable = manuals.filter(
+        (manual) => manual.textExtracted && manual.extractedText.trim()
+      );
+    }
+    if (usable.length === 0) {
+      const reason = backfill.errors[0];
+      if (!reason) return NextResponse.json({ code: "noText" });
+      return NextResponse.json({
+        message:
+          locale === "en"
+            ? `The manuals are saved but their text could not be extracted with Claude. ${reason}`
+            : `I manuali sono salvati ma non sono riuscito a estrarne il testo con Claude. ${reason}`,
+      });
+    }
+  } else if (usable.length < manuals.length) {
+    after(() => backfillManualText(me.companyId, 1).then(() => undefined));
   }
 
   const query =

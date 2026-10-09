@@ -6,7 +6,7 @@ import { saveCompanyManual } from "@/lib/saveCompanyManual";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 const MAX_PARTS = 8;
 
@@ -58,8 +58,12 @@ export async function POST(req: Request) {
   }
 
   try {
-    const manuals = await saveCompanyManual(me.companyId, name, buffer);
-    return NextResponse.json({ manuals });
+    const { manuals, warning } = await saveCompanyManual(
+      me.companyId,
+      name,
+      buffer
+    );
+    return NextResponse.json({ manuals, warning });
   } catch (error) {
     console.error("manual finish", error);
     return NextResponse.json(
