@@ -48,6 +48,8 @@ model User {
   passwordHash String
   name         String
   role         CompanyRole @default(MEMBER)
+  /** Reparto operativo: ufficio_tecnico, logistica, commerciale. Vuoto = nessuno. */
+  department   String?
   companyId    String
   company      Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
   customerContacts Customer[] @relation("CustomerContact")

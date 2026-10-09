@@ -10,6 +10,7 @@ import {
   setSessionCookie,
 } from "@/lib/auth/session";
 import { slugifyCompanyName } from "@/lib/auth/user";
+import { isDepartmentId } from "@/lib/telephony/classify";
 import {
   RESET_TOKEN_TTL_MS,
   appBaseUrl,
@@ -200,6 +201,7 @@ export async function inviteMemberAction(
   const roleRaw = String(formData.get("role") ?? "MEMBER");
   const role =
     roleRaw === "ADMIN" || roleRaw === "OWNER" ? roleRaw : "MEMBER";
+  const department = parseDepartment(formData);
 
   if (!name || !email.includes("@") || password.length < 8) {
     return { error: "Compila nome, email e password (min. 8 caratteri)." };
@@ -207,6 +209,7 @@ export async function inviteMemberAction(
   if (role === "OWNER" && me.role !== "OWNER") {
     return { error: "Solo l'owner può creare altri owner." };
   }
+  if (department === "invalid") return { error: "Reparto non valido." };
 
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) {
@@ -220,6 +223,7 @@ export async function inviteMemberAction(
       email,
       passwordHash,
       role,
+      department,
       companyId: me.companyId,
     },
   });
@@ -227,6 +231,12 @@ export async function inviteMemberAction(
   revalidatePath("/company");
   revalidatePath("/company/utenti");
   return { ok: true };
+}
+
+function parseDepartment(formData: FormData): string | null | "invalid" {
+  const raw = String(formData.get("department") ?? "").trim();
+  if (!raw) return null;
+  return isDepartmentId(raw) ? raw : "invalid";
 }
 
 function parseManagedRole(
@@ -263,6 +273,8 @@ export async function updateMemberAction(
   if (password && password.length < 8) {
     return { error: "La nuova password deve avere almeno 8 caratteri." };
   }
+  const department = parseDepartment(formData);
+  if (department === "invalid") return { error: "Reparto non valido." };
 
   const target = await prisma.user.findFirst({
     where: { id: userId, companyId: me.companyId },
@@ -296,6 +308,7 @@ export async function updateMemberAction(
       name,
       email,
       role,
+      department,
       ...(password ? { passwordHash: await hashPassword(password) } : {}),
     },
   });

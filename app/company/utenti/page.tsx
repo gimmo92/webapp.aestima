@@ -15,6 +15,7 @@ export default async function CompanyUtentiPage() {
       name: true,
       email: true,
       role: true,
+      department: true,
       createdAt: true,
     },
   });
@@ -26,6 +27,7 @@ export default async function CompanyUtentiPage() {
         name: u.name,
         email: u.email,
         role: u.role,
+        department: u.department,
         createdAt: u.createdAt.toISOString(),
       }))}
       canManage={me.role === "OWNER" || me.role === "ADMIN"}

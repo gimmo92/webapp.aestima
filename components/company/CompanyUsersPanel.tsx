@@ -7,6 +7,11 @@ import {
   updateMemberAction,
   type AuthActionState,
 } from "@/app/actions/auth";
+import {
+  DEPARTMENT_LABELS,
+  DEPARTMENTS,
+  isDepartmentId,
+} from "@/lib/telephony/classify";
 import { Field, inputClass } from "./formFields";
 
 const ROLE_LABEL: Record<string, string> = {
@@ -20,8 +25,14 @@ export type CompanyMember = {
   name: string;
   email: string;
   role: string;
+  department: string | null;
   createdAt: string;
 };
+
+function departmentLabel(value: string | null): string {
+  if (!value || !isDepartmentId(value)) return "—";
+  return DEPARTMENT_LABELS[value];
+}
 
 export function CompanyUsersPanel({
   members,
@@ -43,7 +54,8 @@ export function CompanyUsersPanel({
     return (
       m.name.toLowerCase().includes(q) ||
       m.email.toLowerCase().includes(q) ||
-      (ROLE_LABEL[m.role] ?? m.role).toLowerCase().includes(q)
+      (ROLE_LABEL[m.role] ?? m.role).toLowerCase().includes(q) ||
+      departmentLabel(m.department).toLowerCase().includes(q)
     );
   });
 
@@ -60,7 +72,7 @@ export function CompanyUsersPanel({
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Cerca nome, email, ruolo…"
+            placeholder="Cerca nome, email, ruolo, reparto…"
             className="w-56 rounded-lg border border-border bg-base px-3 py-2 text-sm text-ink outline-none focus:border-brand"
           />
           {canManage && (
@@ -82,6 +94,7 @@ export function CompanyUsersPanel({
               <th className="px-5 py-3 font-semibold">Nome</th>
               <th className="px-5 py-3 font-semibold">Email</th>
               <th className="px-5 py-3 font-semibold">Ruolo</th>
+              <th className="px-5 py-3 font-semibold">Reparto</th>
               <th className="px-5 py-3 font-semibold">Creato</th>
               {canManage && <th className="px-5 py-3 font-semibold">Azioni</th>}
             </tr>
@@ -95,6 +108,9 @@ export function CompanyUsersPanel({
                   <span className="rounded-full bg-brand-soft px-2.5 py-0.5 text-[11px] font-semibold text-brand">
                     {ROLE_LABEL[m.role] ?? m.role}
                   </span>
+                </td>
+                <td className="px-5 py-3 text-ink-muted">
+                  {departmentLabel(m.department)}
                 </td>
                 <td className="px-5 py-3 text-ink-faint">
                   {new Date(m.createdAt).toLocaleDateString("it-IT")}
@@ -245,6 +261,24 @@ function UserFormModal({
               <option value="MEMBER">Member</option>
               <option value="ADMIN">Admin</option>
               {canAssignOwner && <option value="OWNER">Owner</option>}
+            </select>
+          </Field>
+          <Field label="Reparto">
+            <select
+              name="department"
+              defaultValue={
+                member?.department && isDepartmentId(member.department)
+                  ? member.department
+                  : ""
+              }
+              className={inputClass}
+            >
+              <option value="">Nessuno</option>
+              {DEPARTMENTS.map((id) => (
+                <option key={id} value={id}>
+                  {DEPARTMENT_LABELS[id]}
+                </option>
+              ))}
             </select>
           </Field>
           {state.error && <p className="text-sm text-danger">{state.error}</p>}
