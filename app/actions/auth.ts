@@ -12,6 +12,10 @@ import {
 import { slugifyCompanyName } from "@/lib/auth/user";
 import { departmentsFromSettings } from "@/lib/companyDepartments";
 import {
+  isCompanyModuleId,
+  modulesFromSettings,
+} from "@/lib/companyModules";
+import {
   RESET_TOKEN_TTL_MS,
   appBaseUrl,
   createResetToken,
@@ -181,6 +185,46 @@ export async function updateCompanyAction(
   });
 
   revalidatePath("/company");
+  revalidatePath("/company/modifica");
+  return { ok: true };
+}
+
+export async function updateCompanyModuleAction(
+  formData: FormData
+): Promise<AuthActionState> {
+  const { getCurrentUser } = await import("@/lib/auth/user");
+  const me = await getCurrentUser();
+  if (!me) return { error: "Sessione scaduta. Accedi di nuovo." };
+  if (me.role === "MEMBER") {
+    return { error: "Non hai i permessi per modificare la company." };
+  }
+
+  const moduleId = String(formData.get("module") ?? "");
+  if (!isCompanyModuleId(moduleId)) {
+    return { error: "Modulo non valido." };
+  }
+  const enabled = String(formData.get("enabled") ?? "") === "1";
+
+  const current = await prisma.company.findUnique({
+    where: { id: me.companyId },
+    select: { settingsJson: true },
+  });
+  const prev =
+    current?.settingsJson && typeof current.settingsJson === "object"
+      ? (current.settingsJson as Record<string, unknown>)
+      : {};
+  const modules = {
+    ...modulesFromSettings(prev),
+    [moduleId]: enabled,
+  };
+
+  await prisma.company.update({
+    where: { id: me.companyId },
+    data: {
+      settingsJson: { ...prev, modules } as Prisma.InputJsonValue,
+    },
+  });
+
   revalidatePath("/company/modifica");
   return { ok: true };
 }

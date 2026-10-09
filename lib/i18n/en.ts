@@ -428,6 +428,9 @@ export const en: Messages = {
     navAria: "Company sections",
     edit: "Edit company",
     users: "Users",
+    modules: "Modules",
+    modulesHint:
+      "Turn a module off to hide it from this company's menu. All modules are on by default.",
     departments: "Departments",
     departmentsHint:
       "Create the team's departments. They appear when assigning users and tickets.",

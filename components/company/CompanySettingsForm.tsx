@@ -6,16 +6,20 @@ import {
   type AuthActionState,
 } from "@/app/actions/auth";
 import type { CompanyProfile } from "@/lib/companyProfile";
+import type { CompanyModules } from "@/lib/companyModules";
 import { CompanyDepartmentsPanel } from "./CompanyDepartmentsPanel";
+import { CompanyModulesPanel } from "./CompanyModulesPanel";
 import { Field, inputClass } from "./formFields";
 
 export function CompanySettingsForm({
   company,
   profile,
+  modules,
   canManage,
 }: {
   company: { name: string; slug: string; createdAt: string };
   profile: CompanyProfile;
+  modules: CompanyModules;
   canManage: boolean;
 }) {
   const [state, action, pending] = useActionState(
@@ -133,6 +137,8 @@ export function CompanySettingsForm({
           )}
         </form>
       </section>
+
+      <CompanyModulesPanel initial={modules} canManage={canManage} />
 
       <CompanyDepartmentsPanel canManage={canManage} />
     </div>

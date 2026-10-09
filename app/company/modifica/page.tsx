@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { CompanySettingsForm } from "@/components/company/CompanySettingsForm";
+import { modulesFromSettings } from "@/lib/companyModules";
 import { parseCompanyProfile } from "@/lib/companyProfile";
 import { getCurrentUser } from "@/lib/auth/user";
 import { prisma } from "@/lib/prisma";
@@ -27,6 +28,7 @@ export default async function CompanyModificaPage() {
         createdAt: company.createdAt.toLocaleDateString("it-IT"),
       }}
       profile={parseCompanyProfile(company.settingsJson)}
+      modules={modulesFromSettings(company.settingsJson)}
       canManage={me.role === "OWNER" || me.role === "ADMIN"}
     />
   );

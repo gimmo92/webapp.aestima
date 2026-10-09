@@ -7,6 +7,8 @@ import { Logo } from "@/components/Logo";
 import { logoutAction } from "@/app/actions/auth";
 import { useI18n } from "@/lib/i18n";
 import { clearCachedCompany } from "@/lib/companyFeatures";
+import { isModuleEnabled } from "@/lib/companyModules";
+import { useCompanyModules } from "@/lib/useCompanyModules";
 import { useTicketingHidden } from "@/lib/useTicketingHidden";
 
 const NAV = [
@@ -217,6 +219,7 @@ export function InboxTopBar({
     Boolean(companyName || userName) || !isPublic
   );
   const hideTicketing = useTicketingHidden(companyName);
+  const modules = useCompanyModules();
 
   useEffect(() => {
     if (companyName || userName) {
@@ -246,9 +249,10 @@ export function InboxTopBar({
 
   const displayCompany = companyName || me?.company.name;
   const displayUser = userName || me?.name;
-  const navItems = hideTicketing
-    ? NAV.filter((item) => item.href !== "/ticket")
-    : NAV;
+  const navItems = NAV.filter((item) => {
+    if (item.href === "/ticket" && hideTicketing) return false;
+    return isModuleEnabled(modules, item.href);
+  });
 
   return (
     <header className="flex shrink-0 items-center justify-between gap-4 border-b border-border bg-surface/70 px-5 py-3 backdrop-blur-md">

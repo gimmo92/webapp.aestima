@@ -1,3 +1,8 @@
+import {
+  modulesFromSettings,
+  type CompanyModules,
+} from "@/lib/companyModules";
+
 export { isTelephonyEnabled } from "@/lib/telephony/settings";
 
 /** Company per cui il ticketing è nascosto in UI. */
@@ -6,6 +11,7 @@ const TICKETING_HIDDEN_SLUGS = new Set<string>([]);
 export type CompanyNavRef = {
   slug?: string | null;
   name?: string | null;
+  modules?: CompanyModules | null;
 };
 
 const COMPANY_CACHE_KEY = "aftercore:company-nav:v1";
@@ -27,8 +33,12 @@ export function readCachedCompany(): CompanyNavRef | null {
     const row = parsed as Record<string, unknown>;
     const slug = typeof row.slug === "string" ? row.slug : "";
     const name = typeof row.name === "string" ? row.name : "";
-    if (!slug && !name) return null;
-    return { slug, name };
+    if (!slug && !name && !row.modules) return null;
+    return {
+      slug,
+      name,
+      modules: row.modules ? modulesFromSettings({ modules: row.modules }) : null,
+    };
   } catch {
     return null;
   }
@@ -42,6 +52,7 @@ export function writeCachedCompany(company: CompanyNavRef) {
       JSON.stringify({
         slug: company.slug ?? "",
         name: company.name ?? "",
+        modules: company.modules ?? null,
       })
     );
   } catch {

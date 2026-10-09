@@ -434,6 +434,9 @@ export const it = {
     navAria: "Sezioni azienda",
     edit: "Modifica azienda",
     users: "Utenti",
+    modules: "Moduli",
+    modulesHint:
+      "Spegni un modulo per nasconderlo dal menu di questa azienda. Di default sono tutti attivi.",
     departments: "Reparti",
     departmentsHint:
       "Crea i reparti del team. Compaiono nell'assegnazione di utenti e ticket.",
