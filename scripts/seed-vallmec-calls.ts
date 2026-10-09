@@ -1,4 +1,5 @@
 import "dotenv/config";
+import { hashPassword } from "../lib/auth/password";
 import { prisma } from "../lib/prisma";
 
 const PREFIX = "vlm-demo-";
@@ -19,6 +20,17 @@ function stamp(date: Date) {
   });
   return { createdLabel, createdFull, updatedFull: createdFull };
 }
+
+const DEMO_PASSWORD = "VallmecDemo1!";
+
+const demoUsers = [
+  { email: "giulia.ferri@vallmec.demo", name: "Giulia Ferri", department: "ufficio_tecnico" },
+  { email: "marco.sala@vallmec.demo", name: "Marco Sala", department: "ufficio_tecnico" },
+  { email: "chiara.neri@vallmec.demo", name: "Chiara Neri", department: "logistica" },
+  { email: "davide.colombo@vallmec.demo", name: "Davide Colombo", department: "logistica" },
+  { email: "elena.riva@vallmec.demo", name: "Elena Riva", department: "commerciale" },
+  { email: "luca.bianchi@vallmec.demo", name: "Luca Bianchi", department: "commerciale" },
+];
 
 const customers = [
   {
@@ -44,6 +56,22 @@ const customers = [
     email: "andrea.conti@logoriggio.example",
     phone: "+39 02 967 1180",
     city: "Origgio",
+  },
+  {
+    id: `${PREFIX}cust-molini`,
+    name: "Molini Padani",
+    contactName: "Sara Bellini",
+    email: "sara.bellini@molinipadani.example",
+    phone: "+39 0376 441 902",
+    city: "Mantova",
+  },
+  {
+    id: `${PREFIX}cust-brescia`,
+    name: "Cartotecnica Brescia",
+    contactName: "Paolo Gatti",
+    email: "paolo.gatti@cartobrescia.example",
+    phone: "+39 030 778 2210",
+    city: "Brescia",
   },
 ];
 
@@ -132,6 +160,174 @@ const tickets = [
     machineSerial: "1432",
     callId: `${PREFIX}call-06`,
   },
+  {
+    id: `${PREFIX}tkt-07`,
+    customerId: customers[3].id,
+    department: "ufficio_tecnico",
+    priority: "alta",
+    source: "telefono",
+    category: "troubleshooting",
+    summary: "Allarme nastro sulla VLM 1800 matricola 1475",
+    description:
+      "Sara Bellini segnala allarme nastro ripetuto sulla VLM 1800 matricola 1475. Il ciclo si ferma dopo poche scatole.",
+    machineModel: "VLM 1800",
+    machineSerial: "1475",
+    callId: `${PREFIX}call-08`,
+  },
+  {
+    id: `${PREFIX}tkt-08`,
+    customerId: customers[0].id,
+    department: "ufficio_tecnico",
+    priority: "normale",
+    source: "manuale",
+    category: "troubleshooting",
+    summary: "Rumore sul gruppo spinta, matricola 1389",
+    description:
+      "Il cliente sente un rumore metallico sul gruppo spinta della VLM 2200 matricola 1389, soprattutto a velocità alta.",
+    machineModel: "VLM 2200",
+    machineSerial: "1389",
+    callId: null,
+  },
+  {
+    id: `${PREFIX}tkt-09`,
+    customerId: customers[2].id,
+    department: "ufficio_tecnico",
+    priority: "alta",
+    source: "telefono",
+    category: "troubleshooting",
+    summary: "PLC in fault a fine ciclo, matricola 1412",
+    description:
+      "Andrea Conti vede il PLC andare in fault a fine ciclo sulla matricola 1412. Chiede un tecnico dell'ufficio tecnico.",
+    machineModel: "VLM 2200",
+    machineSerial: "1412",
+    callId: `${PREFIX}call-09`,
+  },
+  {
+    id: `${PREFIX}tkt-10`,
+    customerId: customers[4].id,
+    department: "ufficio_tecnico",
+    priority: "normale",
+    source: "telefono",
+    category: "supporto_montaggio",
+    summary: "Sequenza di montaggio delle piastre laterali",
+    description:
+      "In cantiere a Brescia chiedono l'ordine di fissaggio delle piastre laterali sulla VLM 1800 matricola 1502.",
+    machineModel: "VLM 1800",
+    machineSerial: "1502",
+    callId: `${PREFIX}call-10`,
+  },
+  {
+    id: `${PREFIX}tkt-11`,
+    customerId: customers[1].id,
+    department: "logistica",
+    priority: "normale",
+    source: "telefono",
+    category: "pezzo_mancante",
+    summary: "DDT lame in ritardo per la matricola 1441",
+    description:
+      "Le lame VLM-500-011 previste nel DDT 8842 non sono nel collo arrivato a Napoli. Logistica deve rispedirle.",
+    machineModel: "VLM 1800",
+    machineSerial: "1441",
+    callId: `${PREFIX}call-11`,
+  },
+  {
+    id: `${PREFIX}tkt-12`,
+    customerId: customers[3].id,
+    department: "logistica",
+    priority: "alta",
+    source: "inbox",
+    category: "pezzo_mancante",
+    summary: "Collo danneggiato: cinghia AT10 da sostituire",
+    description:
+      "Il corriere ha consegnato a Mantova un collo aperto. La cinghia AT10 è inutilizzabile e va riemessa.",
+    machineModel: "VLM 1800",
+    machineSerial: "1475",
+    callId: null,
+  },
+  {
+    id: `${PREFIX}tkt-13`,
+    customerId: customers[0].id,
+    department: "logistica",
+    priority: "normale",
+    source: "manuale",
+    category: "integrazione_ordine",
+    summary: "Verifica giacenza ventose D.50",
+    description:
+      "Prima di confermare le 6 ventose VLM-300-004 per Fontanini, logistica deve controllare la giacenza a magazzino.",
+    machineModel: "VLM 2200",
+    machineSerial: "1418",
+    callId: null,
+  },
+  {
+    id: `${PREFIX}tkt-14`,
+    customerId: customers[4].id,
+    department: "logistica",
+    priority: "normale",
+    source: "telefono",
+    category: "reso",
+    summary: "Reso ventose con diametro errato",
+    description:
+      "Cartotecnica Brescia rende un sacchetto di ventose arrivate D.40 invece di D.50. Va aperto il reso e il reinvio.",
+    machineModel: "VLM 1800",
+    machineSerial: "1502",
+    callId: `${PREFIX}call-12`,
+  },
+  {
+    id: `${PREFIX}tkt-15`,
+    customerId: customers[2].id,
+    department: "commerciale",
+    priority: "normale",
+    source: "telefono",
+    category: "ricambio",
+    summary: "Preventivo sensori finecorsa, fascia A",
+    description:
+      "Origgio chiede il preventivo di due sensori VLM-400-030 in fascia A, contratto service full sulla 1432.",
+    machineModel: "VLM 2200",
+    machineSerial: "1432",
+    callId: `${PREFIX}call-13`,
+  },
+  {
+    id: `${PREFIX}tkt-16`,
+    customerId: customers[0].id,
+    department: "commerciale",
+    priority: "normale",
+    source: "inbox",
+    category: "altro",
+    summary: "Aggiornare l'offerta Fontanini al listino 2026",
+    description:
+      "Elena Fontanini chiede di ricalcolare Offerta_2026-0417 con il listino ricambi 2026, fascia C, matricola 1418.",
+    machineModel: "VLM 2200",
+    machineSerial: "1418",
+    callId: null,
+  },
+  {
+    id: `${PREFIX}tkt-17`,
+    customerId: customers[1].id,
+    department: "commerciale",
+    priority: "alta",
+    source: "telefono",
+    category: "integrazione_ordine",
+    summary: "Conferma ordine testata nastrante",
+    description:
+      "Torrefazione Sud vuole conferma scritta e prezzo della testata VLM-500-001 prima di autorizzare la spedizione.",
+    machineModel: "VLM 1800",
+    machineSerial: "1441",
+    callId: `${PREFIX}call-14`,
+  },
+  {
+    id: `${PREFIX}tkt-18`,
+    customerId: customers[3].id,
+    department: "commerciale",
+    priority: "normale",
+    source: "manuale",
+    category: "altro",
+    summary: "Proposta rinnovo contratto service full",
+    description:
+      "Molini Padani è in scadenza sul contratto della matricola 1475. Commerciale prepara il rinnovo full.",
+    machineModel: "VLM 1800",
+    machineSerial: "1475",
+    callId: null,
+  },
 ];
 
 const calls = [
@@ -141,7 +337,6 @@ const calls = [
     phone: customers[0].phone,
     durationSec: 246,
     outcome: "answered",
-    operatorOffset: 0,
     ticketId: tickets[0].id,
     hoursAgo: 5,
     transcript:
@@ -153,7 +348,6 @@ const calls = [
     phone: customers[1].phone,
     durationSec: 188,
     outcome: "answered",
-    operatorOffset: 1,
     ticketId: tickets[1].id,
     hoursAgo: 8,
     transcript:
@@ -165,7 +359,6 @@ const calls = [
     phone: customers[2].phone,
     durationSec: 132,
     outcome: "answered",
-    operatorOffset: 0,
     ticketId: tickets[2].id,
     hoursAgo: 26,
     transcript:
@@ -177,7 +370,6 @@ const calls = [
     phone: customers[0].phone,
     durationSec: 97,
     outcome: "answered",
-    operatorOffset: 2,
     ticketId: tickets[3].id,
     hoursAgo: 30,
     transcript:
@@ -189,7 +381,6 @@ const calls = [
     phone: customers[1].phone,
     durationSec: 310,
     outcome: "answered",
-    operatorOffset: 1,
     ticketId: tickets[4].id,
     hoursAgo: 3,
     transcript:
@@ -201,7 +392,6 @@ const calls = [
     phone: customers[2].phone,
     durationSec: 154,
     outcome: "answered",
-    operatorOffset: 2,
     ticketId: tickets[5].id,
     hoursAgo: 50,
     transcript:
@@ -213,10 +403,86 @@ const calls = [
     phone: "+39 347 220 1188",
     durationSec: 0,
     outcome: "missed",
-    operatorOffset: 0,
     ticketId: null,
     hoursAgo: 1,
     transcript: null,
+  },
+  {
+    id: `${PREFIX}call-08`,
+    externalId: `${PREFIX}call-08`,
+    phone: customers[3].phone,
+    durationSec: 205,
+    outcome: "answered",
+    ticketId: `${PREFIX}tkt-07`,
+    hoursAgo: 6,
+    transcript:
+      "Sara Bellini, Molini Padani. Sulla 1475 scatta l'allarme nastro ogni pochi cicli.\nLo passo all'ufficio tecnico, le assegnano Giulia o Marco.\nGrazie, resto in linea con il tecnico.",
+  },
+  {
+    id: `${PREFIX}call-09`,
+    externalId: `${PREFIX}call-09`,
+    phone: customers[2].phone,
+    durationSec: 176,
+    outcome: "answered",
+    ticketId: `${PREFIX}tkt-09`,
+    hoursAgo: 14,
+    transcript:
+      "Conti, matricola 1412. Il PLC va in fault quando chiude il ciclo.\nApro il ticket e lo metto sull'ufficio tecnico.\nVa bene, aspetto la chiamata.",
+  },
+  {
+    id: `${PREFIX}call-10`,
+    externalId: `${PREFIX}call-10`,
+    phone: customers[4].phone,
+    durationSec: 240,
+    outcome: "answered",
+    ticketId: `${PREFIX}tkt-10`,
+    hoursAgo: 4,
+    transcript:
+      "Paolo Gatti da Brescia, siamo in montaggio sulla 1502.\nLe piastre laterali: prima il basamento o prima le piastre?\nGlielo assegno all'ufficio tecnico, le richiamano con la sequenza.",
+  },
+  {
+    id: `${PREFIX}call-11`,
+    externalId: `${PREFIX}call-11`,
+    phone: customers[1].phone,
+    durationSec: 121,
+    outcome: "answered",
+    ticketId: `${PREFIX}tkt-11`,
+    hoursAgo: 9,
+    transcript:
+      "Esposito. Le lame del DDT 8842 non sono nel collo.\nLo giro in logistica, così rispediscono il mancante.\nPerfetto.",
+  },
+  {
+    id: `${PREFIX}call-12`,
+    externalId: `${PREFIX}call-12`,
+    phone: customers[4].phone,
+    durationSec: 98,
+    outcome: "answered",
+    ticketId: `${PREFIX}tkt-14`,
+    hoursAgo: 20,
+    transcript:
+      "Gatti. Le ventose arrivate sono D.40, a noi servivano D.50.\nApro il reso e lo assegno a logistica.\nLe teniamo da parte.",
+  },
+  {
+    id: `${PREFIX}call-13`,
+    externalId: `${PREFIX}call-13`,
+    phone: customers[2].phone,
+    durationSec: 143,
+    outcome: "answered",
+    ticketId: `${PREFIX}tkt-15`,
+    hoursAgo: 11,
+    transcript:
+      "Conti. Mi serve il preventivo di due finecorsa, fascia A, contratto full.\nLo passo al commerciale.\nAttendo il PDF.",
+  },
+  {
+    id: `${PREFIX}call-14`,
+    externalId: `${PREFIX}call-14`,
+    phone: customers[1].phone,
+    durationSec: 166,
+    outcome: "answered",
+    ticketId: `${PREFIX}tkt-17`,
+    hoursAgo: 2,
+    transcript:
+      "Esposito di nuovo. Prima di far partire la testata nastrante voglio prezzo e conferma ordine.\nLo assegno al commerciale, le scrivono oggi.\nGrazie.",
   },
 ];
 
@@ -235,13 +501,37 @@ async function main() {
     );
   }
 
+  const passwordHash = await hashPassword(DEMO_PASSWORD);
+  for (const demo of demoUsers) {
+    await prisma.user.upsert({
+      where: { email: demo.email },
+      update: {
+        name: demo.name,
+        department: demo.department,
+        companyId: company.id,
+      },
+      create: {
+        email: demo.email,
+        name: demo.name,
+        department: demo.department,
+        role: "MEMBER",
+        passwordHash,
+        companyId: company.id,
+      },
+    });
+  }
+
   const users = await prisma.user.findMany({
-    where: { companyId: company.id },
+    where: { email: { in: demoUsers.map((demo) => demo.email) } },
     orderBy: { name: "asc" },
-    select: { id: true, name: true },
+    select: { id: true, name: true, department: true },
   });
-  if (users.length === 0) {
-    throw new Error(`Nessun utente in ${company.name}: non posso assegnare i ticket.`);
+  const byDepartment = new Map<string, { id: string; name: string }[]>();
+  for (const user of users) {
+    const key = user.department ?? "";
+    const list = byDepartment.get(key) ?? [];
+    list.push(user);
+    byDepartment.set(key, list);
   }
 
   await prisma.phoneCall.deleteMany({
@@ -261,9 +551,15 @@ async function main() {
   }
 
   const now = Date.now();
+  const assignedTo = new Map<string, string>();
+  const deptCursor = new Map<string, number>();
   for (let index = 0; index < tickets.length; index += 1) {
     const ticket = tickets[index];
-    const operator = users[index % users.length];
+    const pool = byDepartment.get(ticket.department) ?? users;
+    const cursor = deptCursor.get(ticket.department) ?? 0;
+    const operator = pool[cursor % pool.length];
+    deptCursor.set(ticket.department, cursor + 1);
+    assignedTo.set(ticket.id, operator.name);
     const when = new Date(now - (index + 2) * 3 * 60 * 60 * 1000);
     const times = stamp(when);
     const customer = customers.find((row) => row.id === ticket.customerId);
@@ -295,7 +591,9 @@ async function main() {
   }
 
   for (const call of calls) {
-    const operator = users[call.operatorOffset % users.length];
+    const operatorName = call.ticketId
+      ? assignedTo.get(call.ticketId) ?? users[0].name
+      : users[0].name;
     const occurredAt = new Date(now - call.hoursAgo * 60 * 60 * 1000);
     await prisma.phoneCall.create({
       data: {
@@ -307,7 +605,7 @@ async function main() {
         durationSec: call.durationSec,
         outcome: call.outcome,
         transcript: call.transcript,
-        operatorName: operator.name,
+        operatorName,
         occurredAt,
         ticketId: call.ticketId,
       },
@@ -315,7 +613,7 @@ async function main() {
   }
 
   console.log(
-    `Vallmec (${company.slug}): ${tickets.length} ticket assegnati, ${calls.length} chiamate, operatori ${users.map((user) => user.name).join(", ")}`
+    `Vallmec (${company.slug}): ${users.length} utenti con reparto, ${tickets.length} ticket assegnati allo stesso reparto, ${calls.length} chiamate. Password demo: ${DEMO_PASSWORD}`
   );
 }
 
