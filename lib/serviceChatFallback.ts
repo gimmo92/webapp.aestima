@@ -13,6 +13,7 @@ import {
 } from "./serviceChatQuickReplies";
 import type { ServiceMachine } from "./serviceChatData";
 import type { KnowledgeEntry } from "./knowledgeTypes";
+import { bestManualHit, type ManualSource } from "./manualText";
 import type {
   ChatMessage,
   ServiceChatResponse,
@@ -173,10 +174,24 @@ function buildKbFallback(
   };
 }
 
+function answerFromManual(
+  manuals: ManualSource[],
+  query: string,
+  minScore: number
+): ServiceChatResponse | null {
+  const hit = bestManualHit(manuals, query);
+  if (!hit || hit.score < minScore) return null;
+  return {
+    message: `Nel manuale «${hit.name}» ho trovato questo passaggio:\n\n${hit.excerpt}`,
+    source: "fallback",
+  };
+}
+
 export function buildServiceChatFallback(
   messages: ChatMessage[],
   knowledgeBase: KnowledgeEntry[],
-  machines: ServiceMachine[] = []
+  machines: ServiceMachine[] = [],
+  manuals: ManualSource[] = []
 ): ServiceChatResponse {
   const lastUser = [...messages].reverse().find((m) => m.role === "user");
   const lastUserText = lastUser?.content?.trim() ?? "";
@@ -206,6 +221,18 @@ export function buildServiceChatFallback(
     );
     if (candidates.length > 0) {
       return buildKbFallback(candidates[0], knowledgeBase);
+    }
+    const fromManual = answerFromManual(
+      manuals,
+      `${lastUserText}\n${recentContext}`,
+      1
+    );
+    if (fromManual) {
+      return {
+        ...fromManual,
+        message: `${KB_SEARCH_INTRO}\n\n${fromManual.message}`,
+        kbSearching: true,
+      };
     }
     return {
       message: `${KB_SEARCH_INTRO}\n\nNon ho trovato un caso analogo nella knowledge base per ${machine.model} (${machine.serial}). Puoi aggiungere altri dettagli sul guasto: la conversazione resta aperta e un operatore potrà aiutarti.`,
@@ -265,6 +292,8 @@ export function buildServiceChatFallback(
   }
 
   if (!machineIdentifiedInHistory(messages, machines)) {
+    const fromManual = answerFromManual(manuals, lastUserText, 3);
+    if (fromManual) return fromManual;
     const spareFocus = spareIntentInHistory(messages);
     return askMachineMessage(spareFocus, machines);
   }

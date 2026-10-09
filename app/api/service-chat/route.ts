@@ -25,6 +25,8 @@ import {
   serializeChatPark,
   type ServiceChatCompanyContext,
 } from "@/lib/serviceChatCompanyContext";
+import { loadCompanyManuals } from "@/lib/companyManuals";
+import { formatManualsForPrompt, type ManualSource } from "@/lib/manualText";
 import { buildServiceChatFallback } from "@/lib/serviceChatFallback";
 import { documentAttachmentNote } from "@/lib/serviceChatAttachments";
 import { normalizeApiQuickReplies, ensureMachineOtherOption } from "@/lib/serviceChatQuickReplies";
@@ -49,7 +51,8 @@ function buildSystemPrompt(
   knowledgeBase: KnowledgeEntry[],
   kbSearchBlock: string,
   locale: "it" | "en" = "it",
-  company: ServiceChatCompanyContext
+  company: ServiceChatCompanyContext,
+  manualsBlock: string
 ): string {
   const kbContext = formatKnowledgeForPrompt(knowledgeBase);
   const machinesContext = buildMachinesContext(company.machines);
@@ -97,6 +100,11 @@ Se l'utente sceglie "La macchina non è in elenco — indico modello o matricola
 - Se trovi corrispondenza: spiega causa + soluzione + ricambi. Cita scheda [ID] nel Manuale. Imposta kbMatch.
 - Se NON trovi: dopo la frase iniziale, dichiara che la KB non contiene il caso e invita l'utente ad aggiungere dettagli. Un operatore seguirà la conversazione.
 
+## MANUALI CARICATI
+- I manuali della sezione Manuale sono una fonte della company, insieme a catalogo e knowledge base.
+- Per uso, manutenzione, procedure e specifiche consulta i manuali e cita il nome del file.
+- Se il testo non è stato estratto, indica solo il nome del file e non inventare il contenuto.
+
 ## REGOLA PRIORITARIA — KNOWLEDGE BASE
 - La KB è la prima fonte per i malfunzionamenti: cerca SEMPRE prima di escalare.
 - Se trovi un caso simile (stesso sintomo/macchina): proponi la soluzione appresa da interventi precedenti.
@@ -135,6 +143,8 @@ Regole JSON:
 ${machinesContext}
 
 ${kbContext}
+
+${manualsBlock}
 
 ${kbSearchBlock}`;
 }
@@ -415,15 +425,25 @@ export async function POST(req: Request) {
     .join(" ");
 
   let company = anonymousServiceChatContext();
+  let manuals: ManualSource[] = [];
   try {
     const me = await getCurrentUser();
     if (me) {
-      company = await loadServiceChatCompanyContext(
-        me.companyId,
-        me.company.name,
-        me.company.slug,
-        userQuery
-      );
+      try {
+        company = await loadServiceChatCompanyContext(
+          me.companyId,
+          me.company.name,
+          me.company.slug,
+          userQuery
+        );
+      } catch (err) {
+        console.error("Service chat company context:", err);
+      }
+      try {
+        manuals = await loadCompanyManuals(me.companyId);
+      } catch (err) {
+        console.error("Service chat manuals:", err);
+      }
     }
   } catch (err) {
     console.error("Service chat company context:", err);
@@ -455,10 +475,13 @@ export async function POST(req: Request) {
   const apiKey = getAnthropicKey();
   if (!apiKey) {
     return NextResponse.json(
-      withPark(buildServiceChatFallback(messages, knowledgeBase, machines))
+      withPark(
+        buildServiceChatFallback(messages, knowledgeBase, machines, manuals)
+      )
     );
   }
 
+  const manualsBlock = formatManualsForPrompt(manuals, userQuery);
   const recentContext = messages
     .slice(-6)
     .map((m) => m.content)
@@ -477,7 +500,8 @@ export async function POST(req: Request) {
     knowledgeBase,
     kbSearchBlock,
     locale,
-    company
+    company,
+    manualsBlock
   );
 
   try {
@@ -490,7 +514,9 @@ export async function POST(req: Request) {
     if (!llm.ok) {
       console.error("Service chat Anthropic fallback:", llm.message);
       return NextResponse.json(
-        withPark(buildServiceChatFallback(messages, knowledgeBase, machines))
+        withPark(
+          buildServiceChatFallback(messages, knowledgeBase, machines, manuals)
+        )
       );
     }
 
@@ -501,7 +527,9 @@ export async function POST(req: Request) {
         llm.text.slice(0, 500)
       );
       return NextResponse.json(
-        withPark(buildServiceChatFallback(messages, knowledgeBase, machines))
+        withPark(
+          buildServiceChatFallback(messages, knowledgeBase, machines, manuals)
+        )
       );
     }
 
@@ -566,7 +594,9 @@ export async function POST(req: Request) {
   } catch (err) {
     console.error("Service chat route error:", err);
     return NextResponse.json(
-      withPark(buildServiceChatFallback(messages, knowledgeBase, machines))
+      withPark(
+        buildServiceChatFallback(messages, knowledgeBase, machines, manuals)
+      )
     );
   }
 }

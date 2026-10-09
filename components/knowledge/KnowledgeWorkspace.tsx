@@ -8,6 +8,7 @@ import {
   RECURRING_FREQUENCY_THRESHOLD,
 } from "@/lib/knowledgeData";
 import type { KnowledgeEntry, ProblemCategory } from "@/lib/knowledgeTypes";
+import { ManualsPanel } from "./ManualsPanel";
 
 export function KnowledgeWorkspace() {
   const {
@@ -246,6 +247,7 @@ export function KnowledgeWorkspace() {
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto p-5">
+        <ManualsPanel />
         {recurring.length > 0 && !query && (
           <section className="mb-8">
             <h2 className="mb-3 flex items-center gap-2 text-sm font-bold text-ink">

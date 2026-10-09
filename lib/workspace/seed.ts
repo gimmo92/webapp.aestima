@@ -40,6 +40,7 @@ export async function clearCompanyWorkspace(companyId: string) {
     prisma.partRequest.deleteMany({ where: { companyId } }),
     prisma.label.deleteMany({ where: { companyId } }),
     prisma.knowledgeEntry.deleteMany({ where: { companyId } }),
+    prisma.companyManual.deleteMany({ where: { companyId } }),
     prisma.phoneCall.deleteMany({ where: { companyId } }),
     prisma.ticketAttachment.deleteMany({ where: { companyId } }),
     prisma.serviceTicket.deleteMany({ where: { companyId } }),
