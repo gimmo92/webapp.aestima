@@ -41,6 +41,7 @@ model Company {
   ticketAttachments      TicketAttachment[]
   phoneCalls             PhoneCall[]
   manuals                CompanyManual[]
+  manualUploadParts      ManualUploadPart[]
 }
 
 model User {
@@ -422,6 +423,20 @@ model CompanyManual {
   company       Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@index([companyId, createdAt])
+}
+
+/** Pezzo temporaneo di un manuale più grande del limite di una singola richiesta. */
+model ManualUploadPart {
+  id        String   @id @default(cuid())
+  companyId String
+  uploadId  String
+  partIndex Int
+  content   Bytes
+  createdAt DateTime @default(now())
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, uploadId, partIndex])
+  @@index([companyId, uploadId])
 }
 
 /** Anagrafica ricambi (estratta da listini/distinte/cataloghi archivio). */

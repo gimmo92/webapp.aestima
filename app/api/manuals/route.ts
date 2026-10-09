@@ -77,7 +77,7 @@ export async function POST(req: Request) {
         name: file.name,
         mimeType: file.type || MIME[ext],
         sizeLabel: formatSize(file.size),
-        content: buffer,
+        content: new Uint8Array(buffer),
         extractedText: extracted.text,
         textExtracted: extracted.extracted,
       },

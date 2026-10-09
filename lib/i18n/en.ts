@@ -615,6 +615,8 @@ export const en: Messages = {
     notExtracted: "Saved: text not extracted",
     deleteConfirm: "Delete the manual {name}?",
     error: "Upload failed.",
+    badType: "Use a PDF, TXT, or MD file.",
+    tooBig: "The file is over 12 MB.",
     auth: "Sign in to upload manuals for your company.",
     removeFail: "Could not delete the manual.",
   },

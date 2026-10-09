@@ -255,9 +255,13 @@ function extractPdfText(buffer: Buffer): string {
   const parts: string[] = [];
   const streamRe = /stream\r?\n/g;
   let match: RegExpExecArray | null;
-  while ((match = streamRe.exec(raw))) {
-    const dictStart = raw.lastIndexOf("<<", match.index);
-    const dict = dictStart >= 0 ? raw.slice(dictStart, match.index) : "";
+  let streams = 0;
+  while ((match = streamRe.exec(raw)) && streams < 400) {
+    streams += 1;
+    const windowStart = Math.max(0, match.index - 800);
+    const dictSlice = raw.slice(windowStart, match.index);
+    const rel = dictSlice.lastIndexOf("<<");
+    const dict = rel >= 0 ? dictSlice.slice(rel) : "";
     if (/DCTDecode|JPXDecode|CCITTFaxDecode|JBIG2Decode/.test(dict)) continue;
 
     const start = match.index + match[0].length;

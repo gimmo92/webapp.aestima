@@ -621,6 +621,8 @@ export const it = {
     notExtracted: "Salvato: testo non estratto",
     deleteConfirm: "Eliminare il manuale {name}?",
     error: "Caricamento non riuscito.",
+    badType: "Usa un PDF, un TXT o un MD.",
+    tooBig: "Il file supera i 12 MB.",
     auth: "Accedi per caricare i manuali della tua azienda.",
     removeFail: "Impossibile eliminare il manuale.",
   },

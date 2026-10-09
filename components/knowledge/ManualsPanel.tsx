@@ -2,7 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useI18n } from "@/lib/i18n";
-import { MANUAL_ACCEPT } from "@/lib/manualLimits";
+import { MANUAL_ACCEPT, MANUAL_MAX_BYTES } from "@/lib/manualLimits";
+
+const CHUNK_BYTES = 3 * 1024 * 1024;
 
 type ManualRow = {
   id: string;
@@ -54,24 +56,13 @@ export function ManualsPanel() {
     setUploading(true);
     setError(null);
     try {
-      const form = new FormData();
-      for (const file of files) form.append("files", file);
-      const res = await fetch("/api/manuals", { method: "POST", body: form });
-      const data = (await res.json().catch(() => null)) as {
-        manuals?: ManualRow[];
-        error?: string;
-      } | null;
-      if (res.status === 401) {
-        setError(t("manuals.auth"));
-        return;
+      let latest: ManualRow[] | null = null;
+      for (const file of files) {
+        latest = await uploadOne(file, t);
       }
-      if (!res.ok) {
-        setError(data?.error || t("manuals.error"));
-        return;
-      }
-      setManuals(data?.manuals ?? []);
-    } catch {
-      setError(t("manuals.error"));
+      if (latest) setManuals(latest);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("manuals.error"));
     } finally {
       setUploading(false);
     }
@@ -190,4 +181,46 @@ export function ManualsPanel() {
       ) : null}
     </section>
   );
+}
+
+async function uploadOne(
+  file: File,
+  t: (key: string) => string
+): Promise<ManualRow[]> {
+  const ext = file.name.match(/\.([a-z0-9]+)$/i)?.[1]?.toLowerCase() ?? "";
+  if (!["pdf", "txt", "md", "text"].includes(ext)) {
+    throw new Error(t("manuals.badType"));
+  }
+  if (file.size <= 0 || file.size > MANUAL_MAX_BYTES) {
+    throw new Error(t("manuals.tooBig"));
+  }
+
+  const uploadId = crypto.randomUUID();
+  const total = Math.max(1, Math.ceil(file.size / CHUNK_BYTES));
+  for (let index = 0; index < total; index += 1) {
+    const blob = file.slice(index * CHUNK_BYTES, (index + 1) * CHUNK_BYTES);
+    const form = new FormData();
+    form.set("uploadId", uploadId);
+    form.set("index", String(index));
+    form.set("total", String(total));
+    form.set("name", file.name);
+    form.set("file", blob, file.name);
+    const res = await fetch("/api/manuals/part", { method: "POST", body: form });
+    const data = (await res.json().catch(() => null)) as { error?: string } | null;
+    if (res.status === 401) throw new Error(t("manuals.auth"));
+    if (!res.ok) throw new Error(data?.error || t("manuals.error"));
+  }
+
+  const res = await fetch("/api/manuals/finish", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ uploadId, name: file.name, total }),
+  });
+  const data = (await res.json().catch(() => null)) as {
+    manuals?: ManualRow[];
+    error?: string;
+  } | null;
+  if (res.status === 401) throw new Error(t("manuals.auth"));
+  if (!res.ok) throw new Error(data?.error || t("manuals.error"));
+  return data?.manuals ?? [];
 }
