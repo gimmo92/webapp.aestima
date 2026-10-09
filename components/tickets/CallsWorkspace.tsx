@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useInbox } from "@/components/inbox/InboxProvider";
 import type { Customer } from "@/lib/customerTypes";
+import type { CompanyUserOption } from "@/lib/companyUsers";
 import {
   matchCustomer,
   phonesMatch,
@@ -136,7 +137,14 @@ function Field({
 }
 
 export function CallsWorkspace() {
-  const { phoneCalls, tickets, customers } = useInbox();
+  const {
+    phoneCalls,
+    tickets,
+    customers,
+    companyUsers,
+    updateTicket,
+    createTicketFromPhoneCall,
+  } = useInbox();
   const { t, dateLocale } = useI18n();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -181,13 +189,25 @@ export function CallsWorkspace() {
         customer?.email,
         ticket?.customerName,
         ticket?.customerCompany,
+        companyUsers.find((user) => user.id === ticket?.assignedTechnicianId)
+          ?.name,
       ]
         .filter(Boolean)
         .join(" ")
         .toLowerCase();
       return haystack.includes(q);
     });
-  }, [phoneCalls, query, ticketById, customers]);
+  }, [phoneCalls, query, ticketById, customers, companyUsers]);
+
+  const assignCall = (call: PhoneCallRecord, userId: string) => {
+    let ticketId = call.ticketId;
+    if (!ticketId) {
+      if (!userId) return;
+      ticketId = createTicketFromPhoneCall(call.id);
+    }
+    if (!ticketId) return;
+    updateTicket(ticketId, { assignedTechnicianId: userId || null });
+  };
 
   const selected =
     filtered.find((call) => call.id === selectedId) ?? filtered[0] ?? null;
@@ -242,6 +262,9 @@ export function CallsWorkspace() {
                   ticket?.customerName ||
                   call.phone;
                 const summary = callSummary(call, ticket);
+                const assignee = companyUsers.find(
+                  (user) => user.id === ticket?.assignedTechnicianId
+                )?.name;
                 const active = selected?.id === call.id;
                 return (
                   <li key={call.id}>
@@ -266,6 +289,9 @@ export function CallsWorkspace() {
                       <span className="flex items-center gap-2 text-[11px] text-ink-muted">
                         <OutcomeBadge outcome={call.outcome} label={t(OUTCOME_KEY[call.outcome])} />
                         <span className="truncate">{call.phone}</span>
+                        {assignee && (
+                          <span className="truncate text-ink">· {assignee}</span>
+                        )}
                       </span>
                       {summary && (
                         <span className="line-clamp-2 text-xs text-ink-muted">
@@ -301,6 +327,8 @@ export function CallsWorkspace() {
               selected.ticketId ? ticketById.get(selected.ticketId) ?? null : null
             }
             customers={customers}
+            operators={companyUsers}
+            onAssign={(userId) => assignCall(selected, userId)}
             onOpenCustomer={() => setShowCustomer(true)}
           />
         )}
@@ -333,11 +361,15 @@ function CallDetail({
   call,
   ticket,
   customers,
+  operators,
+  onAssign,
   onOpenCustomer,
 }: {
   call: PhoneCallRecord;
   ticket: ServiceTicketRecord | null;
   customers: Customer[];
+  operators: CompanyUserOption[];
+  onAssign: (userId: string) => void;
   onOpenCustomer: () => void;
 }) {
   const { t, dateLocale } = useI18n();
@@ -394,6 +426,31 @@ function CallDetail({
           )}
         </Field>
       </div>
+
+      <section className="rounded-xl border border-border bg-base/60 p-4">
+        <label className="block">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
+            {t("tickets.callLog.assign")}
+          </span>
+          <select
+            value={
+              ticket &&
+              operators.some((user) => user.id === ticket.assignedTechnicianId)
+                ? ticket.assignedTechnicianId ?? ""
+                : ""
+            }
+            onChange={(event) => onAssign(event.target.value)}
+            className="mt-2 w-full rounded-lg border border-border bg-base px-3 py-2 text-sm text-ink outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
+          >
+            <option value="">{t("tickets.callLog.unassignedOperator")}</option>
+            {operators.map((user) => (
+              <option key={user.id} value={user.id}>
+                {user.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      </section>
 
       <section className="rounded-xl border border-border bg-base/60 p-4">
         <p className="text-[11px] font-semibold uppercase tracking-wider text-ink-faint">

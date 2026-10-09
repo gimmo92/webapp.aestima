@@ -392,7 +392,7 @@ function TicketListRow({
         <p className="truncate text-xs text-ink-muted">
           {departmentLabel ? `Reparto: ${departmentLabel}` : ""}
           {departmentLabel && technicianName ? " · " : ""}
-          {technicianName ? `Tecnico: ${technicianName}` : ""}
+          {technicianName ? `Operatore: ${technicianName}` : ""}
         </p>
       )}
     </button>
@@ -542,7 +542,7 @@ function TicketDetail({
           {ticket.machineSerial ?? "—"}
         </MetaField>
         <MetaField
-          label="Tecnico assegnato"
+          label="Operatore assegnato"
           className={telephonyEnabled ? undefined : "sm:col-span-2"}
         >
           {assignedName ?? "Non assegnato"}
@@ -575,6 +575,57 @@ function TicketDetail({
             )}
           </MetaField>
         )}
+      </div>
+
+      <div className="rounded-xl border border-border bg-base/60 p-4">
+        <div className={telephonyEnabled ? "grid gap-4 sm:grid-cols-2" : ""}>
+          <div>
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
+              Assegna operatore
+            </p>
+            <UserContactSelect
+              users={companyUsers}
+              value={
+                companyUsers.some((u) => u.id === ticket.assignedTechnicianId)
+                  ? ticket.assignedTechnicianId ?? ""
+                  : ""
+              }
+              emptyLabel="Non assegnato"
+              onChange={(userId) =>
+                onUpdate(ticket.id, {
+                  assignedTechnicianId: userId || null,
+                })
+              }
+            />
+          </div>
+          {telephonyEnabled && (
+            <div>
+              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
+                Reparto
+              </p>
+              <select
+                value={
+                  ticket.department && isDepartmentId(ticket.department)
+                    ? ticket.department
+                    : ""
+                }
+                onChange={(event) =>
+                  onUpdate(ticket.id, {
+                    department: event.target.value || null,
+                  })
+                }
+                className="w-full rounded-lg border border-border bg-base px-3 py-2 text-sm text-ink outline-none focus:border-brand"
+              >
+                <option value="">Nessuno</option>
+                {DEPARTMENTS.map((id) => (
+                  <option key={id} value={id}>
+                    {DEPARTMENT_LABELS[id]}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
       </div>
 
       <TicketCallPanel
@@ -711,57 +762,6 @@ function TicketDetail({
       </div>
 
       <div className="rounded-xl border border-border bg-base/60 p-4">
-        <div className={telephonyEnabled ? "grid gap-4 sm:grid-cols-2" : ""}>
-          <div>
-            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
-              Assegna tecnico
-            </p>
-            <UserContactSelect
-              users={companyUsers}
-              value={
-                companyUsers.some((u) => u.id === ticket.assignedTechnicianId)
-                  ? ticket.assignedTechnicianId ?? ""
-                  : ""
-              }
-              emptyLabel="Non assegnato"
-              onChange={(userId) =>
-                onUpdate(ticket.id, {
-                  assignedTechnicianId: userId || null,
-                })
-              }
-            />
-          </div>
-          {telephonyEnabled && (
-            <div>
-              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
-                Reparto
-              </p>
-              <select
-                value={
-                  ticket.department && isDepartmentId(ticket.department)
-                    ? ticket.department
-                    : ""
-                }
-                onChange={(event) =>
-                  onUpdate(ticket.id, {
-                    department: event.target.value || null,
-                  })
-                }
-                className="w-full rounded-lg border border-border bg-base px-3 py-2 text-sm text-ink outline-none focus:border-brand"
-              >
-                <option value="">Nessuno</option>
-                {DEPARTMENTS.map((id) => (
-                  <option key={id} value={id}>
-                    {DEPARTMENT_LABELS[id]}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="rounded-xl border border-border bg-base/60 p-4">
         <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
           Aggiorna stato
         </p>
@@ -779,8 +779,8 @@ function TicketDetail({
                 title={
                   blocked
                     ? telephonyEnabled
-                      ? "Serve un reparto oppure un tecnico"
-                      : "Serve un tecnico"
+                      ? "Serve un reparto oppure un operatore"
+                      : "Serve un operatore"
                     : undefined
                 }
                 className="rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-medium text-ink-muted transition-colors hover:border-border-strong hover:text-ink disabled:opacity-40"
