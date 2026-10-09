@@ -117,6 +117,22 @@ const ITEMS = [
       </svg>
     ),
   },
+  {
+    href: "/ticket/chiamate",
+    key: "tickets.calls",
+    match: (path: string) =>
+      path === "/ticket/chiamate" || path.startsWith("/ticket/chiamate/"),
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path
+          d="M7 3.5h2.8l1.4 3.6-1.8 1.1a11 11 0 0 0 5.4 5.4l1.1-1.8 3.6 1.4V16a1.8 1.8 0 0 1-2 1.8A14.2 14.2 0 0 1 6.2 5.5 1.8 1.8 0 0 1 7 3.5Z"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinejoin="round"
+        />
+      </svg>
+    ),
+  },
 ] as const;
 
 export function TicketingSidebar() {
