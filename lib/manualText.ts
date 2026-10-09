@@ -1,9 +1,8 @@
 import { inflateRawSync, inflateSync } from "node:zlib";
 
-/** Estrazione testo e selezione passaggi dai manuali caricati. */
+/** Estrazione testo e selezione passaggi dai manuali caricati. Solo server. */
 
-export const MANUAL_MAX_BYTES = 12 * 1024 * 1024;
-export const MANUAL_ACCEPT = ".pdf,.txt,.md,.text";
+export { MANUAL_ACCEPT, MANUAL_MAX_BYTES } from "@/lib/manualLimits";
 
 const TEXT_EXT = new Set(["txt", "md", "text"]);
 const STORE_LIMIT = 80_000;

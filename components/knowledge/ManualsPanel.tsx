@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useI18n } from "@/lib/i18n";
-import { MANUAL_ACCEPT } from "@/lib/manualText";
+import { MANUAL_ACCEPT } from "@/lib/manualLimits";
 
 type ManualRow = {
   id: string;
