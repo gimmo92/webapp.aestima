@@ -3,7 +3,11 @@ import { getCurrentUser } from "@/lib/auth/user";
 import { prisma } from "@/lib/prisma";
 import { listCompanyManuals } from "@/lib/companyManuals";
 import { MANUAL_MAX_BYTES, manualExt } from "@/lib/manualText";
-import { backfillManualText, resolveManualText } from "@/lib/manualExtraction";
+import {
+  backfillManualText,
+  manualExtractionState,
+  resolveManualText,
+} from "@/lib/manualExtraction";
 import { formatSize } from "@/lib/uploadSourceFile";
 
 export const runtime = "nodejs";
@@ -24,11 +28,18 @@ export async function GET() {
   if (!me) {
     return NextResponse.json({ error: "Non autenticato" }, { status: 401 });
   }
-  const manuals = await listCompanyManuals(me.companyId);
-  if (manuals.some((manual) => !manual.textExtracted)) {
+  const [manuals, state] = await Promise.all([
+    listCompanyManuals(me.companyId),
+    manualExtractionState(me.companyId),
+  ]);
+  if (state.extractingIds.length > 0) {
     after(() => backfillManualText(me.companyId, 1).then(() => undefined));
   }
-  return NextResponse.json({ manuals });
+  return NextResponse.json({
+    manuals,
+    extractingIds: state.extractingIds,
+    warning: state.warning,
+  });
 }
 
 /** Upload multipart: salva i manuali della company e ne estrae il testo per la chat. */

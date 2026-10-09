@@ -5,7 +5,7 @@ import { inflateRawSync, inflateSync } from "node:zlib";
 export { MANUAL_ACCEPT, MANUAL_MAX_BYTES } from "@/lib/manualLimits";
 
 const TEXT_EXT = new Set(["txt", "md", "text"]);
-const STORE_LIMIT = 80_000;
+const STORE_LIMIT = 250_000;
 const PROMPT_BUDGET = 16_000;
 const PROMPT_PER_MANUAL = 4_500;
 const EXCERPT_LEN = 900;

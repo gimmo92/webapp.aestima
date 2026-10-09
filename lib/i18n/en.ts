@@ -615,6 +615,7 @@ export const en: Messages = {
     empty: "No manuals uploaded.",
     extracted: "Text ready for the chat",
     notExtracted: "Saved: text not extracted",
+    extracting: "Extracting text with Claude…",
     deleteConfirm: "Delete the manual {name}?",
     error: "Upload failed.",
     badType: "Use a PDF, TXT, or MD file.",

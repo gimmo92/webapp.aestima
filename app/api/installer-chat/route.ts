@@ -130,7 +130,7 @@ export async function POST(request: Request) {
             : `I manuali sono salvati ma non sono riuscito a estrarne il testo con Claude. ${reason}`,
       });
     }
-  } else if (usable.length < manuals.length) {
+  } else {
     after(() => backfillManualText(me.companyId, 1).then(() => undefined));
   }
 

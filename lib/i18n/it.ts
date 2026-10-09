@@ -621,6 +621,7 @@ export const it = {
     empty: "Nessun manuale caricato.",
     extracted: "Testo pronto per la chat",
     notExtracted: "Salvato: testo non estratto",
+    extracting: "Estrazione del testo con Claude in corso…",
     deleteConfirm: "Eliminare il manuale {name}?",
     error: "Caricamento non riuscito.",
     badType: "Usa un PDF, un TXT o un MD.",

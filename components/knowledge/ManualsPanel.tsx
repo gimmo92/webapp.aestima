@@ -22,6 +22,9 @@ export function ManualsPanel() {
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [extractingIds, setExtractingIds] = useState<string[]>([]);
+  const polls = useRef(0);
 
   const load = useCallback(async () => {
     setError(null);
@@ -36,8 +39,14 @@ export function ManualsPanel() {
         setError(t("manuals.error"));
         return;
       }
-      const data = (await res.json()) as { manuals?: ManualRow[] };
+      const data = (await res.json()) as {
+        manuals?: ManualRow[];
+        extractingIds?: string[];
+        warning?: string;
+      };
       setManuals(data.manuals ?? []);
+      setExtractingIds(data.extractingIds ?? []);
+      setNotice(data.warning ?? null);
     } catch {
       setError(t("manuals.error"));
     } finally {
@@ -48,6 +57,15 @@ export function ManualsPanel() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    if (extractingIds.length === 0 || uploading || polls.current >= 40) return;
+    const timer = window.setTimeout(() => {
+      polls.current += 1;
+      void load();
+    }, 15_000);
+    return () => window.clearTimeout(timer);
+  }, [extractingIds, uploading, load]);
 
   const upload = async (list: FileList | File[] | null) => {
     const files = list ? Array.from(list) : [];
@@ -65,6 +83,7 @@ export function ManualsPanel() {
       }
       if (latest) setManuals(latest);
       if (warnings.length > 0) setError(warnings.join(" "));
+      polls.current = 0;
     } catch (err) {
       setError(err instanceof Error ? err.message : t("manuals.error"));
     } finally {
@@ -141,6 +160,9 @@ export function ManualsPanel() {
       </button>
 
       {error && <p className="mt-3 text-sm text-warn">{error}</p>}
+      {notice && notice !== error && (
+        <p className="mt-3 text-sm text-warn">{notice}</p>
+      )}
 
       {loading ? (
         <p className="mt-3 text-sm text-ink-muted">{t("common.loading")}</p>
@@ -167,9 +189,11 @@ export function ManualsPanel() {
                   {" · "}
                   {new Date(manual.createdAt).toLocaleDateString(dateLocale)}
                   {" · "}
-                  {manual.textExtracted
-                    ? t("manuals.extracted")
-                    : t("manuals.notExtracted")}
+                  {extractingIds.includes(manual.id)
+                    ? t("manuals.extracting")
+                    : manual.textExtracted
+                      ? t("manuals.extracted")
+                      : t("manuals.notExtracted")}
                 </p>
               </div>
               <button
