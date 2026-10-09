@@ -1,6 +1,7 @@
 export const it = {
   nav: {
     assistenza: "Assistenza AI",
+    installatori: "Installatori",
     ticketing: "Ticketing",
     archivio: "Archivio",
     rapporti: "Rapporti",
@@ -581,9 +582,24 @@ export const it = {
       "I listini Excel importati da Analisi catalogo stanno nella tab Archivio ricambi, non in questa vista documenti.",
     noCustomer: "Senza cliente",
   },
+  installerChat: {
+    title: "Chat installatori",
+    hint: "Chiedi i passi di montaggio. Le risposte arrivano solo dai manuali caricati in Manuale.",
+    placeholder: "Es. come fisso il telaio al basamento?",
+    send: "Invia",
+    empty: "Scrivi una domanda sul montaggio. Rispondo solo con i manuali caricati.",
+    noManuals: "Nessun manuale con testo. Caricali in Manuale.",
+    openManuals: "Apri Manuale",
+    noText:
+      "I file sono salvati ma il testo non è stato estratto. Serve un PDF con testo selezionabile.",
+    unavailable: "Non riesco a rispondere adesso. Riprova tra poco.",
+    source: "Fonte: {name}",
+    thinking: "Cerco nel manuale…",
+    error: "Richiesta non riuscita.",
+  },
   manuals: {
     title: "Manuali per la chat",
-    hint: "I file caricati qui restano legati all'azienda e l'Assistenza AI li usa come fonte quando risponde.",
+    hint: "I file caricati qui restano legati all'azienda. La chat Installatori li usa per i passi di montaggio.",
     drop: "Trascina PDF o testo, oppure clicca per caricarli",
     formats: "PDF, TXT, MD — massimo 12 MB per file.",
     uploading: "Caricamento…",

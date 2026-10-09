@@ -3,6 +3,7 @@ import type { Messages } from "./it";
 export const en: Messages = {
   nav: {
     assistenza: "AI Support",
+    installatori: "Installers",
     ticketing: "Ticketing",
     archivio: "Archive",
     rapporti: "Service reports",
@@ -575,9 +576,24 @@ export const en: Messages = {
       "Excel price lists imported from Catalog analysis are in the Spare parts archive tab, not in this document view.",
     noCustomer: "No customer",
   },
+  installerChat: {
+    title: "Installer chat",
+    hint: "Ask for the assembly steps. Answers come only from the manuals uploaded in Knowledge base.",
+    placeholder: "e.g. how do I fix the frame to the base?",
+    send: "Send",
+    empty: "Ask an assembly question. Answers come only from the uploaded manuals.",
+    noManuals: "No manual with extracted text. Upload one in Knowledge base.",
+    openManuals: "Open manuals",
+    noText:
+      "The files are saved but the text was not extracted. Use a PDF with selectable text.",
+    unavailable: "I can't answer right now. Try again shortly.",
+    source: "Source: {name}",
+    thinking: "Looking in the manual…",
+    error: "Request failed.",
+  },
   manuals: {
     title: "Manuals for the chat",
-    hint: "Files uploaded here stay with the company and the AI assistant uses them as a source when answering.",
+    hint: "Files uploaded here stay with the company. The Installers chat uses them for assembly steps.",
     drop: "Drop a PDF or text file, or click to upload",
     formats: "PDF, TXT, MD — 12 MB per file.",
     uploading: "Uploading…",
